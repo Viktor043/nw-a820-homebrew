@@ -34,6 +34,15 @@ audiobook and podcast player that runs alongside Sony's own UI, plus a few emula
 - **English or Spanish**: chosen on the first start, changeable in Settings > Language. Settings > Reset everything
   clears the player's state (positions, settings, pairings) without touching your files.
 
+## Apps (this fork)
+
+Lua apps run full screen next to the music: put `<Name>.lua` (or a folder with `main.lua`) in `H:\Apps` and start
+it from **Juegos**; BACK held 2 s quits. Samples in `homebrew/hbapps/apps/` (a template, a stopwatch, a text reader
+that remembers your place), the API in [`docs/apps.md`](docs/apps.md), a PC simulator to try them without a Walkman,
+and a coding-agent skill in `.claude/skills/walkman-app/`. Plans for the hardware side are in [`ROADMAP.md`](ROADMAP.md).
+
+> Status: the runtime and the sample apps pass the tests in the PC simulator; they have not run on a Walkman yet.
+
 ## How it works
 
 The Walkman runs Linux 2.6.10 on an ARM926 (MP201 SoC). The official 1.02 firmware is modified in exactly three places
