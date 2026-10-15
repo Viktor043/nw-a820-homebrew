@@ -19,6 +19,7 @@ its upstream licence file. Changes made for the Walkman are listed here and, ins
 | [gpSP](https://github.com/libretro/gpsp) | `5819380c` | GPL-2.0 | GBA emulator | `cpu_threaded.c`, `gba_memory.c`, `arm/arm_stub.S` (OABI cache flush, ROM buffer, code cache in .bss) |
 | [agnes](https://github.com/kgabis/agnes) | master | MIT | NES emulator | none |
 | [doomgeneric](https://github.com/ozkl/doomgeneric) | master (2026) | GPL-2.0 | Doom | none (our platform layer is `homebrew/doom/`) |
+| [Lua](https://www.lua.org) | 5.4.7 | MIT | hbapps (app runtime) | core only: no `io`, `package`, `debug` libraries (`homebrew/hbapps/` registers a restricted `os`) |
 
 gpSP ships the open-source GBA BIOS by Normmatt (`third_party/gpsp/bios/`), so no Nintendo BIOS is needed.
 
