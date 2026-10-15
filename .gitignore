@@ -49,6 +49,8 @@ build/
 toolchain/
 # ARM binaries have no extension: each build writes one next to its script
 homebrew/doom/doom
+homebrew/hbapps/hbapps
+homebrew/hbapps/hbapps_sim
 homebrew/dspdec/dspdec
 homebrew/gba/gba
 homebrew/hbplayer/hbplayer

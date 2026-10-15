@@ -119,9 +119,38 @@ if os.path.exists(os.path.join(fw, 'install.py')) and sys.platform == 'win32':
 else:
     print('(installer test skipped: no firmware/ folder here)')
 
-# 6. the device build links only against what the Walkman has
+# 6. the app runtime (homebrew/hbapps) in its PC simulator: the runtime checks, then every sample app on a key script
+import shutil, tempfile
+ha = os.path.join(HB, 'hbapps')
+L = os.path.join(HB, 'third_party', 'lua-5.4.7')
+lua_src = [os.path.join(L, f) for f in ('lapi.c', 'lcode.c', 'lctype.c', 'ldebug.c', 'ldo.c', 'ldump.c', 'lfunc.c', 'lgc.c', 'llex.c',
+           'lmem.c', 'lobject.c', 'lopcodes.c', 'lparser.c', 'lstate.c', 'lstring.c', 'ltable.c', 'ltm.c', 'lundump.c', 'lvm.c', 'lzio.c',
+           'lauxlib.c', 'lbaselib.c', 'lcorolib.c', 'lmathlib.c', 'lstrlib.c', 'ltablib.c', 'lutf8lib.c', 'loslib.c')]
+sim = os.path.join(OUT, 'hbapps_sim.exe')
+ok, _ = cc(sim, [os.path.join(ha, 'hbapps.c'), os.path.join(p, 'screens.c'), os.path.join(HB, 'common', 'gfx.c')] + lua_src, ['-I' + L])
+if ok:
+    tmp = tempfile.mkdtemp()
+    shutil.copytree(os.path.join(HERE, 'apps'), os.path.join(tmp, 'Apps', 'T'))
+    shutil.copytree(os.path.join(ha, 'apps'), os.path.join(tmp, 'Apps'), dirs_exist_ok=True)
+    def sim_run(app, keys):
+        env = dict(os.environ, HB_CONTENTS=tmp, HB_KEYS=keys, HB_LANG='en', HB_SHOTS=tmp)
+        r = subprocess.run([sim, os.path.join(tmp, 'Apps', app)], capture_output=True, text=True, env=env, cwd=tmp, timeout=60)
+        return r.returncode, (r.stdout + r.stderr).strip()
+    rc, out = sim_run(os.path.join('T', 'runtime_test.lua'), 'down play back back')
+    step('app runtime checks (simulator)', rc == 0 and 'runtime_test: ok' in out, out[-300:])
+    for app, keys in (('Hello.lua', 'play down play none back back'), ('Stopwatch.lua', 'play option play option back'),
+                      (os.path.join('Reader', 'main.lua'), 'back')):
+        rc, out = sim_run(app, keys)
+        step('sample app %s (simulator)' % app.replace(os.sep, '/'), rc == 0, out[-300:])
+    shutil.rmtree(tmp, ignore_errors=True)
+else:
+    step('app simulator (build)', False)
+
+# 7. the device build links only against what the Walkman has
 rc, out = run(['sh', os.path.join(p, 'build.sh')])
 step('device build (hbplayer)', rc == 0 and 'NEEDED OK' in out, '' if rc == 0 else out[-500:])
+rc, out = run(['sh', os.path.join(ha, 'build.sh')])
+step('device build (hbapps)', rc == 0 and 'NEEDED OK' in out, '' if rc == 0 else out[-500:])
 
 bad = [n for n, ok in results if not ok]
 print('\n%d/%d passed' % (len(results) - len(bad), len(results)) + ('' if not bad else '; FAILED: ' + ', '.join(bad)))
