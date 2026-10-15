@@ -1,10 +1,14 @@
 #include "gfx.h"
+/* HB_PC: the PC build (screenshots, tests, the app simulator): no /dev/fb/0, no ioctls. Windows builds always are. */
+#if defined(_WIN32) && !defined(HB_PC)
+#define HB_PC
+#endif
 #include "font8x16.h"
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#ifndef _WIN32
+#ifndef HB_PC
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <unistd.h>
@@ -19,7 +23,7 @@ int gfx_open(void)
 	fb = calloc(W * H, 2);
 	shown = calloc(W * H, 2);
 	if (!fb || !shown) return -1;
-#ifndef _WIN32
+#ifndef HB_PC
 	int fd = open("/dev/fb/0", O_RDWR);
 	if (fd < 0) return -1;
 	gfx_fd = fd;
@@ -113,7 +117,7 @@ void gfx_slide(int dir, void (*between)(void))
 static int lcd_off;
 void gfx_lcd(int on)
 {
-#ifndef _WIN32
+#ifndef HB_PC
 	if (gfx_fd < 0 || lcd_off == !on) return;
 	int v = !on;
 	if (ioctl(gfx_fd, 0x40044E35, &v) == 0) lcd_off = !on;
@@ -128,7 +132,7 @@ void gfx_lcd(int on)
  * fallbacks: 'N' 12 { 0..5, flag } and the old call. */
 int gfx_backlight(int level)
 {
-#ifndef _WIN32
+#ifndef HB_PC
 	if (level < 0) level = 0;
 	if (level > 100) level = 100;
 	int set[3] = { level, 1, 10 };
@@ -153,7 +157,7 @@ static const unsigned char *map_file(const char *path, long *len)
 	if (!f) return 0;
 	fseek(f, 0, SEEK_END); *len = ftell(f); fseek(f, 0, SEEK_SET);
 	const unsigned char *p = 0;
-#ifndef _WIN32
+#ifndef HB_PC
 	p = mmap(0, *len, PROT_READ, MAP_PRIVATE, fileno(f), 0);
 	if (p == MAP_FAILED) p = 0;
 #else
