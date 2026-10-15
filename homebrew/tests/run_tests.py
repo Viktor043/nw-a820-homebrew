@@ -8,12 +8,14 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 HB = os.path.dirname(HERE)
 ZIG = os.environ.get('ZIG') or os.path.join(os.path.dirname(HB), 'toolchain', 'zig-x86_64-windows-0.15.2', 'zig.exe')
 OUT = os.path.join(HERE, 'out')
+# host build target: Windows as before; on Linux / macOS the tests build and run natively (HB_TARGET overrides)
+TARGET = os.environ.get('HB_TARGET') or ('x86_64-windows-gnu' if sys.platform == 'win32' else 'native')
 os.makedirs(OUT, exist_ok=True)
 results = []
 
 
 def cc(exe, sources, extra=()):
-    cmd = [ZIG, 'cc', '-target', 'x86_64-windows-gnu', '-O1', '-g', '-Wall', '-Wno-unused-function', '-o', exe] + list(extra) + sources
+    cmd = [ZIG, 'cc', '-target', TARGET, '-DHB_PC', '-O1', '-g', '-Wall', '-Wno-unused-function', '-o', exe] + list(extra) + sources
     r = subprocess.run(cmd, capture_output=True, text=True)
     errs = [l for l in r.stderr.splitlines() if 'error' in l]
     if r.returncode:
