@@ -24,7 +24,8 @@ static const struct tr tab[] = {
 	{ "Copialos desde la PC y volvé a entrar.", "Copy it from the PC and come back." },
 	{ "Copiá carpetas a H:\\Audiolibros", "Copy folders to H:\\Audiolibros" },
 	{ "Copiá carpetas a H:\\Podcasts", "Copy folders to H:\\Podcasts" },
-	{ "Copiá juegos a H:\\Juegos (GB), Juegos\\GBA, Juegos\\NES, Juegos\\Doom", "Copy games to H:\\Juegos (GB), Juegos\\GBA, Juegos\\NES, Juegos\\Doom" },
+	{ "Copiá juegos a H:\\Juegos (GB), Juegos\\GBA, Juegos\\NES, Juegos\\Doom y apps a H:\\Apps", "Copy games to H:\\Juegos (GB), Juegos\\GBA, Juegos\\NES, Juegos\\Doom and apps to H:\\Apps" },
+	{ "BACK 2 s: salir de la app", "BACK 2 s: quit the app" }, { "Falta hbapps en H:/HB/bin", "hbapps is missing from H:/HB/bin" },
 	{ "No hay nada sonando", "Nothing is playing" }, { "%d canciones", "%d songs" }, { "canción", "song" },
 	{ "Terminados", "Finished" }, { "En cola", "Queued" }, { "en cola", "queued" },
 	/* playback */

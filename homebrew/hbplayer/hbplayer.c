@@ -1436,12 +1436,27 @@ reload:;
 static struct item games[MAXITEMS];
 static char game_kind[MAXITEMS];	/* 'g' Game Boy, 'n' NES, 'd' Doom */
 static const char *ga_label(int i) { return games[i].name; }
-static const char *ga_value(int i) { return game_kind[i] == 'n' ? "NES" : game_kind[i] == 'd' ? "Doom" : game_kind[i] == 'a' ? "GBA" : "GB"; }
+static const char *ga_value(int i) { return game_kind[i] == 'n' ? "NES" : game_kind[i] == 'd' ? "Doom" : game_kind[i] == 'a' ? "GBA" : game_kind[i] == 'l' ? "App" : "GB"; }
 
 static int add_games(int n, const char *dir, const char *ext, char kind)
 {
 	int m = list_dir(dir, 0, ext, 0);
 	for (int i = 0; i < m && n < MAXITEMS; i++) { games[n] = items[i]; game_kind[n++] = kind; }
+	return n;
+}
+
+/* Lua apps for hbapps (homebrew/hbapps): H:\Apps\<Name>.lua, or a folder H:\Apps\<Name>\ with a main.lua */
+static int add_apps(int n)
+{
+	n = add_games(n, "/contents/Apps", ".lua", 'l');
+	int m = list_dir("/contents/Apps", 1, 0, 0);
+	for (int i = 0; i < m && n < MAXITEMS; i++) {
+		char p[PATHLEN + 16]; snprintf(p, sizeof p, "%s/main.lua", items[i].path);
+		if (access(p, R_OK)) continue;
+		games[n] = items[i];
+		snprintf(games[n].path, PATHLEN, "%s", p);
+		game_kind[n++] = 'l';
+	}
 	return n;
 }
 
@@ -1490,30 +1505,32 @@ static void games_menu(void)
 	n = add_games(n, "/contents/Juegos/GBA", ".gba", 'a');
 	n = add_games(n, "/contents/Juegos/NES", ".nes", 'n');
 	n = add_games(n, "/contents/Juegos/Doom", ".wad", 'd');
-	struct list_view v = { "Juegos", n, 0, 0, ga_label, ga_value, 0, LI_NONE, "Copiá juegos a H:\\Juegos (GB), Juegos\\GBA, Juegos\\NES, Juegos\\Doom", 0 };
+	n = add_apps(n);
+	struct list_view v = { "Juegos", n, 0, 0, ga_label, ga_value, 0, LI_NONE, "Copiá juegos a H:\\Juegos (GB), Juegos\\GBA, Juegos\\NES, Juegos\\Doom y apps a H:\\Apps", 0 };
 	for (;;) {
 		int s = list_run(&v);
 		if (s < 0) return;
 		char kind = game_kind[s];
-		const char *bin = kind == 'n' ? HB_BIN "/nes" : kind == 'd' ? HB_BIN "/doom" : kind == 'a' ? HB_BIN "/gba" : HB_BIN "/gnuboy";
-		const char *title = kind == 'n' ? "NES" : kind == 'd' ? "Doom" : kind == 'a' ? "Game Boy Advance" : "Game Boy";
-		if (access(bin, X_OK)) { message(title, "Falta el emulador en H:/HB/bin", ""); msg_wait(3); continue; }
+		const char *bin = kind == 'n' ? HB_BIN "/nes" : kind == 'd' ? HB_BIN "/doom" : kind == 'a' ? HB_BIN "/gba" : kind == 'l' ? HB_BIN "/hbapps" : HB_BIN "/gnuboy";
+		const char *title = kind == 'n' ? "NES" : kind == 'd' ? "Doom" : kind == 'a' ? "Game Boy Advance" : kind == 'l' ? "App" : "Game Boy";
+		if (access(bin, X_OK)) { message(title, kind == 'l' ? "Falta hbapps en H:/HB/bin" : "Falta el emulador en H:/HB/bin", ""); msg_wait(3); continue; }
 		int with_music = eng_playing();
-		const char *hint = kind == 'd' ? "PLAY dispara · OPTION usa · BT corre · VOL: lateral · BACK: menú, 2 s: salir"
+		const char *hint = kind == 'l' ? "BACK 2 s: salir de la app"
+			: kind == 'd' ? "PLAY dispara · OPTION usa · BT corre · VOL: lateral · BACK: menú, 2 s: salir"
 			: kind == 'n' ? "PLAY = A · OPTION = B · BACK = Start (2 s: salir) · BT = Select"
 			: kind == 'a' ? "PLAY = A · OPTION = B · VOL = L/R · BACK = Start (2 s: salir) · BT 2 s: menú"
 			: with_music ? "Con tu música de fondo. BACK 2 s: salir. BT 2 s: menú." : "BACK 2 s: salir. BT 2 s: menú del juego.";
 		message(title, games[s].name, hint);
 		if (kind == 'd' || kind == 'a') with_music = 0;	/* Doom and the GBA need the whole CPU */
 		if (kind == 'd' || kind == 'a') eng_pause(1);
-		for (double t0 = now(); now() - t0 < 1.5; ) poll_key(100);
+		for (double t0 = now(); now() - t0 < (kind == 'l' ? 0.6 : 1.5); ) poll_key(100);
 		char savedir[PATHLEN + 8], volb[8];
 		snprintf(savedir, sizeof savedir, "%s/gb", statedir);
 		mkdir(savedir, 0755);
 		snprintf(volb, sizeof volb, "%d", volume);
 		if (!with_music) { aout_stop(); aout_hw_unity(); }
 		lg("gnuboy %s (music %d)", games[s].path, with_music);
-		set_cpu(248);
+		if (kind != 'l') set_cpu(248);	/* apps are menus and text: the CPU stays at 124 MHz */
 		/* music must never starve: the player gets priority, the emulator runs niced */
 		if (with_music) { setpriority(PRIO_PROCESS, 0, -3); eng_lowpower(1); }
 		pid_t p = fork();
@@ -1529,6 +1546,7 @@ static void games_menu(void)
 			int o = open(logfn, O_WRONLY | O_CREAT | O_TRUNC, 0644);
 			if (o >= 0) { dup2(o, 1); dup2(o, 2); }
 			if (kind == 'd') execl(bin, "doom", "-iwad", games[s].path, "-mb", "5", (char *)0);
+			else if (kind == 'l') execl(bin, "hbapps", games[s].path, (char *)0);
 			else execl(bin, kind == 'n' ? "nes" : kind == 'a' ? "gba" : "gnuboy", games[s].path, (char *)0);
 			_exit(127);
 		}
