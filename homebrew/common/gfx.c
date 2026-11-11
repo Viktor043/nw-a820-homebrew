@@ -171,6 +171,38 @@ static const unsigned char *map_file(const char *path, long *len)
 static unsigned rd32(const unsigned char *p) { return p[0] | p[1] << 8 | p[2] << 16 | (unsigned)p[3] << 24; }
 static unsigned rd16(const unsigned char *p) { return p[0] | p[1] << 8; }
 
+/* NW-A91x: its dui_tex.dpk has the same textures in another order, some groups nested one level deeper. The code
+ * keeps using the NW-A82x (group, item) ids; tex_a91x.h maps them to the A91x paths */
+#include "tex_a91x.h"
+static int tex_a91x;
+#define A91X_N ((int)(sizeof a91x_tex / sizeof *a91x_tex))
+
+/* offset of the node at path p[0..n-1] (each level: u32 size?, u32 count, 8 zero bytes, then 16-byte entries whose
+ * third u32 is the child's offset relative to the node; the file itself is the root at 0), or 0 */
+static unsigned tex_walk(const int *p, int n)
+{
+	unsigned o = 0;
+	for (int k = 0; k < n; k++) {
+		if (o + 16 > (unsigned)texlen || p[k] < 0 || (unsigned)p[k] >= rd32(texdata + o + 4)) return 0;
+		if (o + 16 + (unsigned)p[k] * 16 + 16 > (unsigned)texlen) return 0;
+		o += rd32(texdata + o + 16 + p[k] * 16 + 8);
+	}
+	return o + 16 <= (unsigned)texlen ? o : 0;
+}
+
+/* offset of texture (group, item) by its NW-A82x id, or 0 */
+static unsigned tex_off(int group, int item)
+{
+	if (!texdata || group < 0 || item < 0) return 0;
+	if (!tex_a91x) { int p[2] = { group, item }; return tex_walk(p, 2); }
+	for (int k = 0; k < A91X_N; k++)
+		if (a91x_tex[k].g == group && a91x_tex[k].i == item) {
+			int p[3] = { a91x_tex[k].p0, a91x_tex[k].p1, a91x_tex[k].p2 };
+			return tex_walk(p, p[2] < 0 ? 2 : 3);
+		}
+	return 0;
+}
+
 /* Sony font, sub-font 0 (Latin / Latin-1 / Cyrillic, 22 px, 1 bit per pixel) */
 static const unsigned char *fsub;
 static unsigned ffirst, flast, fmtab, fbmp;
@@ -183,6 +215,7 @@ int gfx_load_res(const char *resdir)
 	char p[512];
 	snprintf(p, sizeof p, "%s/dui_tex/dui_tex.dpk", resdir);
 	texdata = map_file(p, &texlen);
+	tex_a91x = texdata && texlen > 16 && rd32(texdata + 4) == 28;	/* NW-A91x (the A82x has 35 groups) */
 	snprintf(p, sizeof p, "%s/dui_tex/ICX1115_home_anim.dpk", resdir);	/* Japanese NW-A82x */
 	animdata = map_file(p, &animlen);
 	if (!animdata) {	/* international NWZ-A82x: same layout, its own icons */
@@ -203,11 +236,8 @@ int gfx_load_res(const char *resdir)
 struct img gfx_tex(int group, int item)
 {
 	struct img im = { 0, 0, 0 };
-	if (!texdata || group < 0 || (unsigned)group >= rd32(texdata + 4)) return im;
-	unsigned go = rd32(texdata + 16 + group * 16 + 8);
-	if (go + 16 > (unsigned)texlen || item < 0 || (unsigned)item >= rd32(texdata + go + 4)) return im;
-	unsigned io = go + rd32(texdata + go + 16 + item * 16 + 8);
-	if (io + 16 > (unsigned)texlen) return im;
+	unsigned io = tex_off(group, item);
+	if (!io) return im;
 	im.w = rd16(texdata + io); im.h = rd16(texdata + io + 2);
 	if (io + 16 + (unsigned)(im.w * im.h * 2) > (unsigned)texlen) { im.w = im.h = 0; return im; }
 	im.px = (const uint16_t *)(texdata + io + 16);
@@ -229,15 +259,10 @@ static int sony_digits(int x, int y, const char *s, uint16_t c, int draw)
 	for (; *s; s++) {
 		int it = digit_item((unsigned char)*s);
 		const unsigned char *px = 0; int w = 0, h = 0;
-		if (it >= 0 && texdata && 31 < rd32(texdata + 4)) {
-			unsigned go = rd32(texdata + 16 + 31 * 16 + 8);
-			if (go + 16 <= (unsigned)texlen && (unsigned)it < rd32(texdata + go + 4)) {
-				unsigned io = go + rd32(texdata + go + 16 + it * 16 + 8);
-				if (io + 16 <= (unsigned)texlen && rd16(texdata + io + 4) == 4) {
-					w = rd16(texdata + io); h = rd16(texdata + io + 2);
-					if (io + 16 + (unsigned)(w * h) <= (unsigned)texlen) px = texdata + io + 16; else w = 0;
-				}
-			}
+		unsigned io = it >= 0 ? tex_off(31, it) : 0;
+		if (io && rd16(texdata + io + 4) == 4) {
+			w = rd16(texdata + io); h = rd16(texdata + io + 2);
+			if (io + 16 + (unsigned)(w * h) <= (unsigned)texlen) px = texdata + io + 16; else w = 0;
 		}
 		if (!px) { char one[2] = { *s, 0 }; x += draw ? gfx_text(x, y - 2, one, c, 1) - x : gfx_text_w(one, 1); continue; }
 		if (draw)
@@ -263,7 +288,13 @@ int gfx_digits_w(const char *s) { return sony_digits(0, 0, s, 0, 0); }
 
 int gfx_tex_n(int group)
 {
-	if (!texdata || group < 0 || (unsigned)group >= rd32(texdata + 4)) return 0;
+	if (!texdata || group < 0) return 0;
+	if (tex_a91x) {	/* the A82x group's size: its highest mapped item + 1 (gfx_tex gives w = 0 for the gaps) */
+		int n = 0;
+		for (int k = 0; k < A91X_N; k++) if (a91x_tex[k].g == group && a91x_tex[k].i + 1 > n) n = a91x_tex[k].i + 1;
+		return n;
+	}
+	if ((unsigned)group >= rd32(texdata + 4)) return 0;
 	unsigned go = rd32(texdata + 16 + group * 16 + 8);
 	return go + 16 > (unsigned)texlen ? 0 : (int)rd32(texdata + go + 4);
 }

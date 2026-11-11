@@ -510,10 +510,16 @@ static void release_handle(void)
 	h = 0; C = 0; cur_codec = -1;
 }
 
+/* NW-A91x: its firmware has only the direct cfg (no audio_ftb components). Then the helper starts with no core up
+ * (as after X), direct sessions bring the direct core up as usual, and every FTB session (O, P, M with direct 0)
+ * fails with PF_ERR, so the player decodes those on the ARM */
+static int no_ftb;
+
 /* bring the OMF core up in mode m (1 FTB, 0 direct); switching modes reloads the DSP */
 static int core_up(int m)
 {
 	if (core_mode == m) return 1;
+	if (m == 1 && no_ftb) { LOG("FTB mode: this firmware has no %s", CFG_FTB); return 0; }	/* before any teardown */
 	if (core_mode >= 0) {
 		release_handle();
 		OMX_Deinit();
@@ -992,6 +998,8 @@ static void teardown_exit(int rc)
 static int omx_up(void)
 {
 	if (pipe(evpipe) < 0) return 0;
+	no_ftb = access(CFG_FTB, R_OK) != 0;
+	if (no_ftb) { LOG("no FTB cfg (NW-A91x): idle, direct sessions only"); return 1; }	/* /dev/sound/dsp stays the player's */
 	return core_up(1);
 }
 

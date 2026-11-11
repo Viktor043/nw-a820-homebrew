@@ -262,7 +262,7 @@ static void batt_icon(int x, int y)
 	int lvl = ui_st.batt >= 95 ? 5 : ui_st.batt / 20;
 	struct img b = gfx_tex(23, items[lvl < 0 ? 0 : lvl > 5 ? 5 : lvl]);
 	if (b.w) blit_barkey(b, x, y);
-	else { char s[8]; snprintf(s, sizeof s, "%d%%", ui_st.batt); gfx_text(x, y, s, C_WHITE, 1); }
+	else { char s[8]; snprintf(s, sizeof s, "%d%%", ui_st.batt); gfx_text(W - 2 - gfx_text_w(s, 1), y, s, C_WHITE, 1); }	/* no icon: the number, kept on screen */
 	if (ui_st.charging) gfx_text(x - 9, y - 1, "+", C_ORANGE, 1);
 }
 
