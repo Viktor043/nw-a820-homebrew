@@ -315,9 +315,21 @@ static void screen_menu(void)
 	}
 }
 
+/* Ajustes > Cambiar al Walkman de Sony: asks once (a list row is easy to press by accident), then leaves; the
+ * Walkman stays in Sony's firmware, power-offs included, until HOME + VOL- are held 2 s there */
+static void switch_menu(void)
+{
+	snprintf(items[0], 48, "Cambiar ahora"); snprintf(items[1], 48, "Cancelar");
+	values[0][0] = values[1][0] = 0;
+	scr_message("Cambiar al Walkman de Sony", "El Walkman arranca en el firmware de Sony hasta que vuelvas.", "Volver: HOME y VOL- juntos 2 s.");
+	gfx_flip(); msg_wait(3);
+	struct list_view v = { "Cambiar al Walkman de Sony", 2, 1, 0, it_label, it_value, 0, LI_NONE, 0, 0 };
+	if (list_run(&v) == 0) switch_to_sony();
+}
+
 void settings_menu(void)
 {
-	struct list_view v = { "Ajustes", 10, 0, 0, it_label, it_value, 0, LI_NONE, 0, 0 };
+	struct list_view v = { "Ajustes", 11, 0, 0, it_label, it_value, 0, LI_NONE, 0, 0 };
 	for (;;) {
 		snprintf(items[0], 48, "Sonido"); snprintf(values[0], 24, "%s", eng_not_direct(0) ? "efectos" : "máx. batería");
 		snprintf(items[1], 48, "Pantalla"); values[1][0] = 0;
@@ -327,8 +339,9 @@ void settings_menu(void)
 		snprintf(items[5], 48, "Pitido"); snprintf(values[5], 24, "%s", ui_beep ? "sí" : "no");
 		snprintf(items[6], 48, "Idioma"); snprintf(values[6], 24, "%s", ui_lang ? "English" : "Español");
 		snprintf(items[7], 48, "Walkman de Sony: ahorro"); snprintf(values[7], 24, "%s", access(SONY124, F_OK) ? "no" : "sí");
-		snprintf(items[8], 48, "Restablecer todo"); values[8][0] = 0;
-		snprintf(items[9], 48, "Acerca de"); values[9][0] = 0;
+		snprintf(items[8], 48, "Cambiar al Walkman de Sony"); values[8][0] = 0;
+		snprintf(items[9], 48, "Restablecer todo"); values[9][0] = 0;
+		snprintf(items[10], 48, "Acerca de"); values[10][0] = 0;
 		int s = list_run(&v);
 		if (s < 0) return;
 		if (s == 0) sound_menu(0);
@@ -339,7 +352,8 @@ void settings_menu(void)
 		else if (s == 5) { ui_beep = !ui_beep; settings_save(); beep(BEEP_ONE); }	/* turning it on beeps once, like Sony */
 		else if (s == 6) { ui_lang_set(!ui_lang); settings_save(); }
 		else if (s == 7) sony_clock_menu();
-		else if (s == 8) reset_menu();
-		else if (s == 9) about_screen();
+		else if (s == 8) switch_menu();
+		else if (s == 9) reset_menu();
+		else if (s == 10) about_screen();
 	}
 }

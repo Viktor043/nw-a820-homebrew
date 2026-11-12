@@ -74,7 +74,8 @@ void eng_stop(void);
 void eng_pause(int p);
 void eng_toggle(void);
 void eng_next(void);
-void books_menu(void);		/* reader.c: EPUB / TXT from /contents/Libros */
+void books_menu(void);
+void switch_to_sony(void);		/* Ajustes: leave for the Sony UI (and boot into it next time) */		/* reader.c: EPUB / TXT from /contents/Libros */
 extern int ui_book_size, ui_book_land;	/* reader.c: zoom and orientation (pos.txt "book") */
 extern int ui_fullscreen, ui_keep_awake;
 int volume_key(int k);			/* VOL+ / VOL- from any screen (hbplayer.c) */	/* a landscape page owns the whole screen (no strip refresh, no popups); never dark */

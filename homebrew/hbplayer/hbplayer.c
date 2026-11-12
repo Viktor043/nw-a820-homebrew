@@ -2,7 +2,7 @@
  *
  *   hbplayer ask SECONDS       boot prompt: exit 0 if HOME is pressed within SECONDS, else 1
  *   hbplayer run STATEDIR      the player (library in /contents/Music, /contents/Audiolibros, /contents/Podcasts)
- *   hbplayer watch STATEDIR    background helper next to the Sony UI: HOME held 3 s reboots into the player
+ *   hbplayer watch STATEDIR    background helper next to the Sony UI: HOME + VOL- held 2 s reboots into the player
  *
  * UI: Sony's own textures, font and home animation (screens.c), double buffered, slide transitions.
  * Playback runs in the background (engine.c): every UI loop calls eng_step(). Keys (../common/keys.h).
@@ -405,7 +405,8 @@ static void drain_keys(void)
 
 static void back_to_sony(void);
 static void usb_check(void);
-/* back_since (above): BACK/HOME held down since (0 = up): 3 s anywhere returns to the Sony UI */
+/* back_since (above): BACK/HOME held down since (0 = up). Holding it no longer leaves the player (it happened by
+ * accident, in games too): Ajustes > Cambiar al Walkman de Sony does that */
 
 #ifdef HB_DEV
 /* on-device UI tests (hbtest build): HB_KEYS=file plays keys from a script, one command per line: a key name (PLAY UP
@@ -456,10 +457,8 @@ int getkey(int timeout_ms)
 		if (ks) { int until = (int)((ks_next - now()) * 1000); if (until < 0) until = 0; if (timeout_ms > until) timeout_ms = until; }
 	}
 #endif
-	if (back_since && now() - back_since >= 3) { back_since = 0; lg("HOME held 3 s: back to the Sony UI"); back_to_sony(); }
 	if (force_redraw) { force_redraw = 0; return K_REDRAW; }
 	if (held_code >= 0 && timeout_ms > 90) timeout_ms = 90;
-	if (back_since && timeout_ms > 200) timeout_ms = 200;
 	if (!raw_event(&e, timeout_ms)) {
 		double every = held_code == K_VOLUP || held_code == K_VOLDN ? 0.15 : 0.09;	/* volume steps a bit slower */
 		if (held_code >= 0 && now() - held_since > 0.4 && now() - last_repeat > every) { last_repeat = now(); wake(); return held_code; }
@@ -500,6 +499,7 @@ static int poll_key(int ms)
 
 static void suspend_now(void);
 static void power_off_full(const char *why);
+static void mode_set(const char *m);
 
 /* CPU clock via /proc/pm ("M248" / "M124" / "M83"): the Sony UI switches the same way */
 void set_cpu(int mhz)
@@ -1139,14 +1139,24 @@ static void suspend_now(void)
 	if (alarm_due()) alarm_ring(); else bt_auto_start();
 }
 
+/* a real power-off: everything saved and unmounted, the screen dark, then the kernel's power-off, asked again until
+ * it happens (it used to sleep 30 s and fall back into the UI on read-only storage if the first call failed). The
+ * mode file still says "player", so the next power-on comes back here; from the Sony UI it says "sony". */
 static void power_off_full(const char *why)
 {
 	lg("power off: %s", why);
+	mode_set("player");
 	scr_poweroff(); gfx_flip();
 	prepare_shutdown();
-	sleep(2);
-	reboot(0x4321FEDC);	/* RB_POWER_OFF, what the Sony UI does */
-	sleep(30);
+	sleep(1);
+	gfx_backlight(0); gfx_lcd(0);
+	for (int i = 0; ; i++) {
+		sync();
+		reboot(0x4321FEDC);	/* RB_POWER_OFF, what the Sony UI does: only returns if it failed */
+		if (i == 0) system("poweroff -f > /dev/null 2>&1");
+		if (i == 1) system("halt -f -p > /dev/null 2>&1");
+		sleep(3);
+	}
 }
 
 /* which UI the unit boots into next time: <statedir>/mode = "player" | "sony" (the boot script reads it, so there
@@ -1182,6 +1192,7 @@ static void leave_player(const char *splash, int rc)
 
 /* back to the Sony UI without a reboot, several seconds sooner than a reboot */
 static void back_to_sony(void) { leave_player("Volviendo al Walkman...", 0); }
+void switch_to_sony(void) { back_to_sony(); }	/* Ajustes > Cambiar al Walkman de Sony: the next boot is Sony's too */
 
 /* a computer has enumerated the Walkman as a disk: status 1 from Sony's usbconn driver (the one Sony's apl_conn
  * waits on; a charger never gets past "connecting"). Checked once a second. /tmp/hb_usb_off = the last hand-over
@@ -1637,8 +1648,7 @@ static void power_menu(void)
 {
 	snprintf(pw_items[0], 40, "Suspender");
 	snprintf(pw_items[1], 40, "Apagar del todo");
-	snprintf(pw_items[2], 40, "Volver al Walkman (Sony)");
-	struct list_view v = { "Apagar", 3, 0, 0, pw_label, 0, 0, LI_NONE, 0, 0 };
+	struct list_view v = { "Apagar", 2, 0, 0, pw_label, 0, 0, LI_NONE, 0, 0 };	/* to Sony's Walkman: Ajustes */
 	int s = list_run(&v);
 	if (s == 0) suspend_now();
 	else if (s == 1) {
@@ -1653,7 +1663,6 @@ static void power_menu(void)
 		}
 		power_off_full("menu");
 	}
-	else if (s == 2) back_to_sony();
 }
 
 static int resume_last(void);
@@ -1863,7 +1872,7 @@ static void first_run(void)
 	while ((s = list_run(&v)) < 0) ;
 	ui_lang_set(s == 1);
 	settings_save();
-	scr_message("Bienvenido", "HOME 3 s en cualquier pantalla: volver al Walkman de Sony.", "En el Walkman de Sony, HOME 3 s: volver acá.");
+	scr_message("Bienvenido", "Ajustes > Cambiar al Walkman de Sony: al firmware de Sony.", "En el Walkman de Sony, HOME y VOL- juntos 2 s: volver acá.");
 	gfx_text_wrap(14, 220, "OPTION: más opciones en casi todas las pantallas.", C_GREY, W - 28, 2, 22);
 	gfx_flip();
 	int k;

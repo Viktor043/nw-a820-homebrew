@@ -1,4 +1,5 @@
-/* hbwatch: the small helper that runs next to the Sony UI. Holding HOME for 3 s writes the "boot into the player"
+/* hbwatch: the small helper that runs next to the Sony UI. Holding HOME and VOL- together for 2 s (HOME alone held
+ * by accident did it before) writes the "boot into the player"
  * flag, stops the Sony UI, shows the Walkman splash and reboots (the dual-boot script then starts the player).
  * It replaces "hbplayer watch": the 2 MB player (audio, network, TLS, decoders) used to sit in RAM next to the Sony
  * UI, which only has ~2.4 MB free, just to watch one key.
@@ -70,18 +71,19 @@ static void lg_flush(const char *statedir)
  * events stopped reaching us (2026-10-14), while the state can always be read. This driver reports a press as
  * value 0, so which bit value means "down" is not assumed: the other keys, which nobody holds all at once, show the
  * value for "up". 1 down, 0 up, -1 unknown */
-static int home_state(int fd)
+static int key_state(int fd, int code)
 {
 	unsigned char k[64];
 	memset(k, 0, sizeof k);
 	if (ioctl(fd, 0x80404518, k) < 0) return -1;	/* EVIOCGKEY(64) */
-	static const int others[] = { K_PLAY, K_RIGHT, K_LEFT, K_UP, K_DOWN, K_VOLDN, K_VOLUP, K_OPTION, K_BT };
+	static const int others[] = { K_PLAY, K_RIGHT, K_LEFT, K_UP, K_DOWN, K_VOLUP, K_OPTION, K_BT };	/* not HOME, not VOL- */
 	int ones = 0, n = sizeof others / sizeof *others;
 	for (int i = 0; i < n; i++) ones += (k[others[i] >> 3] >> (others[i] & 7)) & 1;
 	if (ones != 0 && ones != n) return -1;	/* keys disagree: someone holds some of them, no verdict */
-	int up = ones ? 1 : 0, home = (k[K_BACK >> 3] >> (K_BACK & 7)) & 1;
-	return home != up;
+	int up = ones ? 1 : 0, bit = (k[code >> 3] >> (code & 7)) & 1;
+	return bit != up;
 }
+static int home_state(int fd) { return key_state(fd, K_BACK); }
 
 int main(int argc, char **argv)
 {
@@ -93,12 +95,13 @@ int main(int argc, char **argv)
 	int seen_up = 0;	/* the key state has shown HOME up once: only then is a "down" in it believed (a wrong reading, or
 				 * HOME still held from leaving the player, must never reboot the Walkman) */
 	double t = 0, upat = 0;	/* t: start of the hold; upat: when HOME last came up */
-	int reps = 0;
+	int reps = 0, vdn = 0;	/* vdn: VOL- is down too */
+	double both = 0;	/* since when HOME and VOL- are both down (0 = not both) */
 	for (;;) {
 		struct ev e;
 		fd_set rs; FD_ZERO(&rs); FD_SET(fd, &rs);
-		struct timeval tv = { 0, down ? 300000 : 0 };
-		if (!down) tv.tv_sec = 1;	/* idle: one wake-up a second, for the key state */
+		struct timeval tv = { 0, down || vdn ? 200000 : 0 };
+		if (!down && !vdn) tv.tv_sec = 1;	/* idle: one wake-up a second, for the key state */
 		int r = select(fd + 1, &rs, 0, 0, &tv);
 		if (r > 0) {
 			ssize_t n = read(fd, &e, sizeof e);
@@ -126,7 +129,8 @@ int main(int argc, char **argv)
 					lg(statedir, "HOME up (value %d) after %d ms, key state %d", e.value, (int)((now() - t) * 1000), home_state(fd));
 					down = 0; polled = 0; upat = now();
 				}
-				else { if (down || (e.code & 0x7f) == K_BACK) lg(statedir, "key %d value %d (cancels)", e.code, e.value); down = 0; t = 0; }
+				else if (e.code == K_VOLDN) { if (e.value != 2) { vdn = KEY_PRESSED(e.value); lg(statedir, "VOL- %s", vdn ? "down" : "up"); } }
+				else { if (down || (e.code & 0x7f) == K_BACK) lg(statedir, "key %d value %d (cancels)", e.code, e.value); down = 0; t = 0; vdn = 0; }
 			}
 		} else if (r == 0) {	/* no event: the key state decides (HOME held while events don't come) */
 			lg_flush(statedir);
@@ -134,11 +138,13 @@ int main(int argc, char **argv)
 			if (h == 0) seen_up = 1;
 			if (h == 1 && !down && seen_up) { down = 1; polled = 1; t = now(); lg(statedir, "HOME down (key state, no event)"); }
 			else if (h == 0 && down && polled) { down = 0; lg(statedir, "HOME up (key state)"); }
+			if (down) { int v = key_state(fd, K_VOLDN); if (v >= 0) vdn = v; }	/* VOL- from the key state too */
 		}
-		if (down && now() - t >= 3) {
+		if (down && vdn) { if (!both) both = now(); } else both = 0;
+		if (both && now() - both >= 2) {
 			int hold = 0;	/* HOLD switch state (EVIOCGLED, 1 = on), as the player reads it */
-			if (ioctl(fd, 0x80044519, &hold) >= 0 && (hold & 1)) { down = 0; lg(statedir, "HOME held 3 s, but HOLD is on"); }
-			else { lg(statedir, "HOME held 3 s: to the player"); break; }
+			if (ioctl(fd, 0x80044519, &hold) >= 0 && (hold & 1)) { down = 0; both = 0; lg(statedir, "HOME + VOL- held 2 s, but HOLD is on"); }
+			else { lg(statedir, "HOME + VOL- held 2 s: to the player"); break; }
 		}
 	}
 	/* flag first (the Sony supervisor may reboot as soon as its UI dies), then stop the Sony UI, then the splash */
