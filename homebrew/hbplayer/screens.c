@@ -639,21 +639,18 @@ static void snrgy_icon_draw(int k, int x, int y, uint16_t c)
 		*d = (uint16_t)(r << 11 | g << 5 | b);
 	}
 }
-int ui_home_tab;
+int ui_home_tab;	/* 0 the list, 2 RESUME (the header) */
 const int home_order[] = { 4, 1, HOME_BOOKS, 2, 5, 0, 7, 8 };	/* Música, Audiolibros, Libros, Podcasts, Juegos, Modo foco, Apagar, Ajustes (Bluetooth: Ajustes) */
 const int home_order_n = 8;
 #define HOME_RH 31	/* eight rows between the tabs and the strip */
 static void snrgy_home(int sel, const char *nowline)
 {
 	bg_fill(0, 0, W, BOTTOM_Y, 0);
-	/* the tab header: HOME (this page) and RESUME (what played last); UP from the first row reaches them */
-	const char *tab[2] = { "Inicio", "Reanudar" };
-	int tx = 12;
-	for (int t = 0; t < 2; t++) {
-		int w = gfx_text_w(tab[t], 1), focus = ui_home_tab == t + 1;
+	/* the header: RESUME (what played last), reached with UP from the first row */
+	{
+		int tx = 12, w = gfx_text_w("Reanudar", 1), focus = ui_home_tab != 0;
 		if (focus) rrect(tx - 7, 2, w + 14, 24, 6, C_WHITE, 1);
-		gfx_text(tx, 5, tab[t], focus ? C_BLACK : t == 0 ? C_WHITE : C_GREY, 1);
-		tx += w + 22;
+		gfx_text(tx, 5, "Reanudar", focus ? C_BLACK : C_WHITE, 1);
 	}
 	for (int r = 0; r < home_order_n; r++) {
 		int i = home_order[r], y = TITLE_H + 1 + r * HOME_RH, on = !ui_home_tab && i == sel;

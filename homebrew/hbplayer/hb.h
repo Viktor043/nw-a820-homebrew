@@ -76,7 +76,8 @@ void eng_toggle(void);
 void eng_next(void);
 void books_menu(void);		/* reader.c: EPUB / TXT from /contents/Libros */
 extern int ui_book_size, ui_book_land;	/* reader.c: zoom and orientation (pos.txt "book") */
-extern int ui_fullscreen, ui_keep_awake;	/* a landscape page owns the whole screen (no strip refresh, no popups); never dark */
+extern int ui_fullscreen, ui_keep_awake;
+int volume_key(int k);			/* VOL+ / VOL- from any screen (hbplayer.c) */	/* a landscape page owns the whole screen (no strip refresh, no popups); never dark */
 const char *eng_queue_title(int i);	/* queue position i (play order) */
 void eng_play_at(int i);		/* jump to queue position i */
 void eng_prev(void);

@@ -305,6 +305,18 @@ int popup_expired(void)
 	return 0;
 }
 
+static int change_volume(int k);
+/* the volume keys from anywhere (the reader): the level, and the strip shows it unless a landscape page has the screen */
+int volume_key(int k)
+{
+	if (!ui_fullscreen) return change_volume(k);
+	if (k == K_VOLUP && volume < VOLMAX) volume++;
+	else if (k == K_VOLDN && volume > 0) volume--;
+	else return 0;
+	pos_dirty = 1;
+	aout_set_volume();
+	return 1;
+}
 void show_volume(void)
 {
 	wake();
@@ -1764,16 +1776,11 @@ static void home(void)
 		if (ui_theme && k != K_PLAY && (k == K_UP || k == K_DOWN || k == K_LEFT || k == K_RIGHT)) {	/* SNRGY: a list under two tabs */
 			int pos = 0;
 			for (int r = 0; r < home_order_n; r++) if (home_order[r] == sel) pos = r;
-			if (ui_home_tab) {
-				if (k == K_LEFT) ui_home_tab = 1;
-				else if (k == K_RIGHT) ui_home_tab = 2;
-				else if (k == K_DOWN) ui_home_tab = 0;
-			} else if (k == K_UP) { if (pos == 0) ui_home_tab = 2; else sel = home_order[pos - 1]; }
+			if (ui_home_tab) { if (k == K_DOWN) ui_home_tab = 0; }	/* RESUME: DOWN back to the list */ else if (k == K_UP) { if (pos == 0) ui_home_tab = 2; else sel = home_order[pos - 1]; }
 			else if (k == K_DOWN) { if (pos + 1 < home_order_n) sel = home_order[pos + 1]; }
 			redraw = 1;
 			continue;
 		}
-		if (ui_theme && k == K_PLAY && ui_home_tab == 1) { ui_home_tab = 0; redraw = 1; continue; }	/* HOME: back to the list */
 		if (k == K_LEFT) { do ns = (ns + HOME_SLOTS - 1) % HOME_SLOTS; while (!home_valid(ns)); }
 		else if (k == K_RIGHT) { do ns = (ns + 1) % HOME_SLOTS; while (!home_valid(ns)); }
 		else if (k == K_UP) { ns = (sel + HOME_SLOTS - 3) % HOME_SLOTS; if (!home_valid(ns)) ns = sel; }

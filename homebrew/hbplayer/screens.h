@@ -119,7 +119,7 @@ int scr_strip_marquee(double t);	/* SNRGY: advances the strip's scrolling title;
 int scr_strip_scrolls(void);		/* SNRGY: the title is too long for the strip, so it scrolls */
 void scr_aod(void);			/* SNRGY always-on display: everything black but the strip */
 extern int ui_aod, ui_aod_now, ui_strip_calm, ui_aod_level;	/* + the always-on backlight (%, steps of 20: the LCD has 5 levels) */	/* settings: always-on display, strip refreshed every 5 s and still */		/* SNRGY: redraw the status strip (clock, progress) in the back buffer's status band */
-extern int ui_home_tab;		/* SNRGY home: 0 the list has the focus, 1 the HOME tab, 2 the RESUME tab */
+extern int ui_home_tab;		/* SNRGY home: 0 the list has the focus, 2 the RESUME header */
 extern const int home_order[];	/* SNRGY home: the slots in list order (no "Reproduciendo": the RESUME tab is that) */
 extern const int home_order_n;
 #define PLAYER_ART_BIG 236	/* SNRGY player: the cover across the width */

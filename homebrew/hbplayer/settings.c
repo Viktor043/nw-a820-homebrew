@@ -288,7 +288,7 @@ static void reset_menu(void)
 /* Ajustes > Pantalla */
 static void screen_menu(void)
 {
-	struct list_view v = { "Pantalla", 8, 0, 0, it_label, it_value, 0, LI_NONE, 0, 0 };
+	struct list_view v = { "Pantalla", 9, 0, 0, it_label, it_value, 0, LI_NONE, 0, 0 };
 	for (;;) {
 		snprintf(items[0], 48, "Brillo"); snprintf(values[0], 24, "%d%%", ui_brightness);
 		snprintf(items[1], 48, "Apagar pantalla"); snprintf(values[1], 24, "%d s", ui_dim_secs);
@@ -298,6 +298,8 @@ static void screen_menu(void)
 		snprintf(items[5], 48, "Pantalla siempre activa"); snprintf(values[5], 24, "%s", !ui_theme ? "solo SNRGY" : ui_aod ? "sí" : "no");
 		snprintf(items[6], 48, "Brillo siempre activa"); snprintf(values[6], 24, "%d%%", ui_aod_level);
 		snprintf(items[7], 48, "Barra de estado"); snprintf(values[7], 24, "%s", ui_strip_calm ? "tranquila" : "viva");
+		{ static const char *const sz[4] = { "pequeña", "mediana", "grande", "muy grande" };
+		  snprintf(items[8], 48, "Letra de los libros"); snprintf(values[8], 24, "%s", sz[ui_book_size < 0 ? 0 : ui_book_size > 3 ? 3 : ui_book_size]); }
 		int s = list_run(&v);
 		if (s < 0) return;
 		if (s == 0) { ui_brightness = ui_brightness >= 100 ? 20 : ui_brightness + 20; gfx_backlight(ui_brightness); }	/* the LCD has 5 real levels */
@@ -307,7 +309,8 @@ static void screen_menu(void)
 		else if (s == 4) { ui_theme_set((ui_theme + 1) % THEME_COUNT); scr_wall_changed(); }	/* Sony, SNRGY plata, SNRGY negro */
 		else if (s == 5) ui_aod = !ui_aod;	/* the strip stays on when the screen times out (SNRGY looks) */
 		else if (s == 6) ui_aod_level = ui_aod_level >= 100 ? 20 : ui_aod_level + 20;
-		else if (s == 7) ui_strip_calm = !ui_strip_calm;	/* tranquila: refreshed every 5 s, long titles don't scroll */
+		else if (s == 7) ui_strip_calm = !ui_strip_calm;
+		else if (s == 8) ui_book_size = (ui_book_size + 1) % (gfx_book_sizes() < 4 ? gfx_book_sizes() : 4);	/* the reader's text: 13, 15, 18, 22 px */	/* tranquila: refreshed every 5 s, long titles don't scroll */
 		settings_save();
 	}
 }

@@ -4,9 +4,9 @@
  * the status bar. The SNRGY strip shows the E-PLAYER's reading lines: chapter and page / book - author / progress
  * and the reading time left. Positions and bookmarks: <statedir>/books.txt.
  *
- * Keys: RIGHT / DOWN next page, LEFT / UP previous page, VOL+ / VOL- text larger / smaller (4 sizes), PLAY
- * portrait / landscape (the whole screen, no strip; held sideways, the keys on the right), OPTION chapters and
- * bookmarks, BACK the list. The screen never goes dark while a book is open.
+ * Keys: RIGHT / DOWN next page, LEFT / UP previous page, PLAY portrait / landscape (the whole screen, no strip;
+ * held sideways, the keys on the right), VOL+ / VOL- the music's volume, OPTION chapters and bookmarks, BACK the
+ * list. The text size: Ajustes > Pantalla > Letra de los libros. The screen never goes dark while a book is open.
  * READER_HOST builds the parsing and layout alone (tests on the PC). */
 #include "hb.h"
 #include <ctype.h>
@@ -159,7 +159,17 @@ static void put_utf8(char **o, unsigned cp)
 	else if (cp == 0x2013 || cp == 0x2014 || cp == 0x2015 || cp == 0x2212) cp = '-';
 	else if (cp == 0x2026) { memcpy(d, "...", 3); *o = d + 3; return; }
 	else if (cp == 0xA0 || cp == 0x2002 || cp == 0x2003 || cp == 0x2009 || cp == 0x200A) cp = ' ';
-	else if (cp == 0xAD || cp == 0x200B || cp == 0xFEFF) return;
+	else if (cp == 0xAD || cp == 0x200B || cp == 0x200C || cp == 0x200D || cp == 0x2060 || cp == 0xFEFF) return;
+	else if (cp >= 0x300 && cp <= 0x36F) return;	/* combining accents (decomposed text): the base letter stays */
+	else if (cp == 0x2010 || cp == 0x2011 || cp == 0x2012 || cp == 0x2043) cp = '-';
+	else if (cp == 0x2022 || cp == 0x2023 || cp == 0x2027 || cp == 0x25CF || cp == 0x2219 || cp == 0x22C5) cp = 0xB7;
+	else if (cp == 0x2039) cp = '<';
+	else if (cp == 0x203A) cp = '>';
+	else if (cp == 0x02BC || cp == 0x02B9) cp = '\'';
+	else if (cp == 0x2122) { memcpy(d, "TM", 2); *o = d + 2; return; }
+	else if (cp == 0x0153 || cp == 0x0152) { memcpy(d, cp == 0x0153 ? "oe" : "OE", 2); *o = d + 2; return; }
+	else if (cp == 0xFB01 || cp == 0xFB02) { memcpy(d, cp == 0xFB01 ? "fi" : "fl", 2); *o = d + 2; return; }
+	else if (cp == 0x2192) { memcpy(d, "->", 2); *o = d + 2; return; }
 	if (cp < 0x80) *d++ = (char)cp;
 	else if (cp < 0x800) { *d++ = (char)(0xC0 | cp >> 6); *d++ = (char)(0x80 | (cp & 63)); }
 	else { *d++ = (char)(0xE0 | cp >> 12); *d++ = (char)(0x80 | ((cp >> 6) & 63)); *d++ = (char)(0x80 | (cp & 63)); }
@@ -367,6 +377,13 @@ static int open_txt(struct book *b)
 	for (long i = 0; i < n; ) {
 		unsigned cp = raw[i++];
 		if (!utf8 && cp >= 0x80) { put_utf8(&o, cp); continue; }
+		if (utf8 && cp >= 0xC0) {	/* decode, so curly quotes, dashes and the rest map like in EPUB text */
+			int ex = cp >= 0xF0 ? 3 : cp >= 0xE0 ? 2 : 1;
+			cp &= 0x3F >> ex;
+			for (int k = 0; k < ex && i < n; k++) cp = cp << 6 | (raw[i++] & 63);
+			put_utf8(&o, cp);
+			continue;
+		}
 		if (cp == '\r') continue;
 		if (cp == '\n') {
 			long j = i; while (j < n && (raw[j] == '\r' || raw[j] == ' ' || raw[j] == '\t')) j++;
@@ -710,23 +727,24 @@ static void reader_run(const char *path)
 	int page = page_of(off), redraw = 1, turns = 0, saved_rot = gfx_rot;
 	ui_keep_awake = 1;	/* the screen stays on while a book is open */
 	if (ui_book_land) { ui_fullscreen = 1; gfx_rot = 0; gfx_invalidate(); }
+	int redraw_strip = 0;
 	for (;;) {
+		if (popup_expired() && redraw_strip) { redraw_strip = 0; redraw = 1; }	/* the volume shown in the strip: the reading lines again */
 		if (redraw && backlight_on) { draw_page(page); flip(); redraw = 0; }
 		idle_tick(0);
 		int k = getkey(1000);
 		if (k == K_REDRAW) { redraw = 1; continue; }
 		if (k < 0) continue;
 		int np = npages(), moved = 0;
-		if (k == K_VOLUP || k == K_VOLDN || k == K_PLAY) {	/* zoom (volume keys) or portrait / landscape (PLAY), same place */
+		if (k == K_VOLUP || k == K_VOLDN) { volume_key(k); if (!ui_book_land) redraw_strip = 1; continue; }	/* the music's volume */
+		if (k == K_PLAY) {	/* portrait / landscape, at the same place */
 			long here = page * rd_lines() < nlines ? lines[page * rd_lines()].off : 0;
-			if (k == K_VOLUP && ui_book_size + 1 < gfx_book_sizes()) ui_book_size++;
-			else if (k == K_VOLDN && ui_book_size > 0) ui_book_size--;
-			else if (k == K_PLAY) {
+			{
 				ui_book_land = !ui_book_land;
 				ui_fullscreen = ui_book_land;
 				gfx_rot = ui_book_land ? 0 : saved_rot;
 				gfx_invalidate();
-			} else continue;
+			}
 			layout(ctext, clen);
 			if (!nlines) add_line(0, 0, 1, 0);
 			page = page_of(here);
