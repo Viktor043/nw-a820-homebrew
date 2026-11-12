@@ -49,6 +49,68 @@ void clock_from_http(const char *date)
 	lg("clock: corrected %+ld s (zone %+ld min)", -drift, zone / 60);
 }
 
+/* the clock set by hand: the unit keeps local time as if it were UTC (no timezone), so the fields go in as they are;
+ * system clock and RTC both (the Sony UI reads the same clock) */
+static void clock_set(struct tm *tm)
+{
+	tm->tm_sec = 0; tm->tm_isdst = 0;
+	time_t t = timegm(tm);
+	struct timeval tv = { t, 0 };
+	if (settimeofday(&tv, 0)) { lg("clock: settimeofday failed"); return; }
+	struct tm g; gmtime_r(&t, &g);
+	struct rtc_time rt = { g.tm_sec, g.tm_min, g.tm_hour, g.tm_mday, g.tm_mon, g.tm_year, g.tm_wday, g.tm_yday, 0 };
+	int fd = open("/dev/misc/rtc", O_RDONLY);
+	if (fd >= 0) { if (ioctl(fd, RTC_SET_TIME, &rt) < 0) lg("clock: rtc set failed"); close(fd); }
+	lg("clock: set by hand to %04d-%02d-%02d %02d:%02d", g.tm_year + 1900, g.tm_mon + 1, g.tm_mday, g.tm_hour, g.tm_min);
+}
+
+/* Ajustes > Fecha y hora: LEFT/RIGHT choose day, month, year, hours, minutes; UP/DOWN change; PLAY set; BACK leave */
+void clock_menu(void)
+{
+	time_t now_t = time(0);
+	struct tm tm = *localtime(&now_t);
+	int f = 3, redraw = 1;
+	static const int mdays[12] = { 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 };
+	for (;;) {
+		int y = tm.tm_year + 1900, leap = (y % 4 == 0 && y % 100) || y % 400 == 0, md = mdays[tm.tm_mon] + (tm.tm_mon == 1 && leap);
+		if (tm.tm_mday > md) tm.tm_mday = md;
+		if (redraw && backlight_on) {
+			char d[24], t[16];
+			scr_screen("Fecha y hora");
+			snprintf(d, sizeof d, "%02d.%02d.%04d", tm.tm_mday, tm.tm_mon + 1, y);
+			snprintf(t, sizeof t, "%02d:%02d", tm.tm_hour, tm.tm_min);
+			int dw = gfx_text_w(d, 2), tw = gfx_text_w(t, 2), dx = (W - dw) / 2, tx = (W - tw) / 2;
+			gfx_text(dx, 64, d, C_WHITE, 2);
+			gfx_text(tx, 128, t, C_WHITE, 2);
+			/* the field being changed: underlined */
+			int fx, fw, fy;
+			if (f < 3) { fx = dx + (f == 0 ? 0 : gfx_text_w(f == 1 ? "00." : "00.00.", 2)); fw = gfx_text_w(f == 2 ? "0000" : "00", 2); fy = 64 + 46; }
+			else { int a = f == 4 ? gfx_text_w("00:", 2) : 0; fx = tx + a; fw = gfx_text_w("00", 2); fy = 128 + 46; }
+			gfx_fill(fx, fy, fw, 3, C_ORANGE);
+			gfx_text_center(W / 2, 196, "arriba/abajo: cambiar", C_GREY, 1);
+			gfx_text_center(W / 2, 218, "izq/der: día, mes, año, hora, min", C_GREY, 1);
+			gfx_text_center(W / 2, 240, "PLAY: guardar", C_GREY, 1);
+			gfx_flip();
+			redraw = 0;
+		}
+		idle_tick(0);
+		int k = getkey(1000);
+		if (k == K_REDRAW) { redraw = 1; continue; }
+		if (k < 0) continue;
+		redraw = 1;
+		int d = k == K_UP ? 1 : k == K_DOWN ? -1 : 0;
+		if (k == K_LEFT) f = (f + 4) % 5;
+		else if (k == K_RIGHT) f = (f + 1) % 5;
+		else if (d && f == 0) { tm.tm_mday += d; if (tm.tm_mday < 1) tm.tm_mday = md; if (tm.tm_mday > md) tm.tm_mday = 1; }
+		else if (d && f == 1) tm.tm_mon = (tm.tm_mon + 12 + d) % 12;
+		else if (d && f == 2) { tm.tm_year += d; if (tm.tm_year < 120) tm.tm_year = 120; if (tm.tm_year > 199) tm.tm_year = 199; }
+		else if (d && f == 3) tm.tm_hour = (tm.tm_hour + 24 + d) % 24;
+		else if (d && f == 4) tm.tm_min = (tm.tm_min + 60 + d) % 60;
+		else if (k == K_PLAY) { clock_set(&tm); return; }
+		else if (k == K_BACK) return;
+	}
+}
+
 /* the RTC and the system clock share the same base here (hwclock at boot, no timezone set) */
 time_t alarm_next(void)
 {

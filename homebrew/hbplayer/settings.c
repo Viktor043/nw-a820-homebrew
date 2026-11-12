@@ -285,52 +285,88 @@ static void reset_menu(void)
 	if (list_run(&v) == 0) factory_reset();
 }
 
+/* a percentage changed in steps of 5 (UP/RIGHT more, DOWN/LEFT less), applied as it changes; PLAY keeps it,
+ * BACK goes back to what it was */
+static void percent_editor(const char *title, int *v, int min, void (*apply)(int))
+{
+	int old = *v, redraw = 1;
+	for (;;) {
+		if (redraw && backlight_on) {
+			char b[16]; snprintf(b, sizeof b, "%d%%", *v);
+			scr_screen(title);
+			gfx_text_center(W / 2, 92, b, C_WHITE, 2);
+			int x = 20, w = W - 40, f = w * *v / 100;
+			gfx_fill(x, 160, w, 2, C_GREY);
+			gfx_fill(x, 158, f, 6, C_ORANGE);
+			gfx_text_center(W / 2, 196, "arriba/abajo: cambiar", C_GREY, 1);
+			gfx_text_center(W / 2, 218, "PLAY: guardar", C_GREY, 1);
+			gfx_flip();
+			redraw = 0;
+		}
+		idle_tick(0);
+		int k = getkey(1000);
+		if (k == K_REDRAW) { redraw = 1; continue; }
+		if (k < 0) continue;
+		redraw = 1;
+		if (k == K_UP || k == K_RIGHT) { if (*v + 5 <= 100) *v += 5; apply(*v); }
+		else if (k == K_DOWN || k == K_LEFT) { if (*v - 5 >= min) *v -= 5; apply(*v); }
+		else if (k == K_PLAY) return;
+		else if (k == K_BACK) { *v = old; apply(old); return; }
+	}
+}
+static void apply_bright(int v) { gfx_backlight(v); }
+static void apply_aod(int v) { gfx_backlight(v); }	/* preview: the screen shows how dim the always-on display will be */
+
 /* Ajustes > Pantalla */
 static void screen_menu(void)
 {
-	struct list_view v = { "Pantalla", 7, 0, 0, it_label, it_value, 0, LI_NONE, 0, 0 };
+	struct list_view v = { "Pantalla", 8, 0, 0, it_label, it_value, 0, LI_NONE, 0, 0 };
 	for (;;) {
 		snprintf(items[0], 48, "Brillo"); snprintf(values[0], 24, "%d%%", ui_brightness);
 		snprintf(items[1], 48, "Apagar pantalla"); snprintf(values[1], 24, "%d s", ui_dim_secs);
 		snprintf(items[2], 48, "Filas grandes con portada"); snprintf(values[2], 24, "%s", ui_big_rows ? "sí" : "no");
 		snprintf(items[3], 48, "Fondo"); snprintf(values[3], 24, "%s", wall_names[ui_wall]);
-		snprintf(items[4], 48, "Estilo"); snprintf(values[4], 24, "%s", theme_names[ui_theme]);
+		snprintf(items[4], 48, "Tema"); snprintf(values[4], 24, "%s", theme_names[ui_theme]);
 		snprintf(items[5], 48, "Pantalla siempre activa"); snprintf(values[5], 24, "%s", !ui_theme ? "solo SNRGY" : ui_aod ? "sí" : "no");
-		snprintf(items[6], 48, "Barra de estado"); snprintf(values[6], 24, "%s", ui_strip_calm ? "tranquila" : "viva");
+		snprintf(items[6], 48, "Brillo siempre activa"); snprintf(values[6], 24, "%d%%", ui_aod_level);
+		snprintf(items[7], 48, "Barra de estado"); snprintf(values[7], 24, "%s", ui_strip_calm ? "tranquila" : "viva");
 		int s = list_run(&v);
 		if (s < 0) return;
-		if (s == 0) { ui_brightness = ui_brightness >= 100 ? 20 : ui_brightness + 20; gfx_backlight(ui_brightness); }
+		if (s == 0) percent_editor("Brillo", &ui_brightness, 5, apply_bright);
 		else if (s == 1) ui_dim_secs = ui_dim_secs >= 120 ? 15 : ui_dim_secs * 2;
 		else if (s == 2) ui_big_rows = !ui_big_rows;	/* álbumes, podcasts y audiolibros: from the next time the list opens */
 		else if (s == 3) { ui_wall = (ui_wall + 1) % WALL_COUNT; scr_wall_changed(); }
 		else if (s == 4) { ui_theme_set((ui_theme + 1) % THEME_COUNT); scr_wall_changed(); }	/* Sony, SNRGY plata, SNRGY negro */
 		else if (s == 5) ui_aod = !ui_aod;	/* the strip stays on when the screen times out (SNRGY looks) */
-		else if (s == 6) ui_strip_calm = !ui_strip_calm;	/* tranquila: refreshed every 5 s, long titles don't scroll */
+		else if (s == 6) { percent_editor("Brillo siempre activa", &ui_aod_level, 5, apply_aod); gfx_backlight(ui_brightness); }
+		else if (s == 7) ui_strip_calm = !ui_strip_calm;	/* tranquila: refreshed every 5 s, long titles don't scroll */
 		settings_save();
 	}
 }
 
 void settings_menu(void)
 {
-	struct list_view v = { "Ajustes", 8, 0, 0, it_label, it_value, 0, LI_NONE, 0, 0 };
+	struct list_view v = { "Ajustes", 9, 0, 0, it_label, it_value, 0, LI_NONE, 0, 0 };
 	for (;;) {
 		snprintf(items[0], 48, "Sonido"); snprintf(values[0], 24, "%s", eng_not_direct(0) ? "efectos" : "máx. batería");
 		snprintf(items[1], 48, "Pantalla"); values[1][0] = 0;
 		snprintf(items[2], 48, "Despertador"); snprintf(values[2], 24, alarm_cfg.on ? "%02d:%02d" : "no", alarm_cfg.hour, alarm_cfg.min);
-		snprintf(items[3], 48, "Pitido"); snprintf(values[3], 24, "%s", ui_beep ? "sí" : "no");
-		snprintf(items[4], 48, "Idioma"); snprintf(values[4], 24, "%s", ui_lang ? "English" : "Español");
-		snprintf(items[5], 48, "Walkman de Sony: ahorro"); snprintf(values[5], 24, "%s", access(SONY124, F_OK) ? "no" : "sí");
-		snprintf(items[6], 48, "Restablecer todo"); values[6][0] = 0;
-		snprintf(items[7], 48, "Acerca de"); values[7][0] = 0;
+		{ time_t t = time(0); struct tm *tm = localtime(&t); snprintf(items[3], 48, "Fecha y hora"); if (tm) snprintf(values[3], 24, "%02d:%02d", tm->tm_hour, tm->tm_min); else values[3][0] = 0; }
+		snprintf(items[4], 48, "Pitido"); snprintf(values[4], 24, "%s", ui_beep ? "sí" : "no");
+		snprintf(items[5], 48, "Idioma"); snprintf(values[5], 24, "%s", ui_lang ? "English" : "Español");
+		snprintf(items[6], 48, "Walkman de Sony: ahorro"); snprintf(values[6], 24, "%s", access(SONY124, F_OK) ? "no" : "sí");
+		snprintf(items[7], 48, "Restablecer todo"); values[7][0] = 0;
+		snprintf(items[8], 48, "Acerca de"); values[8][0] = 0;
 		int s = list_run(&v);
 		if (s < 0) return;
 		if (s == 0) sound_menu(0);
 		else if (s == 1) screen_menu();
 		else if (s == 2) alarm_menu();
-		else if (s == 3) { ui_beep = !ui_beep; settings_save(); beep(BEEP_ONE); }	/* turning it on beeps once, like Sony */
-		else if (s == 4) { ui_lang_set(!ui_lang); settings_save(); }
-		else if (s == 5) sony_clock_menu();
-		else if (s == 6) reset_menu();
-		else if (s == 7) about_screen();
+		else if (s == 3) clock_menu();
+		else if (s == 4) { ui_beep = !ui_beep; settings_save(); beep(BEEP_ONE); }	/* turning it on beeps once, like Sony */
+		else if (s == 5) { ui_lang_set(!ui_lang); settings_save(); }
+		else if (s == 6) sony_clock_menu();
+		else if (s == 7) reset_menu();
+		else if (s == 8) about_screen();
 	}
 }

@@ -104,12 +104,12 @@ static int dm_text(int col, int row, const char *s, int maxcol)	/* returns the c
 }
 static int dm_w(const char *s) { int n = 0; for (const unsigned char *p = (const unsigned char *)s; *p; p++) if ((*p & 0xC0) != 0x80) n++; return n * 6; }
 /* the dots into the status band of the back buffer (264..320, shown on top): 2 px margin, 25 dot rows at 2 px,
- * then 4 px of paper so the strip never touches the title under it */
+ * then 4 px more of the strip so the dots never touch its edge */
 #define DM_Y 266
 static void dm_flush(void)
 {
 	gfx_fill(0, 264, W, 2 + DM_ROWS * 2, th_strip);
-	gfx_fill(0, DM_Y + DM_ROWS * 2, W, H - DM_Y - DM_ROWS * 2, ui_aod_now ? 0 : th_paper);
+	gfx_fill(0, DM_Y + DM_ROWS * 2, W, H - DM_Y - DM_ROWS * 2, ui_aod_now ? 0 : th_strip);	/* the strip runs down to the title */
 	for (int y = 0; y < DM_ROWS; y++) for (int x = 0; x < 120; x++) {
 		uint16_t *d = fb + (DM_Y + y * 2) * W + x * 2;
 		if (!dm_on[y][x]) { d[0] = th_dotoff; continue; }
@@ -191,7 +191,7 @@ static const int home_fallback[HOME_SLOTS] = { ICON_LOTUS, ICON_BOOK, ICON_MIC, 
 
 /* the whole strip: status / the song (or a hint when nothing plays) / elapsed, bar, remaining (or the volume) */
 static char strip_hint[96];
-int ui_aod, ui_aod_now, ui_strip_calm;
+int ui_aod, ui_aod_now, ui_strip_calm, ui_aod_level = 5;
 static int strip_scroll;	/* dots the song line is scrolled left */
 #define MQ_GAP 18		/* dots between the end of the title and its repeat */
 static void strip_line(char *line, size_t n)

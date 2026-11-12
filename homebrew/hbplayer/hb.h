@@ -28,7 +28,8 @@ extern int list_vis_top;	/* background work between key polls (e.g. thumbnails);
 void message(const char *title, const char *l1, const char *l2);	/* draw + flip */
 FILE *safe_open(const char *fn, char *tmp, size_t tmpmax);	/* atomic settings save: safe_open ... safe_close */
 void safe_close(FILE *f, const char *tmp, const char *fn);
-void clock_from_http(const char *date);	/* drift correction from an HTTP Date header (alarm.c) */
+void clock_from_http(const char *date);
+void clock_menu(void);		/* Ajustes > Fecha y hora (alarm.c) */	/* drift correction from an HTTP Date header (alarm.c) */
 extern int quick_open;
 int sound_quick_menu(int with_np);	/* OPTION: quick sound settings (settings.c); 1 = open the player */
 int ui_volume_key(int k);	/* VOL+/VOL- -> volume change + popup; 1 if it was one */
