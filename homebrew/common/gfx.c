@@ -475,8 +475,27 @@ static uint16_t blend16(uint16_t d, uint16_t c, int a)	/* a 0..15 */
 	int r = ((d >> 11) * (15 - a) + (c >> 11) * a) / 15, g = (((d >> 5) & 63) * (15 - a) + ((c >> 5) & 63) * a) / 15, b = ((d & 31) * (15 - a) + (c & 31) * a) / 15;
 	return (uint16_t)(r << 11 | g << 5 | b);
 }
-struct fglyph { signed char adv, x, y; unsigned char w, h; unsigned short off; };
-static int face_glyph(const struct fglyph *g, const unsigned char *pxd, unsigned cp, int x, int y, uint16_t col, int scale, int draw)
+/* gfx_book_size: which of the reader face's sizes (the reader zooms); gfx_landscape: text drawn turned 90 degrees
+ * counter-clockwise (the Walkman held sideways, the keys on the right): x runs down the LCD, y from its right edge,
+ * so a page of 320 x 240 fills the whole screen */
+int gfx_book_size, gfx_landscape;
+int gfx_book_sizes(void)
+{
+#ifdef BOOK_FONT
+	return BOOK_FONT;
+#else
+	return 1;
+#endif
+}
+int gfx_book_line(void)
+{
+#ifdef BOOK_FONT
+	return book_font_lines[gfx_book_size < 0 ? 0 : gfx_book_size >= BOOK_FONT ? BOOK_FONT - 1 : gfx_book_size];
+#else
+	return LINE_H;
+#endif
+}
+static int face_glyph(const struct font_glyph *g, const unsigned char *pxd, unsigned cp, int x, int y, uint16_t col, int scale, int draw)
 {
 	const unsigned char *px;
 	int i = cp - FONT_FIRST, adv = g[i].adv, w = g[i].w, h = g[i].h;
@@ -487,7 +506,10 @@ static int face_glyph(const struct fglyph *g, const unsigned char *pxd, unsigned
 			int n = r * w + k, a = n & 1 ? px[n >> 1] & 15 : px[n >> 1] >> 4;
 			if (!a) continue;
 			int xx = x + (g[i].x + k) * scale, yy = y + (g[i].y + r) * scale;
-			if (scale != 1) { if (a > 7) gfx_fill(xx, yy, scale, scale, col); continue; }
+			if (gfx_landscape) {	/* logical 320 x 240 -> the portrait buffer */
+				if (xx < 0 || xx >= H || yy < 0 || yy >= W) continue;
+				int px = W - 1 - yy, py = xx; xx = px; yy = py;
+			} else if (scale != 1) { if (a > 7) gfx_fill(xx, yy, scale, scale, col); continue; }
 			if (xx < 0 || xx >= W || yy < 0 || yy >= H) continue;
 			uint16_t *d = fb + yy * W + xx;
 			*d = a == 15 ? col : blend16(*d, col, a);
@@ -499,10 +521,13 @@ static int glyph(unsigned cp, int x, int y, uint16_t col, int scale, int draw)
 {
 	if (gfx_caps) cp = caps_cp(cp);
 #ifdef BOOK_FONT
-	if (gfx_face == 2 && cp >= FONT_FIRST && cp <= 255 && book_font_g[cp - FONT_FIRST].adv) return face_glyph((const struct fglyph *)book_font_g, book_font_px, cp, x, y, col, scale, draw);
+	if (gfx_face == 2) {
+		int k = gfx_book_size < 0 ? 0 : gfx_book_size >= BOOK_FONT ? BOOK_FONT - 1 : gfx_book_size;
+		if (cp >= FONT_FIRST && cp <= 255 && book_font_gs[k][cp - FONT_FIRST].adv) return face_glyph(book_font_gs[k], book_font_pxs[k], cp, x, y, col, scale, draw);
+	}
 #endif
 #ifdef UI_FONT
-	if (gfx_face && cp >= FONT_FIRST && cp <= 255 && ui_font_g[cp - FONT_FIRST].adv) return face_glyph((const struct fglyph *)ui_font_g, ui_font_px, cp, x, y, col, scale, draw);	/* adv 0: not in the font */
+	if (gfx_face && cp >= FONT_FIRST && cp <= 255 && ui_font_g0[cp - FONT_FIRST].adv) return face_glyph(ui_font_g0, ui_font_px0, cp, x, y, col, scale, draw);	/* adv 0: not in the font */
 #endif
 	return fsub ? sony_glyph(cp, x, y, col, scale, draw) : fallback_glyph(cp, x, y, col, scale, draw);
 }

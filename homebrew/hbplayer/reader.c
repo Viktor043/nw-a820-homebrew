@@ -4,7 +4,9 @@
  * the status bar. The SNRGY strip shows the E-PLAYER's reading lines: chapter and page / book - author / progress
  * and the reading time left. Positions and bookmarks: <statedir>/books.txt.
  *
- * Keys: RIGHT / DOWN / PLAY next page, LEFT / UP previous page, OPTION chapters and bookmarks, BACK the list.
+ * Keys: RIGHT / DOWN next page, LEFT / UP previous page, VOL+ / VOL- text larger / smaller (4 sizes), PLAY
+ * portrait / landscape (the whole screen, no strip; held sideways, the keys on the right), OPTION chapters and
+ * bookmarks, BACK the list. The screen never goes dark while a book is open.
  * READER_HOST builds the parsing and layout alone (tests on the PC). */
 #include "hb.h"
 #include <ctype.h>
@@ -15,9 +17,11 @@
 #include "zlib.h"
 
 #define BOOKS_DIR "/contents/Libros"
-#define RD_LH 21			/* line pitch of the reader face */
+/* the page: portrait above the status strip, or landscape (PLAY) on the whole screen, 320 x 240, no strip */
+int ui_book_size = 1, ui_book_land;	/* saved in pos.txt: the zoom (face 2's size) and the orientation */
+#define RD_LH gfx_book_line()		/* line pitch of the reader face at the current zoom */
 #define RD_X 12
-#define RD_W (W - 24)
+#define RD_W ((ui_book_land ? H : W) - 24)
 #define RD_INDENT 14			/* first line of a paragraph */
 #define CHARS_PER_MIN 1100		/* reading speed for the time left (~200 words a minute) */
 
@@ -459,7 +463,8 @@ static void heading_face(int on) { if (on) { gfx_face = ui_theme ? 1 : 0; gfx_ca
 static void layout(const char *t, long n)
 {
 	nlines = 0;
-	int spw;
+	int spw, saved_face = gfx_face, saved_caps = gfx_caps;
+	gfx_book_size = ui_book_size;
 	gfx_face = 2; gfx_caps = 0;
 	spw = gfx_text_w(" ", 1);
 	long p = 0;
@@ -495,6 +500,7 @@ static void layout(const char *t, long n)
 		heading_face(0);
 		p = e + 1;
 	}
+	gfx_face = saved_face; gfx_caps = saved_caps;	/* the rest of the UI keeps its own face */
 }
 
 #ifndef READER_SHOT	/* the screenshot build (shots.c) needs only the layout and the page */
@@ -565,7 +571,8 @@ static int load_chapter(int i)
 	return 0;
 }
 
-static int rd_lines(void) { return (BOTTOM_Y - (ui_theme ? 8 : TITLE_H + 6) - 4) / RD_LH; }
+static int rd_y0(void) { return ui_book_land ? 10 : ui_theme ? 8 : TITLE_H + 6; }
+static int rd_lines(void) { return ((ui_book_land ? W : BOTTOM_Y) - rd_y0() - 4) / RD_LH; }
 static int npages(void) { int k = rd_lines(); return (nlines + k - 1) / k; }
 static int page_of(long off) { int l = 0; while (l + 1 < nlines && lines[l + 1].off <= off) l++; return l / rd_lines(); }
 
@@ -581,9 +588,12 @@ static int book_pct(int page)
 static void draw_page(int page)
 {
 	static char l1[48], l2[200], left[24];
-	int k = rd_lines(), y0 = ui_theme ? 8 : TITLE_H + 6;
-	scr_page(bk.title);
+	int k = rd_lines(), y0 = rd_y0();
+	if (ui_book_land) gfx_fill(0, 0, W, H, scr_paper());	/* the whole screen: no title, no strip */
+	else scr_page(bk.title);
 	int saved_face = gfx_face, saved_caps = gfx_caps;
+	gfx_book_size = ui_book_size;
+	gfx_landscape = ui_book_land;
 	for (int r = 0; r < k; r++) {
 		int i = page * k + r;
 		if (i >= nlines) break;
@@ -594,7 +604,7 @@ static void draw_page(int page)
 		if (L->kind == 2) {	/* heading: centred, in the UI face */
 			heading_face(1);
 			char b[256]; int n = L->len < 255 ? L->len : 255; memcpy(b, s, n); b[n] = 0;
-			gfx_text_center(W / 2, y - 1, b, C_WHITE, 1);
+			gfx_text_center((ui_book_land ? H : W) / 2, y - 1, b, C_WHITE, 1);
 			continue;
 		}
 		heading_face(0);
@@ -611,12 +621,14 @@ static void draw_page(int page)
 		}
 	}
 	gfx_face = saved_face; gfx_caps = saved_caps;
+	gfx_landscape = 0;
+	if (ui_book_land) return;
 	/* the strip: CH 3 P 12/40 / book - author / 37% ---- 4H 12M */
 	int pct = book_pct(page);
 	long before = 0; for (int i = 0; i < cur_ch; i++) before += bk.ch[i].size;
 	long rest = bk.total - before - (long)(npages() ? (double)page / npages() * bk.ch[cur_ch].size : 0);
 	int mins = (int)(rest * (bk.epub ? 0.6 : 1.0) / CHARS_PER_MIN);
-	snprintf(l1, sizeof l1, ui_lang ? "CH %d P %d/%d" : "CAP %d P %d/%d", cur_ch + 1, page + 1, npages());
+	snprintf(l1, sizeof l1, ui_lang ? "CH%d P%d/%d" : "CAP%d P%d/%d", cur_ch + 1, page + 1, npages());	/* compact: the strip has ~10 letters before the battery */
 	snprintf(l2, sizeof l2, "%s%s%s", bk.title, bk.author[0] ? " - " : "", bk.author);
 	if (mins >= 60) snprintf(left, sizeof left, "%dH %02dM", mins / 60, mins % 60); else snprintf(left, sizeof left, "%dM", mins);
 	ui_st.rd_on = 1; ui_st.rd_l1 = l1; ui_st.rd_l2 = l2; ui_st.rd_left = left; ui_st.rd_pct = pct;
@@ -695,7 +707,9 @@ static void reader_run(const char *path)
 	int ch = m && m->ch < bk.nch ? m->ch : 0;
 	long off = m ? m->off : 0;
 	load_chapter(ch);
-	int page = page_of(off), redraw = 1, turns = 0;
+	int page = page_of(off), redraw = 1, turns = 0, saved_rot = gfx_rot;
+	ui_keep_awake = 1;	/* the screen stays on while a book is open */
+	if (ui_book_land) { ui_fullscreen = 1; gfx_rot = 0; gfx_invalidate(); }
 	for (;;) {
 		if (redraw && backlight_on) { draw_page(page); flip(); redraw = 0; }
 		idle_tick(0);
@@ -703,7 +717,24 @@ static void reader_run(const char *path)
 		if (k == K_REDRAW) { redraw = 1; continue; }
 		if (k < 0) continue;
 		int np = npages(), moved = 0;
-		if (k == K_RIGHT || k == K_DOWN || k == K_PLAY) {
+		if (k == K_VOLUP || k == K_VOLDN || k == K_PLAY) {	/* zoom (volume keys) or portrait / landscape (PLAY), same place */
+			long here = page * rd_lines() < nlines ? lines[page * rd_lines()].off : 0;
+			if (k == K_VOLUP && ui_book_size + 1 < gfx_book_sizes()) ui_book_size++;
+			else if (k == K_VOLDN && ui_book_size > 0) ui_book_size--;
+			else if (k == K_PLAY) {
+				ui_book_land = !ui_book_land;
+				ui_fullscreen = ui_book_land;
+				gfx_rot = ui_book_land ? 0 : saved_rot;
+				gfx_invalidate();
+			} else continue;
+			layout(ctext, clen);
+			if (!nlines) add_line(0, 0, 1, 0);
+			page = page_of(here);
+			settings_save();
+			redraw = 1;
+			continue;
+		}
+		if (k == K_RIGHT || k == K_DOWN) {
 			if (page + 1 < np) page++;
 			else if (cur_ch + 1 < bk.nch) { load_chapter(cur_ch + 1); page = 0; }
 			moved = 1;
@@ -720,6 +751,8 @@ static void reader_run(const char *path)
 	}
 	pos_put(bk.path, cur_ch, nlines ? lines[page * rd_lines() < nlines ? page * rd_lines() : 0].off : 0, book_pct(page));
 	ui_st.rd_on = 0;
+	ui_keep_awake = 0;
+	if (ui_fullscreen) { ui_fullscreen = 0; gfx_rot = saved_rot; gfx_invalidate(); }
 	free(ctext); ctext = 0; free(lines); lines = 0; nlines = lines_cap = 0;
 	book_free(&bk);
 }

@@ -285,38 +285,6 @@ static void reset_menu(void)
 	if (list_run(&v) == 0) factory_reset();
 }
 
-/* a percentage changed in steps of 5 (UP/RIGHT more, DOWN/LEFT less), applied as it changes; PLAY keeps it,
- * BACK goes back to what it was */
-static void percent_editor(const char *title, int *v, int min, void (*apply)(int))
-{
-	int old = *v, redraw = 1;
-	for (;;) {
-		if (redraw && backlight_on) {
-			char b[16]; snprintf(b, sizeof b, "%d%%", *v);
-			scr_screen(title);
-			gfx_text_center(W / 2, 92, b, C_WHITE, 2);
-			int x = 20, w = W - 40, f = w * *v / 100;
-			gfx_fill(x, 160, w, 2, C_GREY);
-			gfx_fill(x, 158, f, 6, C_ORANGE);
-			gfx_text_center(W / 2, 196, "arriba/abajo: cambiar", C_GREY, 1);
-			gfx_text_center(W / 2, 218, "PLAY: guardar", C_GREY, 1);
-			gfx_flip();
-			redraw = 0;
-		}
-		idle_tick(0);
-		int k = getkey(1000);
-		if (k == K_REDRAW) { redraw = 1; continue; }
-		if (k < 0) continue;
-		redraw = 1;
-		if (k == K_UP || k == K_RIGHT) { if (*v + 5 <= 100) *v += 5; apply(*v); }
-		else if (k == K_DOWN || k == K_LEFT) { if (*v - 5 >= min) *v -= 5; apply(*v); }
-		else if (k == K_PLAY) return;
-		else if (k == K_BACK) { *v = old; apply(old); return; }
-	}
-}
-static void apply_bright(int v) { gfx_backlight(v); }
-static void apply_aod(int v) { gfx_backlight(v); }	/* preview: the screen shows how dim the always-on display will be */
-
 /* Ajustes > Pantalla */
 static void screen_menu(void)
 {
@@ -332,13 +300,13 @@ static void screen_menu(void)
 		snprintf(items[7], 48, "Barra de estado"); snprintf(values[7], 24, "%s", ui_strip_calm ? "tranquila" : "viva");
 		int s = list_run(&v);
 		if (s < 0) return;
-		if (s == 0) percent_editor("Brillo", &ui_brightness, 5, apply_bright);
+		if (s == 0) { ui_brightness = ui_brightness >= 100 ? 20 : ui_brightness + 20; gfx_backlight(ui_brightness); }	/* the LCD has 5 real levels */
 		else if (s == 1) ui_dim_secs = ui_dim_secs >= 120 ? 15 : ui_dim_secs * 2;
 		else if (s == 2) ui_big_rows = !ui_big_rows;	/* álbumes, podcasts y audiolibros: from the next time the list opens */
 		else if (s == 3) { ui_wall = (ui_wall + 1) % WALL_COUNT; scr_wall_changed(); }
 		else if (s == 4) { ui_theme_set((ui_theme + 1) % THEME_COUNT); scr_wall_changed(); }	/* Sony, SNRGY plata, SNRGY negro */
 		else if (s == 5) ui_aod = !ui_aod;	/* the strip stays on when the screen times out (SNRGY looks) */
-		else if (s == 6) { percent_editor("Brillo siempre activa", &ui_aod_level, 5, apply_aod); gfx_backlight(ui_brightness); }
+		else if (s == 6) ui_aod_level = ui_aod_level >= 100 ? 20 : ui_aod_level + 20;
 		else if (s == 7) ui_strip_calm = !ui_strip_calm;	/* tranquila: refreshed every 5 s, long titles don't scroll */
 		settings_save();
 	}

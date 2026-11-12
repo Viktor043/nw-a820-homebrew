@@ -37,7 +37,7 @@ void ui_theme_set(int t)
 	}
 	th_strip = RGB(6, 6, 7); th_dot = RGB(0xF2, 0xF2, 0xF2); th_dotoff = RGB(0x18, 0x18, 0x1A);
 	gfx_face = gfx_caps = SNRGY;
-	gfx_rot = SNRGY ? H - 264 : 0;	/* the 56 px strip band on top */
+	gfx_rot = SNRGY ? H - 278 : 0;	/* the 42 px strip band on top */
 	gfx_invalidate();
 }
 
@@ -66,17 +66,19 @@ static void chevron(int x, int cy, uint16_t c)
 }
 
 /* the E-PLAYER's dot-matrix display: 5x7 glyphs, 2 px pitch, in the status bar band (fb 288..320 = 120 x 16 dots) */
-static const unsigned char dm5x7[][7] = {	/* ' ' .. 'Z', one byte per row, 5 low bits */
-	{0,0,0,0,0,0,0},{4,4,4,4,4,0,4},{10,10,0,0,0,0,0},{10,31,10,10,10,31,10},{4,15,20,14,5,30,4},{24,25,2,4,8,19,3},{12,18,20,8,21,18,13},{4,4,8,0,0,0,0},
-	{2,4,8,8,8,4,2},{8,4,2,2,2,4,8},{0,4,21,14,21,4,0},{0,4,4,31,4,4,0},{0,0,0,0,12,4,8},{0,0,0,31,0,0,0},{0,0,0,0,0,12,12},{1,2,2,4,8,8,16},
-	{14,17,19,21,25,17,14},{4,12,4,4,4,4,14},{14,17,1,2,4,8,31},{31,2,4,2,1,17,14},{2,6,10,18,31,2,2},{31,16,30,1,1,17,14},{6,8,16,30,17,17,14},{31,1,2,4,8,8,8},
-	{14,17,17,14,17,17,14},{14,17,17,15,1,2,12},{0,12,12,0,12,12,0},{0,12,12,0,12,4,8},{2,4,8,16,8,4,2},{0,0,31,0,31,0,0},{8,4,2,1,2,4,8},{14,17,1,2,4,0,4},
-	{14,17,1,13,21,21,14},{14,17,17,31,17,17,17},{30,17,17,30,17,17,30},{14,17,16,16,16,17,14},{30,17,17,17,17,17,30},{31,16,16,30,16,16,31},{31,16,16,30,16,16,16},{14,17,16,23,17,17,15},
-	{17,17,17,31,17,17,17},{14,4,4,4,4,4,14},{7,2,2,2,2,18,12},{17,18,20,24,20,18,17},{16,16,16,16,16,16,31},{17,27,21,21,17,17,17},{17,17,25,21,19,17,17},{14,17,17,17,17,17,14},
-	{30,17,17,30,16,16,16},{14,17,17,17,21,18,13},{30,17,17,30,20,18,17},{15,16,16,14,1,1,30},{31,4,4,4,4,4,4},{17,17,17,17,17,17,14},{17,17,17,17,17,10,4},{17,17,17,21,21,21,10},
-	{17,17,10,4,10,17,17},{17,17,10,4,4,4,4},{31,1,2,4,8,16,31},
+static const unsigned char dm5x5[][5] = {	/* ' ' .. 'Z', 5 rows of 5 dots (low bits), drawn for the 42 px strip */
+	{0,0,0,0,0},{4,4,4,0,4},{10,10,0,0,0},{10,31,10,31,10},{15,20,14,5,30},{25,26,4,11,19},{12,18,13,18,13},{4,4,0,0,0},
+	{2,4,4,4,2},{8,4,4,4,8},{0,21,14,21,0},{0,4,14,4,0},{0,0,0,4,8},{0,0,14,0,0},{0,0,0,0,4},{1,2,4,8,16},
+	{14,19,21,25,14},{4,12,4,4,14},{30,1,14,16,31},{30,1,14,1,30},{18,18,31,2,2},{31,16,30,1,30},{14,16,30,17,14},{31,1,2,4,4},
+	{14,17,14,17,14},{14,17,15,1,14},{0,4,0,4,0},{0,4,0,4,8},{2,4,8,4,2},{0,31,0,31,0},{8,4,2,4,8},{14,1,6,0,4},
+	{14,17,23,16,14},{14,17,31,17,17},{30,17,30,17,30},{15,16,16,16,15},{30,17,17,17,30},{31,16,30,16,31},{31,16,30,16,16},{15,16,19,17,15},
+	{17,17,31,17,17},{14,4,4,4,14},{7,2,2,18,12},{17,18,28,18,17},{16,16,16,16,31},{17,27,21,17,17},{17,25,21,19,17},{14,17,17,17,14},
+	{30,17,30,16,16},{14,17,21,18,13},{30,17,30,18,17},{15,16,14,1,30},{31,4,4,4,4},{17,17,17,17,14},{17,17,17,10,4},{17,17,21,27,17},
+	{17,10,4,10,17},{17,10,4,4,4},{31,2,4,8,31},
 };
-#define DM_ROWS 25	/* 3 rows of 7 dots, 2 dots apart */
+#define DM_ROWS 19	/* 3 rows of 5 dots, 2 dots apart */
+#define DM_R2 7		/* first dot row of the second and third text rows */
+#define DM_R3 14
 #define DM_ADV 7	/* a 5-dot glyph and 2 dots of space: the letters never touch */
 static unsigned char dm_on[DM_ROWS][120];
 static void dm_dot(int x, int y) { if (x >= 0 && x < 120 && y >= 0 && y < DM_ROWS) dm_on[y][x] = 1; }
@@ -97,19 +99,19 @@ static int dm_text(int col, int row, const char *s, int maxcol)	/* returns the c
 		}
 		unsigned cp = *p++;
 		if (cp >= 0xC0 && (*p & 0xC0) == 0x80) { cp = ((cp & 0x1F) << 6) | (*p++ & 0x3F); while ((*p & 0xC0) == 0x80) p++; }
-		const unsigned char *g = dm5x7[dm_ch(cp)];
-		for (int y = 0; y < 7; y++) for (int x = 0; x < 5; x++) if (g[y] & (16 >> x)) dm_dot(col + x, row + y);
+		const unsigned char *g = dm5x5[dm_ch(cp)];
+		for (int y = 0; y < 5; y++) for (int x = 0; x < 5; x++) if (g[y] & (16 >> x)) dm_dot(col + x, row + y);
 		col += DM_ADV;
 	}
 	return col;
 }
 static int dm_w(const char *s) { int n = 0; for (const unsigned char *p = (const unsigned char *)s; *p; p++) if ((*p & 0xC0) != 0x80) n++; return n * DM_ADV; }
-/* the dots into the status band of the back buffer (264..320, shown on top): 2 px margin, 25 dot rows at 2 px,
+/* the dots into the status band of the back buffer (278..320, shown on top): 2 px margin, 19 dot rows at 2 px,
  * then 4 px more of the strip so the dots never touch its edge */
-#define DM_Y 266
+#define DM_Y 280
 static void dm_flush(void)
 {
-	gfx_fill(0, 264, W, 2 + DM_ROWS * 2, th_strip);
+	gfx_fill(0, 278, W, 2 + DM_ROWS * 2, th_strip);
 	gfx_fill(0, DM_Y + DM_ROWS * 2, W, H - DM_Y - DM_ROWS * 2, ui_aod_now ? 0 : th_strip);	/* the strip runs down to the title */
 	for (int y = 0; y < DM_ROWS; y++) for (int x = 0; x < 120; x++) {
 		uint16_t *d = fb + (DM_Y + y * 2) * W + x * 2;
@@ -128,11 +130,11 @@ static int dm_status_row(const char *left)
 	dm_text(c, 0, clk, 120);
 	if (ui_st.batt >= 0) {	/* battery 12 x 7 with a nub and up to 4 bars */
 		int bx = c - 16;
-		for (int x = 0; x < 12; x++) { dm_dot(bx + x, 0); dm_dot(bx + x, 6); }
-		for (int y = 0; y < 7; y++) { dm_dot(bx, y); dm_dot(bx + 11, y); }
-		dm_dot(bx + 12, 2); dm_dot(bx + 12, 3); dm_dot(bx + 12, 4);
+		for (int x = 0; x < 12; x++) { dm_dot(bx + x, 0); dm_dot(bx + x, 4); }
+		for (int y = 0; y < 5; y++) { dm_dot(bx, y); dm_dot(bx + 11, y); }
+		dm_dot(bx + 12, 1); dm_dot(bx + 12, 2); dm_dot(bx + 12, 3);
 		int bars = ui_st.batt >= 85 ? 4 : ui_st.batt >= 60 ? 3 : ui_st.batt >= 35 ? 2 : ui_st.batt >= 10 ? 1 : 0;
-		for (int i = 0; i < bars; i++) for (int y = 2; y <= 4; y++) { dm_dot(bx + 2 + i * 2, y); dm_dot(bx + 3 + i * 2, y); }
+		for (int i = 0; i < bars; i++) { dm_dot(bx + 2 + i * 2, 2); dm_dot(bx + 3 + i * 2, 2); }	/* one dot row of charge inside the outline */
 		c = bx - 2;
 		if (ui_st.charging) c = dm_text(c - 6, 0, "+", 120) - 8;
 	}
@@ -142,8 +144,8 @@ static int dm_status_row(const char *left)
 	char cnt[16] = "";
 	if (!left && ui_st.rd_on && ui_st.rd_l1) left = ui_st.rd_l1;
 	else if (!left && ui_st.np_n > 0) { snprintf(cnt, sizeof cnt, "%d/%d", ui_st.np_idx + 1, ui_st.np_n); left = cnt; }
-	if (ui_st.playing == 1) { for (int y = 0; y < 7; y++) for (int k = 0; k <= (y < 4 ? y : 6 - y); k++) dm_dot(k, y); x = 7; }
-	else if (ui_st.playing == 2) { for (int y = 0; y < 7; y++) { dm_dot(0, y); dm_dot(1, y); dm_dot(3, y); dm_dot(4, y); } x = 7; }
+	if (ui_st.playing == 1) { for (int y = 0; y < 5; y++) for (int k = 0; k <= (y < 3 ? y : 4 - y); k++) dm_dot(k, y); x = 5; }
+	else if (ui_st.playing == 2) { for (int y = 0; y < 5; y++) { dm_dot(0, y); dm_dot(2, y); } x = 5; }
 	if (left && *left) dm_text(x + (x ? 4 : 0), 0, left, c - 2);
 	return c;
 }
@@ -192,7 +194,7 @@ static const int home_fallback[HOME_SLOTS] = { ICON_LOTUS, ICON_BOOK, ICON_MIC, 
 
 /* the whole strip: status / the song (or a hint when nothing plays) / elapsed, bar, remaining (or the volume) */
 static char strip_hint[96];
-int ui_aod, ui_aod_now, ui_strip_calm, ui_aod_level = 5;
+int ui_aod, ui_aod_now, ui_strip_calm, ui_aod_level = 20;
 static int strip_scroll;	/* dots the song line is scrolled left */
 #define MQ_GAP 18		/* dots between the end of the title and its repeat */
 static void strip_line(char *line, size_t n)
@@ -226,35 +228,35 @@ static void strip_draw(int vol, int volmax)
 	strip_line(line, sizeof line);
 	if (strip_scroll && dm_w(line) > 120) {	/* the scrolling title, and its next pass coming in behind it */
 		int w = dm_w(line);
-		dm_text(-strip_scroll, 9, line, 120 + 6);
-		dm_text(-strip_scroll + w + MQ_GAP, 9, line, 120 + 6);
-	} else dm_text(0, 9, line, 120);
+		dm_text(-strip_scroll, DM_R2, line, 120 + 6);
+		dm_text(-strip_scroll + w + MQ_GAP, DM_R2, line, 120 + 6);
+	} else dm_text(0, DM_R2, line, 120);
 	int x0 = 0, x1 = 119, fill = 0;
 	if (vol >= 0) {	/* VOL, one column per step, the level */
 		char b[8]; snprintf(b, sizeof b, "%02d", vol);
-		x0 = dm_text(0, 18, "VOL", 120) + 3; x1 = 120 - dm_w(b) - 3;
-		dm_text(x1 + 3, 18, b, 120);
+		x0 = dm_text(0, DM_R3, "VOL", 120) + 3; x1 = 120 - dm_w(b) - 3;
+		dm_text(x1 + 3, DM_R3, b, 120);
 		int seg = volmax > 0 ? volmax : 30, span = x1 - x0;
-		for (int i = 0; i < seg && span > 0; i++) { int sx = x0 + i * span / seg; for (int y = 18; y < 25; y++) if (i < vol || y == 24) dm_dot(sx, y); }
+		for (int i = 0; i < seg && span > 0; i++) { int sx = x0 + i * span / seg; for (int y = DM_R3; y < DM_R3 + 5; y++) if (i < vol || y == DM_R3 + 4) dm_dot(sx, y); }
 		dm_flush();
 		return;
 	}
 	if (ui_st.rd_on) {	/* reading: 37% ------ 4H 12M */
 		char a[8]; snprintf(a, sizeof a, "%d%%", ui_st.rd_pct);
 		const char *b = ui_st.rd_left ? ui_st.rd_left : "";
-		x0 = dm_text(0, 18, a, 120) + 2; x1 = 120 - dm_w(b) - 3;
-		dm_text(x1 + 3, 18, b, 120);
+		x0 = dm_text(0, DM_R3, a, 120) + 2; x1 = 120 - dm_w(b) - 3;
+		dm_text(x1 + 3, DM_R3, b, 120);
 		fill = (x1 - x0 - 3) * ui_st.rd_pct / 100;
 	} else if (ui_st.np_total > 0) {	/* 1:12 [=====-----] -1:36 */
 		char a[16], b[16]; int s = ui_st.np_sec < 0 ? 0 : ui_st.np_sec, r = ui_st.np_total - s;
 		if (r < 0) r = 0;
 		if (ui_st.np_total >= 3600) { snprintf(a, sizeof a, "%d:%02d:%02d", s / 3600, s / 60 % 60, s % 60); snprintf(b, sizeof b, "-%d:%02d:%02d", r / 3600, r / 60 % 60, r % 60); }
 		else { snprintf(a, sizeof a, "%d:%02d", s / 60, s % 60); snprintf(b, sizeof b, "-%d:%02d", r / 60, r % 60); }
-		x0 = dm_text(0, 18, a, 120) + 2; x1 = 120 - dm_w(b) - 3;
-		dm_text(x1 + 3, 18, b, 120);
+		x0 = dm_text(0, DM_R3, a, 120) + 2; x1 = 120 - dm_w(b) - 3;
+		dm_text(x1 + 3, DM_R3, b, 120);
 		fill = (x1 - x0 - 3) * (s > ui_st.np_total ? ui_st.np_total : s) / ui_st.np_total;
 	}
-	for (int x = x0 + 2; x < x0 + 2 + fill; x++) for (int y = 20; y <= 22; y++) dm_dot(x, y);	/* just the line filling up, no frame */
+	for (int x = x0 + 2; x < x0 + 2 + fill; x++) for (int y = DM_R3 + 1; y <= DM_R3 + 3; y++) dm_dot(x, y);	/* just the line filling up, no frame */
 	dm_flush();
 }
 void scr_strip(void) { if (SNRGY) strip_draw(-1, 0); }
@@ -640,7 +642,7 @@ static void snrgy_icon_draw(int k, int x, int y, uint16_t c)
 int ui_home_tab;
 const int home_order[] = { 4, 1, HOME_BOOKS, 2, 5, 0, 7, 8 };	/* Música, Audiolibros, Libros, Podcasts, Juegos, Modo foco, Apagar, Ajustes (Bluetooth: Ajustes) */
 const int home_order_n = 8;
-#define HOME_RH 29	/* eight rows between the tabs and the strip */
+#define HOME_RH 31	/* eight rows between the tabs and the strip */
 static void snrgy_home(int sel, const char *nowline)
 {
 	bg_fill(0, 0, W, BOTTOM_Y, 0);
@@ -942,8 +944,8 @@ static void info_line(int y, struct img ic, const char *s)
 /* SNRGY now playing: the cover across the width, the counter and play mode under it, then the queue (album or
  * folder, in play order). One virtual column; while browsing (UP / DOWN) it scrolls to keep the cursor in view.
  * Time and progress are in the strip on top. */
-#define SP_INFO (2 + PLAYER_ART_BIG + 2)	/* the counter / mode row */
-#define SP_LIST (SP_INFO + 24)			/* the first queue row */
+#define SP_INFO (PLAYER_ART_BIG + 2 + (BOTTOM_Y - PLAYER_ART_BIG - 2 - LINE_H) / 2)	/* the counter / mode row, centred under the cover */
+#define SP_LIST BOTTOM_Y			/* the first queue row: just under the fold */
 static void icon_x4(int k, int cx, int cy, uint16_t c)	/* a line icon at 4x (the cover placeholder) */
 {
 	int s = SNRGY_ICON * 4, x0 = cx - s / 2, y0 = cy - s / 2;
@@ -1347,3 +1349,4 @@ void scr_page(const char *title)
 	background(); title_bar(title);
 }
 void scr_page_status(const char *text) { bottom_bar(BB_TEXT, text, C_WHITE); }
+uint16_t scr_paper(void) { return SNRGY ? th_paper : 0; }	/* the page colour (landscape pages fill the whole screen) */

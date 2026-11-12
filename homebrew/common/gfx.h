@@ -53,5 +53,8 @@ int gfx_digits_w(const char *s);
 /* SNRGY themes: gfx_face 1 = the bitmap font from tools/mkfont.py (ui_font.h; Sony's font if not built in),
  * gfx_caps 1 = upper case; gfx_rot = rows the frame is rotated down on the LCD (32: status strip on top) */
 extern int gfx_face, gfx_caps, gfx_rot;
+extern int gfx_book_size, gfx_landscape;	/* the reader: face 2's size; text turned 90 degrees (a 320 x 240 page) */
+int gfx_book_sizes(void);		/* how many sizes face 2 has */
+int gfx_book_line(void);		/* the line pitch of face 2 at gfx_book_size */
 void gfx_composed(uint16_t *out);	/* the frame as the LCD shows it (gfx_rot applied) */
 #endif

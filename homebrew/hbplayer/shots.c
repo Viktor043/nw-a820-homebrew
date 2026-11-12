@@ -168,6 +168,9 @@ int main(int argc, char **argv)
 			"Ines noticed it on the first morning, standing on the quay with her suitcase between her feet. She checked her watch twice, then a third time, and finally decided that the town was simply living a little behind the rest of the world.\n"
 			"It suited her. She had come here to be a little behind.");
 		save("21_libro");
+		static const char *sample = "\1Chapter One\nThe clock above the harbour office had run four minutes slow for as long as anyone in the town could remember, and nobody had ever thought to correct it. The ferries kept their own time, the fishermen kept the tide's, and the children kept whatever time the bells at the school decided to keep.";
+		ui_book_size = 3; reader_shot("The Harbour Clock", "M. Ostberg", sample); save("21c_libro_grande");
+		ui_book_size = 1; ui_book_land = 1; { int r = gfx_rot; gfx_rot = 0; reader_shot("The Harbour Clock", "M. Ostberg", sample); save("21b_libro_horizontal"); gfx_rot = r; } ui_book_land = 0;
 	}
 	if (ui_theme) {	/* the strip: a long title scrolling, and the always-on display */
 		const char *ot = ui_st.np_title; ui_st.np_title = "A Very Long Song Title That Has To Scroll";

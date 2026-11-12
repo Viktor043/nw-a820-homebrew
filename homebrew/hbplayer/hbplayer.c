@@ -84,6 +84,7 @@ static int keyfd = -1;
 static FILE *logf;
 static int cpu_mhz;	/* 0 until the first set_cpu: the unit BOOTS AT 248 MHz (measured), not 124 */
 static int in_game, in_slide, force_redraw, pos_dirty;
+int ui_fullscreen, ui_keep_awake;
 static int held_code = -1;	/* direction key currently held, for auto-repeat */
 static double held_since, last_repeat;
 char statedir[PATHLEN] = "/tmp";
@@ -324,7 +325,7 @@ static void show_hold(void)
 void eng_note(const char *msg)
 {
 	lg("note: %s", msg);
-	if (!backlight_on || in_game || in_slide) return;
+	if (!backlight_on || in_game || in_slide || ui_fullscreen) return;
 	scr_toast(msg);
 	gfx_flip();
 	popup_until = now() + 2.0;
@@ -347,7 +348,7 @@ static int audio_period(void)
  * audio engine (every ~20 ms; the buffer holds ~0.4 s), so no screen that waits for a key can starve the audio. */
 static void strip_tick(void)	/* SNRGY: the strip's scrolling title, ~10 steps a second */
 {
-	if (!ui_theme || !backlight_on || in_game || in_slide || popup_active()) return;
+	if (!ui_theme || !backlight_on || in_game || in_slide || ui_fullscreen || popup_active()) return;
 	if (scr_strip_marquee(now())) { scr_strip(); gfx_flip_rect(0, BOTTOM_Y, W, H - BOTTOM_Y); }
 }
 static int raw_event(struct ev *e, int timeout_ms)
@@ -355,7 +356,7 @@ static int raw_event(struct ev *e, int timeout_ms)
 	double end = now() + timeout_ms / 1000.0;
 	for (;;) {
 		int slice = timeout_ms, feed = eng_playing() && !in_game, net = dl_active() || pod_net_busy();
-		int marq = ui_theme && backlight_on && !in_game && scr_strip_scrolls();
+		int marq = ui_theme && backlight_on && !in_game && !ui_fullscreen && scr_strip_scrolls();
 		strip_tick();
 		if (net || feed) {
 			if (net) dl_tick();	/* downloads, or just the phone link a podcast screen holds */
@@ -579,7 +580,7 @@ void idle_tick(int playing)
 	ui_st.bt = bt_connected();
 	ui_st.playing = eng_active() ? (eng_playing() ? 1 : 2) : 0;
 	np_update();
-	if (ui_theme && (backlight_on || ui_aod_now) && !in_game && !in_slide && !popup_active()) {	/* SNRGY: the strip's clock and bar stay live */
+	if (ui_theme && (backlight_on || ui_aod_now) && !in_game && !in_slide && !ui_fullscreen && !popup_active()) {	/* SNRGY: the strip's clock and bar stay live */
 		static int last_step = -1, last_min = -1;
 		time_t tt = time(0); struct tm *tm = localtime(&tt);
 		int m = tm ? tm->tm_min : 0, step = ui_strip_calm || ui_aod_now ? ui_st.np_sec / 5 : ui_st.np_sec;
@@ -588,14 +589,14 @@ void idle_tick(int playing)
 	if (eng_take_sleep()) { suspend_now(); return; }
 	int idle = (int)(time(0) - last_key);
 	playing |= eng_playing();
-	if (backlight_on && idle > (playing ? ui_dim_secs : (ui_dim_secs > DIM_IDLE ? ui_dim_secs : DIM_IDLE))) {
+	if (backlight_on && !ui_keep_awake && idle > (playing ? ui_dim_secs : (ui_dim_secs > DIM_IDLE ? ui_dim_secs : DIM_IDLE))) {
 		if (ui_theme && ui_aod && !in_game) {	/* always-on display: only the strip stays, the backlight at its lowest */
 			ui_aod_now = 1; scr_aod(); gfx_flip(); gfx_backlight(ui_aod_level);
 		} else { gfx_backlight(0); gfx_lcd(0); }
 		backlight_on = 0;
 	}
 	if (batt_low >= 3) power_off_full("Batería agotada");
-	if (!playing && !dl_active() && idle > (backlight_on ? AUTO_SUSPEND : AUTO_SUSPEND_DARK)) suspend_now();
+	if (!playing && !dl_active() && !ui_keep_awake && idle > (backlight_on ? AUTO_SUSPEND : AUTO_SUSPEND_DARK)) suspend_now();
 	static time_t last_alarm;
 	if (alarm_due() && time(0) - last_alarm > 300) { last_alarm = time(0); alarm_ring(); }
 }
@@ -751,7 +752,8 @@ static void pos_load(void)
 		}
 		if (!strncmp(line, "rows ", 5)) { ui_big_rows = atoi(line + 5) == 1; continue; }
 		if (!strncmp(line, "theme ", 6)) { ui_theme_set(atoi(line + 6)); continue; }
-		if (!strncmp(line, "aod ", 4)) { int a = 0, l = 5; sscanf(line + 4, "%d %d", &a, &l); ui_aod = a == 1; ui_aod_level = l < 5 ? 5 : l > 100 ? 100 : l / 5 * 5; continue; }
+		if (!strncmp(line, "aod ", 4)) { int a = 0, l = 20; sscanf(line + 4, "%d %d", &a, &l); ui_aod = a == 1; ui_aod_level = l < 20 ? 20 : l > 100 ? 100 : l / 20 * 20; continue; }
+		if (!strncmp(line, "book ", 5)) { int z = 1, o = 0; sscanf(line + 5, "%d %d", &z, &o); ui_book_size = z < 0 ? 0 : z > 7 ? 7 : z; ui_book_land = o == 1; continue; }
 		if (!strncmp(line, "calm ", 5)) { ui_strip_calm = atoi(line + 5) == 1; continue; }
 		if (!strncmp(line, "wall ", 5)) { ui_wall = atoi(line + 5); if (ui_wall < 0 || ui_wall >= WALL_COUNT) ui_wall = 0; continue; }
 		if (!strncmp(line, "grid ", 5)) { ui_album_grid = atoi(line + 5) == 1; continue; }
@@ -759,7 +761,7 @@ static void pos_load(void)
 		if (!strncmp(line, "focus ", 6)) { focus_load(line + 6); continue; }
 		if (!strncmp(line, "lang ", 5)) { ui_lang_set(atoi(line + 5) == 1); continue; }
 		if (!strncmp(line, "podc ", 5)) { if (strlen(line + 5) == 2) snprintf(pod_country, sizeof pod_country, "%s", line + 5); continue; }
-		if (!strncmp(line, "ui ", 3)) { sscanf(line + 3, "%d %d", &ui_brightness, &ui_dim_secs); if (ui_brightness < 5 || ui_brightness > 100) ui_brightness = 80; if (ui_dim_secs < 15 || ui_dim_secs > 120) ui_dim_secs = 30; continue; }
+		if (!strncmp(line, "ui ", 3)) { sscanf(line + 3, "%d %d", &ui_brightness, &ui_dim_secs); if (ui_brightness < 20 || ui_brightness > 100) ui_brightness = 80; if (ui_dim_secs < 15 || ui_dim_secs > 120) ui_dim_secs = 30; continue; }
 		if (!strncmp(line, "alarm ", 6)) { alarm_load(line + 6); continue; }
 		if (!strncmp(line, "speed ", 6)) { eng_speed = atoi(line + 6); if (eng_speed < 50 || eng_speed > 300) eng_speed = 100; continue; }
 		if (!strncmp(line, "rg ", 3)) { replaygain_mode = atoi(line + 3); if (replaygain_mode < 0 || replaygain_mode > 2) replaygain_mode = 0; continue; }
@@ -784,7 +786,7 @@ void pos_save(void)
 	if (!f) { lg("cannot write %s", tmp); return; }
 	fprintf(f, "vol30 %d\nmode %d %d\nui %d %d\nalarm %d %d %d %d\nspeed %d\nrg %d\n", volume, eng_shuffle, eng_repeat, ui_brightness, ui_dim_secs, alarm_cfg.on, alarm_cfg.hour, alarm_cfg.min, alarm_cfg.src, eng_speed, replaygain_mode);
 	{ char fo[32]; focus_save(fo, sizeof fo); fprintf(f, "rows %d\ngrid %d\nbeep %d\npodc %s\nlang %d\nfocus %s\n", ui_big_rows, ui_album_grid, ui_beep, pod_country, ui_lang, fo); }
-	fprintf(f, "wall %d\ntheme %d\naod %d %d\ncalm %d\n", ui_wall, ui_theme, ui_aod, ui_aod_level, ui_strip_calm);
+	fprintf(f, "wall %d\ntheme %d\naod %d %d\ncalm %d\nbook %d %d\n", ui_wall, ui_theme, ui_aod, ui_aod_level, ui_strip_calm, ui_book_size, ui_book_land);
 	if (lastfile[0]) fprintf(f, "last %s\n", lastfile);
 	for (int i = 0; i < npos; i++) fprintf(f, "%ld %d %s\n", poss[i].bytes, poss[i].sec, poss[i].path);
 	int bad = ferror(f);
