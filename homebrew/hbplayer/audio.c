@@ -40,10 +40,14 @@ void aout_set_track_gain(int cdb)
 	apply_hw_volume();
 }
 
+/* Ajustes > Sonido > Volumen máximo: the whole scale moved up in the codec's own gain, 0 / +3 / +6 / +9 dB (units of
+ * 0.65 dB). 76 = 0 dB, the codec goes to 100; above 76 it is digital gain, so loud masters can clip at +6 / +9. */
+int vol_boost;
+static const int boost_units[4] = { 0, 5, 9, 14 };
 static void apply_hw_volume(void)
 {
 	if (fd >= 0 ? is_bt : !eng_direct()) return;	/* direct mode: the DSP owns the device, the mixer is still ours */
-	int v = volume <= 0 ? 0 : 76 - ((VOLMAX - volume) * 23 + 5) / 10 + (rg_cdb >= 0 ? rg_cdb + 32 : rg_cdb - 32) / 65;	/* 1.5 dB a step = 2.3 codec units of 0.65 dB */
+	int v = volume <= 0 ? 0 : 76 + boost_units[vol_boost & 3] - ((VOLMAX - volume) * 23 + 5) / 10 + (rg_cdb >= 0 ? rg_cdb + 32 : rg_cdb - 32) / 65;	/* 1.5 dB a step = 2.3 codec units of 0.65 dB */
 	if (v < 0) v = 0;
 	if (v > 100) v = 100;
 	if (volume <= 0) v = 0;

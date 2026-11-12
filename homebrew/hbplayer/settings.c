@@ -184,7 +184,7 @@ static int sound_menu(int with_np)
 		struct eng_info e; eng_info(&e);
 		int book = eng_active() ? e.mode == ENG_BOOK : 0;
 		const char *why = eng_not_direct(book);
-		int n = 0, act[10];
+		int n = 0, act[12];
 		if (with_np) { snprintf(items[n], 48, "Reproduciendo"); values[n][0] = 0; act[n++] = 0; }
 		snprintf(items[n], 48, "Ahora"); snprintf(values[n], 24, "%s", why ? "procesado" : "máx. batería"); act[n++] = 1;
 		int p = preset_index();
@@ -192,6 +192,8 @@ static int sound_menu(int with_np)
 		  snprintf(items[n], 48, "Ecualizador"); snprintf(values[n], 24, "%s", pn[sony_eq < 0 || sony_eq > 5 ? 0 : sony_eq]); act[n++] = 2; (void)p; }
 		snprintf(items[n], 48, "Auriculares"); snprintf(values[n], 24, "%s", hp_xfeed || hp_loud || hp_autoeq ? "efectos" : "no"); act[n++] = 3;
 		snprintf(items[n], 48, "Voz"); snprintf(values[n], 24, "%d.%02dx%s", eng_speed / 100, eng_speed % 100, voice_trim_on || voice_boost_on ? "+" : ""); act[n++] = 4;
+		{ static const char *vb[4] = { "normal", "+3 dB", "+6 dB", "+9 dB" };
+		  snprintf(items[n], 48, "Volumen máximo"); snprintf(values[n], 24, "%s", vb[vol_boost & 3]); act[n++] = 9; }
 		snprintf(items[n], 48, "Volumen parejo"); snprintf(values[n], 24, "%s", replaygain_mode == 0 ? "no" : replaygain_mode == 1 ? "por pista" : "por álbum"); act[n++] = 5;
 		snprintf(items[n], 48, "Efectos de Sony"); snprintf(values[n], 24, "%s", sony_vpt >= 0 || sony_dn || sony_dsee ? "sí" : "no"); act[n++] = 6;
 		snprintf(items[n], 48, "Máxima batería"); snprintf(values[n], 24, "%s", dsp_direct ? "sí" : "no"); act[n++] = 7;
@@ -212,6 +214,10 @@ static int sound_menu(int with_np)
 		case 6: sony_fx_menu(); break;
 		case 7: dsp_direct = !dsp_direct; changed(); break;	/* from the next track */
 		case 8: dsp_enabled = !dsp_enabled; if (!dsp_enabled) dsp_stop_helper(); changed(); break;	/* from the next track */
+		case 9:	/* louder headphones: at once, with a warning the first time it goes past normal */
+			vol_boost = (vol_boost + 1) % 4;
+			if (vol_boost == 1) { message("Volumen máximo", "Más fuerte en los auriculares. Cuidá tus oídos.", "+6 y +9 dB pueden distorsionar en grabaciones fuertes."); msg_wait(5); }
+			aout_set_volume(); settings_save(); break;
 		}
 		if (r) break;
 	}
@@ -331,7 +337,8 @@ void settings_menu(void)
 {
 	struct list_view v = { "Ajustes", 11, 0, 0, it_label, it_value, 0, LI_NONE, 0, 0 };
 	for (;;) {
-		snprintf(items[0], 48, "Sonido"); snprintf(values[0], 24, "%s", eng_not_direct(0) ? "efectos" : "máx. batería");
+		{ static const char *pn[6] = { "EQ no", "Heavy", "Pop", "Jazz", "Exclusivo", "Personaliz." };	/* the EQ: the path ("máx. batería") is inside */
+		  snprintf(items[0], 48, "Sonido"); snprintf(values[0], 24, "%s", pn[sony_eq < 0 || sony_eq > 5 ? 0 : sony_eq]); }
 		snprintf(items[1], 48, "Pantalla"); values[1][0] = 0;
 		snprintf(items[2], 48, "Bluetooth"); snprintf(values[2], 24, "%s", bt_connected() ? "conectado" : "");
 		snprintf(items[3], 48, "Despertador"); snprintf(values[3], 24, alarm_cfg.on ? "%02d:%02d" : "no", alarm_cfg.hour, alarm_cfg.min);

@@ -767,6 +767,7 @@ static void pos_load(void)
 		if (!strncmp(line, "aod ", 4)) { int a = 0, l = 20; sscanf(line + 4, "%d %d", &a, &l); ui_aod = a == 1; ui_aod_level = l < 20 ? 20 : l > 100 ? 100 : l / 20 * 20; continue; }
 		if (!strncmp(line, "book ", 5)) { int z = 1, o = 0; sscanf(line + 5, "%d %d", &z, &o); ui_book_size = z < 0 ? 0 : z > 7 ? 7 : z; ui_book_land = o == 1; continue; }
 		if (!strncmp(line, "calm ", 5)) { ui_strip_calm = atoi(line + 5) == 1; continue; }
+		if (!strncmp(line, "volmax ", 7)) { vol_boost = atoi(line + 7); if (vol_boost < 0 || vol_boost > 3) vol_boost = 0; continue; }
 		if (!strncmp(line, "wall ", 5)) { ui_wall = atoi(line + 5); if (ui_wall < 0 || ui_wall >= WALL_COUNT) ui_wall = 0; continue; }
 		if (!strncmp(line, "grid ", 5)) { ui_album_grid = atoi(line + 5) == 1; continue; }
 		if (!strncmp(line, "beep ", 5)) { ui_beep = atoi(line + 5) == 1; continue; }
@@ -798,7 +799,7 @@ void pos_save(void)
 	if (!f) { lg("cannot write %s", tmp); return; }
 	fprintf(f, "vol30 %d\nmode %d %d\nui %d %d\nalarm %d %d %d %d\nspeed %d\nrg %d\n", volume, eng_shuffle, eng_repeat, ui_brightness, ui_dim_secs, alarm_cfg.on, alarm_cfg.hour, alarm_cfg.min, alarm_cfg.src, eng_speed, replaygain_mode);
 	{ char fo[32]; focus_save(fo, sizeof fo); fprintf(f, "rows %d\ngrid %d\nbeep %d\npodc %s\nlang %d\nfocus %s\n", ui_big_rows, ui_album_grid, ui_beep, pod_country, ui_lang, fo); }
-	fprintf(f, "wall %d\ntheme %d\naod %d %d\ncalm %d\nbook %d %d\n", ui_wall, ui_theme, ui_aod, ui_aod_level, ui_strip_calm, ui_book_size, ui_book_land);
+	fprintf(f, "wall %d\ntheme %d\naod %d %d\ncalm %d\nbook %d %d\nvolmax %d\n", ui_wall, ui_theme, ui_aod, ui_aod_level, ui_strip_calm, ui_book_size, ui_book_land, vol_boost);
 	if (lastfile[0]) fprintf(f, "last %s\n", lastfile);
 	for (int i = 0; i < npos; i++) fprintf(f, "%ld %d %s\n", poss[i].bytes, poss[i].sec, poss[i].path);
 	int bad = ferror(f);
@@ -1064,6 +1065,7 @@ void nowplaying_run(void)
 		if (k < 0) continue;
 		int music = e.mode == ENG_MUSIC;
 		if (ui_theme && (k == K_UP || k == K_DOWN)) {
+			if (k == K_UP && (!browsing ? e.idx == 0 : cursor == 0)) { browsing = 0; full = 1; continue; }	/* above the first song: the whole cover */
 			if (!browsing) { browsing = 1; cursor = e.idx; }
 			if (k == K_UP && cursor > 0) cursor--;
 			if (k == K_DOWN && cursor + 1 < e.n) cursor++;

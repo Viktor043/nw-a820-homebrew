@@ -46,6 +46,7 @@ void beep(int kind);
 extern char statedir[PATHLEN];
 extern int volume;	/* 0..VOLMAX, 30 = 0 dB, 1.5 dB per step */
 #define VOLMAX 30	/* like Sony's 0..30; 30 = 0 dB, 1.5 dB per step */
+extern int vol_boost;	/* audio.c: the volume scale moved up 0 / +3 / +6 / +9 dB (wired output) */
 int gain_q12(int vol);
 void set_cloexec(int fd);
 void hb_alive(void);			/* watchdog keep-alive; call inside any loop that may run > 10 s */

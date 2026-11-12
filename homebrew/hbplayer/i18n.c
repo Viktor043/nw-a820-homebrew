@@ -75,7 +75,7 @@ static const struct tr tab[] = {
 	{ "el DSP de Sony está apagado", "Sony's DSP is off" }, { "el audio va por Bluetooth", "audio goes over Bluetooth" },
 	{ "velocidad distinta de 1x", "speed other than 1x" }, { "Modo 1", "Mode 1" }, { "Modo 2", "Mode 2" }, { "Modo 3", "Mode 3" },
 	{ "Modo 4", "Mode 4" }, { "Modo 5", "Mode 5" }, { "Modo 6", "Mode 6" }, { "Duración", "Length" }, { "Campana cada", "Bell every" },
-	{ "Fondo", "Background" }, { "Tema", "Theme" }, { "Brillo %d%%", "Brightness %d%%" }, { "Cambiar al Walkman de Sony", "Switch to Sony's Walkman" }, { "Cambiar ahora", "Switch now" },
+	{ "Fondo", "Background" }, { "Tema", "Theme" }, { "Volumen máximo", "Maximum volume" }, { "Más fuerte en los auriculares. Cuidá tus oídos.", "Louder headphones. Mind your hearing." }, { "+6 y +9 dB pueden distorsionar en grabaciones fuertes.", "+6 and +9 dB can distort loud recordings." }, { "EQ no", "EQ off" }, { "Brillo %d%%", "Brightness %d%%" }, { "Cambiar al Walkman de Sony", "Switch to Sony's Walkman" }, { "Cambiar ahora", "Switch now" },
 	{ "El Walkman arranca en el firmware de Sony hasta que vuelvas.", "The Walkman starts in Sony's firmware until you come back." },
 	{ "Volver: HOME y VOL- juntos 2 s.", "To come back: hold HOME and VOL- together for 2 s." },
 	{ "Ajustes > Cambiar al Walkman de Sony: al firmware de Sony.", "Settings > Switch to Sony's Walkman: to Sony's firmware." },
