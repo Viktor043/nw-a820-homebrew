@@ -77,6 +77,7 @@ static const unsigned char dm5x7[][7] = {	/* ' ' .. 'Z', one byte per row, 5 low
 	{17,17,10,4,10,17,17},{17,17,10,4,4,4,4},{31,1,2,4,8,16,31},
 };
 #define DM_ROWS 25	/* 3 rows of 7 dots, 2 dots apart */
+#define DM_ADV 7	/* a 5-dot glyph and 2 dots of space: the letters never touch */
 static unsigned char dm_on[DM_ROWS][120];
 static void dm_dot(int x, int y) { if (x >= 0 && x < 120 && y >= 0 && y < DM_ROWS) dm_on[y][x] = 1; }
 static int dm_ch(unsigned cp)	/* Latin-1 letters to their base capital, the rest to ' '..'Z' */
@@ -90,19 +91,19 @@ static int dm_text(int col, int row, const char *s, int maxcol)	/* returns the c
 {
 	const unsigned char *p = (const unsigned char *)s;
 	while (*p && col + 5 <= maxcol) {
-		if (col < -6) {	/* scrolled off the left: skip the glyph */
+		if (col < -DM_ADV) {	/* scrolled off the left: skip the glyph */
 			unsigned c0 = *p++; if (c0 >= 0xC0) while ((*p & 0xC0) == 0x80) p++;
-			col += 6; continue;
+			col += DM_ADV; continue;
 		}
 		unsigned cp = *p++;
 		if (cp >= 0xC0 && (*p & 0xC0) == 0x80) { cp = ((cp & 0x1F) << 6) | (*p++ & 0x3F); while ((*p & 0xC0) == 0x80) p++; }
 		const unsigned char *g = dm5x7[dm_ch(cp)];
 		for (int y = 0; y < 7; y++) for (int x = 0; x < 5; x++) if (g[y] & (16 >> x)) dm_dot(col + x, row + y);
-		col += 6;
+		col += DM_ADV;
 	}
 	return col;
 }
-static int dm_w(const char *s) { int n = 0; for (const unsigned char *p = (const unsigned char *)s; *p; p++) if ((*p & 0xC0) != 0x80) n++; return n * 6; }
+static int dm_w(const char *s) { int n = 0; for (const unsigned char *p = (const unsigned char *)s; *p; p++) if ((*p & 0xC0) != 0x80) n++; return n * DM_ADV; }
 /* the dots into the status band of the back buffer (264..320, shown on top): 2 px margin, 25 dot rows at 2 px,
  * then 4 px more of the strip so the dots never touch its edge */
 #define DM_Y 266
@@ -113,7 +114,7 @@ static void dm_flush(void)
 	for (int y = 0; y < DM_ROWS; y++) for (int x = 0; x < 120; x++) {
 		uint16_t *d = fb + (DM_Y + y * 2) * W + x * 2;
 		if (!dm_on[y][x]) { d[0] = th_dotoff; continue; }
-		d[0] = th_dot; d[1] = RGB(0x9A, 0x9A, 0x9C); d[W] = RGB(0x9A, 0x9A, 0x9C);	/* a lit 2x2 cell, the PMOLED's pixel grid */
+		d[0] = th_dot; d[1] = RGB(0x40, 0x40, 0x42);	/* a lit pixel of its 2x2 cell (fine dots, like the PMOLED's grid) */
 	}
 }
 /* row 0 of the strip: [state + left text] ... [BT] [H] [battery] [24 h clock]; returns the column where the right part starts */
@@ -637,9 +638,9 @@ static void snrgy_icon_draw(int k, int x, int y, uint16_t c)
 	}
 }
 int ui_home_tab;
-const int home_order[] = { 4, 1, HOME_BOOKS, 2, 5, 0, 6, 7, 8 };	/* Música, Audiolibros, Libros, Podcasts, Juegos, Modo foco, Bluetooth, Apagar, Ajustes */
-const int home_order_n = 9;
-#define HOME_RH 26	/* nine rows between the tabs and the strip */
+const int home_order[] = { 4, 1, HOME_BOOKS, 2, 5, 0, 7, 8 };	/* Música, Audiolibros, Libros, Podcasts, Juegos, Modo foco, Apagar, Ajustes (Bluetooth: Ajustes) */
+const int home_order_n = 8;
+#define HOME_RH 29	/* eight rows between the tabs and the strip */
 static void snrgy_home(int sel, const char *nowline)
 {
 	bg_fill(0, 0, W, BOTTOM_Y, 0);
@@ -659,8 +660,8 @@ static void snrgy_home(int sel, const char *nowline)
 		if (on) rrect(4, y, W - 8, HOME_RH - 1, 6, C_WHITE, 1);
 		else if (!next_on && r < home_order_n - 1) gfx_fill(10, y + HOME_RH - 1, W - 20, 1, th_rule);
 		snrgy_icon_draw(i == HOME_BOOKS ? SNRGY_ICON_BOOKS : i, 12, y + (HOME_RH - 1 - SNRGY_ICON) / 2, fg);
-		gfx_text_clip(42, y + 2, i == HOME_BOOKS ? "Libros" : home_labels[i], fg, W - 80);
-		if (i == 2 && ui_pod_new > 0) { char n[8]; snprintf(n, sizeof n, "%d", ui_pod_new); gfx_text(W - 26 - gfx_text_w(n, 1), y + 2, n, on ? C_BLACK : C_GREY, 1); }
+		gfx_text_clip(42, y + (HOME_RH - 1 - LINE_H) / 2 + 1, i == HOME_BOOKS ? "Libros" : home_labels[i], fg, W - 80);
+		if (i == 2 && ui_pod_new > 0) { char n[8]; snprintf(n, sizeof n, "%d", ui_pod_new); gfx_text(W - 26 - gfx_text_w(n, 1), y + (HOME_RH - 1 - LINE_H) / 2 + 1, n, on ? C_BLACK : C_GREY, 1); }
 		chevron(W - 18, y + HOME_RH / 2 - 1, fg);
 	}
 	bottom_bar(BB_NOTE, nowline, C_WHITE);

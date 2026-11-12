@@ -346,27 +346,29 @@ static void screen_menu(void)
 
 void settings_menu(void)
 {
-	struct list_view v = { "Ajustes", 9, 0, 0, it_label, it_value, 0, LI_NONE, 0, 0 };
+	struct list_view v = { "Ajustes", 10, 0, 0, it_label, it_value, 0, LI_NONE, 0, 0 };
 	for (;;) {
 		snprintf(items[0], 48, "Sonido"); snprintf(values[0], 24, "%s", eng_not_direct(0) ? "efectos" : "máx. batería");
 		snprintf(items[1], 48, "Pantalla"); values[1][0] = 0;
-		snprintf(items[2], 48, "Despertador"); snprintf(values[2], 24, alarm_cfg.on ? "%02d:%02d" : "no", alarm_cfg.hour, alarm_cfg.min);
-		{ time_t t = time(0); struct tm *tm = localtime(&t); snprintf(items[3], 48, "Fecha y hora"); if (tm) snprintf(values[3], 24, "%02d:%02d", tm->tm_hour, tm->tm_min); else values[3][0] = 0; }
-		snprintf(items[4], 48, "Pitido"); snprintf(values[4], 24, "%s", ui_beep ? "sí" : "no");
-		snprintf(items[5], 48, "Idioma"); snprintf(values[5], 24, "%s", ui_lang ? "English" : "Español");
-		snprintf(items[6], 48, "Walkman de Sony: ahorro"); snprintf(values[6], 24, "%s", access(SONY124, F_OK) ? "no" : "sí");
-		snprintf(items[7], 48, "Restablecer todo"); values[7][0] = 0;
-		snprintf(items[8], 48, "Acerca de"); values[8][0] = 0;
+		snprintf(items[2], 48, "Bluetooth"); snprintf(values[2], 24, "%s", bt_connected() ? "conectado" : "");
+		snprintf(items[3], 48, "Despertador"); snprintf(values[3], 24, alarm_cfg.on ? "%02d:%02d" : "no", alarm_cfg.hour, alarm_cfg.min);
+		{ time_t t = time(0); struct tm *tm = localtime(&t); snprintf(items[4], 48, "Fecha y hora"); if (tm) snprintf(values[4], 24, "%02d:%02d", tm->tm_hour, tm->tm_min); else values[4][0] = 0; }
+		snprintf(items[5], 48, "Pitido"); snprintf(values[5], 24, "%s", ui_beep ? "sí" : "no");
+		snprintf(items[6], 48, "Idioma"); snprintf(values[6], 24, "%s", ui_lang ? "English" : "Español");
+		snprintf(items[7], 48, "Walkman de Sony: ahorro"); snprintf(values[7], 24, "%s", access(SONY124, F_OK) ? "no" : "sí");
+		snprintf(items[8], 48, "Restablecer todo"); values[8][0] = 0;
+		snprintf(items[9], 48, "Acerca de"); values[9][0] = 0;
 		int s = list_run(&v);
 		if (s < 0) return;
 		if (s == 0) sound_menu(0);
 		else if (s == 1) screen_menu();
-		else if (s == 2) alarm_menu();
-		else if (s == 3) clock_menu();
-		else if (s == 4) { ui_beep = !ui_beep; settings_save(); beep(BEEP_ONE); }	/* turning it on beeps once, like Sony */
-		else if (s == 5) { ui_lang_set(!ui_lang); settings_save(); }
-		else if (s == 6) sony_clock_menu();
-		else if (s == 7) reset_menu();
-		else if (s == 8) about_screen();
+		else if (s == 2) bt_menu();	/* moved here from the SNRGY home list (Sony's grid keeps its icon) */
+		else if (s == 3) alarm_menu();
+		else if (s == 4) clock_menu();
+		else if (s == 5) { ui_beep = !ui_beep; settings_save(); beep(BEEP_ONE); }	/* turning it on beeps once, like Sony */
+		else if (s == 6) { ui_lang_set(!ui_lang); settings_save(); }
+		else if (s == 7) sony_clock_menu();
+		else if (s == 8) reset_menu();
+		else if (s == 9) about_screen();
 	}
 }
