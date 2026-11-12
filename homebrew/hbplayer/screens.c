@@ -6,8 +6,134 @@
 int dl_active(void);
 int dl_percent(void);
 #include "../common/icons.h"
+#include "../common/snrgy_icons.h"
+#include <math.h>
 #include <stdio.h>
 #include <string.h>
+#include <time.h>
+
+/* ---------- looks ----------
+ * 0 Sony: Sony's textures and font. 1 / 2 SNRGY (the SNRGY E-PLAYER's UI, ~/snrgy-ereader-cad SNRGY_MASTER.md §10):
+ * paper #E9E6DF and ink #1E1E1E (silver) or the reverse (black), the squared font of tools/mkfont.py in capitals,
+ * an inverted rounded selection, rules, chevrons, a capsule scrollbar, and the E-PLAYER's dot-matrix status display
+ * as a strip on top. The screens keep Sony's geometry: the status bar (288..320) is drawn as that strip and gfx_rot
+ * shows it on top of the LCD, the title and content 32 px lower. */
+int ui_theme;
+const char *const theme_names[THEME_COUNT] = { "Sony", "SNRGY plata", "SNRGY negro" };
+uint16_t ui_pal[4] = { RGB(255, 255, 255), 0, RGB(170, 170, 170), RGB(255, 150, 0) };
+static uint16_t th_paper, th_rule, th_surf, th_track, th_dot, th_dotoff, th_strip;
+#define SNRGY (ui_theme != 0)
+void ui_theme_set(int t)
+{
+	ui_theme = t < 0 || t >= THEME_COUNT ? 0 : t;
+	if (ui_theme == 0) {
+		ui_pal[0] = RGB(255, 255, 255); ui_pal[1] = 0; ui_pal[2] = RGB(170, 170, 170); ui_pal[3] = RGB(255, 150, 0);
+	} else if (ui_theme == 1) {	/* silver: ink on paper */
+		th_paper = RGB(0xE9, 0xE6, 0xDF); th_rule = RGB(0xC4, 0xC1, 0xBA); th_surf = RGB(0xDD, 0xDA, 0xD2); th_track = RGB(0xC4, 0xC1, 0xBA);
+		ui_pal[0] = RGB(0x1E, 0x1E, 0x1E); ui_pal[1] = th_paper; ui_pal[2] = RGB(0x8E, 0x8C, 0x87); ui_pal[3] = ui_pal[0];
+	} else {	/* space black: paper on ink */
+		th_paper = RGB(0x1A, 0x1B, 0x1D); th_rule = RGB(0x3A, 0x3B, 0x3E); th_surf = RGB(0x26, 0x27, 0x2A); th_track = RGB(0x3A, 0x3B, 0x3E);
+		ui_pal[0] = RGB(0xE4, 0xE2, 0xDC); ui_pal[1] = th_paper; ui_pal[2] = RGB(0x7E, 0x7F, 0x82); ui_pal[3] = ui_pal[0];
+	}
+	th_strip = RGB(6, 6, 7); th_dot = RGB(0xF2, 0xF2, 0xF2); th_dotoff = RGB(0x18, 0x18, 0x1A);
+	gfx_face = gfx_caps = SNRGY;
+	gfx_rot = SNRGY ? H - 288 : 0;
+	gfx_invalidate();
+}
+
+/* rounded rectangle, radius r, filled or a 1 px outline */
+static void rrect(int x, int y, int w, int h, int r, uint16_t c, int fill)
+{
+	if (r * 2 > h) r = h / 2;
+	if (r * 2 > w) r = w / 2;
+	for (int j = 0; j < h; j++) {
+		int k = 0;
+		if (j < r || j >= h - r) {	/* inset of this row from the corner circle */
+			int dy = j < r ? r - j : j - (h - r) + 1, dx = r;
+			while (dx > 0 && (dx - 1) * (dx - 1) + (dy - 1) * (dy - 1) >= r * r) dx--;
+			k = r - dx;
+		}
+		if (fill || j == 0 || j == h - 1) gfx_fill(x + k, y + j, w - 2 * k, 1, c);
+		else { gfx_fill(x + k, y + j, 1, 1, c); gfx_fill(x + w - 1 - k, y + j, 1, 1, c); }
+	}
+}
+
+/* ">" at (x, y-centre) */
+static void chevron(int x, int cy, uint16_t c)
+{
+	for (int i = 0; i < 5; i++) { gfx_fill(x + i, cy - 5 + i, 2, 1, c); gfx_fill(x + i, cy + 5 - i, 2, 1, c); }
+	gfx_fill(x + 5, cy, 2, 1, c);
+}
+
+/* the E-PLAYER's dot-matrix display: 5x7 glyphs, 2 px pitch, in the status bar band (fb 288..320 = 120 x 16 dots) */
+static const unsigned char dm5x7[][7] = {	/* ' ' .. 'Z', one byte per row, 5 low bits */
+	{0,0,0,0,0,0,0},{4,4,4,4,4,0,4},{10,10,0,0,0,0,0},{10,31,10,10,10,31,10},{4,15,20,14,5,30,4},{24,25,2,4,8,19,3},{12,18,20,8,21,18,13},{4,4,8,0,0,0,0},
+	{2,4,8,8,8,4,2},{8,4,2,2,2,4,8},{0,4,21,14,21,4,0},{0,4,4,31,4,4,0},{0,0,0,0,12,4,8},{0,0,0,31,0,0,0},{0,0,0,0,0,12,12},{1,2,2,4,8,8,16},
+	{14,17,19,21,25,17,14},{4,12,4,4,4,4,14},{14,17,1,2,4,8,31},{31,2,4,2,1,17,14},{2,6,10,18,31,2,2},{31,16,30,1,1,17,14},{6,8,16,30,17,17,14},{31,1,2,4,8,8,8},
+	{14,17,17,14,17,17,14},{14,17,17,15,1,2,12},{0,12,12,0,12,12,0},{0,12,12,0,12,4,8},{2,4,8,16,8,4,2},{0,0,31,0,31,0,0},{8,4,2,1,2,4,8},{14,17,1,2,4,0,4},
+	{14,17,1,13,21,21,14},{14,17,17,31,17,17,17},{30,17,17,30,17,17,30},{14,17,16,16,16,17,14},{30,17,17,17,17,17,30},{31,16,16,30,16,16,31},{31,16,16,30,16,16,16},{14,17,16,23,17,17,15},
+	{17,17,17,31,17,17,17},{14,4,4,4,4,4,14},{7,2,2,2,2,18,12},{17,18,20,24,20,18,17},{16,16,16,16,16,16,31},{17,27,21,21,17,17,17},{17,17,25,21,19,17,17},{14,17,17,17,17,17,14},
+	{30,17,17,30,16,16,16},{14,17,17,17,21,18,13},{30,17,17,30,20,18,17},{15,16,16,14,1,1,30},{31,4,4,4,4,4,4},{17,17,17,17,17,17,14},{17,17,17,17,17,10,4},{17,17,17,21,21,21,10},
+	{17,17,10,4,10,17,17},{17,17,10,4,4,4,4},{31,1,2,4,8,16,31},
+};
+static unsigned char dm_on[16][120];
+static void dm_dot(int x, int y) { if (x >= 0 && x < 120 && y >= 0 && y < 16) dm_on[y][x] = 1; }
+static int dm_ch(unsigned cp)	/* Latin-1 letters to their base capital, the rest to ' '..'Z' */
+{
+	static const char lat[] = "AAAAAAACEEEEIIIIDNOOOOOxOUUUUYPSaaaaaaaceeeeiiiidnooooo/ouuuuypy";
+	if (cp >= 0xC0 && cp <= 0xFF) cp = (unsigned char)lat[cp - 0xC0];
+	if (cp >= 'a' && cp <= 'z') cp -= 32;
+	return cp >= ' ' && cp <= 'Z' ? (int)cp - ' ' : 0;
+}
+static int dm_text(int col, int row, const char *s, int maxcol)	/* returns the column after; UTF-8 */
+{
+	const unsigned char *p = (const unsigned char *)s;
+	while (*p && col + 5 <= maxcol) {
+		unsigned cp = *p++;
+		if (cp >= 0xC0 && (*p & 0xC0) == 0x80) { cp = ((cp & 0x1F) << 6) | (*p++ & 0x3F); while ((*p & 0xC0) == 0x80) p++; }
+		const unsigned char *g = dm5x7[dm_ch(cp)];
+		for (int y = 0; y < 7; y++) for (int x = 0; x < 5; x++) if (g[y] & (16 >> x)) dm_dot(col + x, row + y);
+		col += 6;
+	}
+	return col;
+}
+static int dm_w(const char *s) { int n = 0; for (const unsigned char *p = (const unsigned char *)s; *p; p++) if ((*p & 0xC0) != 0x80) n++; return n * 6; }
+static void dm_flush(void)	/* the dots into the status band of the back buffer */
+{
+	gfx_fill(0, 288, W, 32, th_strip);
+	for (int y = 0; y < 16; y++) for (int x = 0; x < 120; x++) {
+		uint16_t *d = fb + (288 + y * 2) * W + x * 2;
+		if (!dm_on[y][x]) { d[0] = th_dotoff; continue; }
+		d[0] = th_dot; d[1] = RGB(0x9A, 0x9A, 0x9C); d[W] = RGB(0x9A, 0x9A, 0x9C);	/* a lit 2x2 cell, the PMOLED's pixel grid */
+	}
+}
+/* row 0 of the strip: [state + left text] ... [BT] [H] [battery] [24 h clock]; returns the column where the right part starts */
+static int dm_status_row(const char *left)
+{
+	memset(dm_on, 0, sizeof dm_on);
+	char clk[8] = "";
+	time_t t = time(0); struct tm *tm = localtime(&t);
+	if (tm) snprintf(clk, sizeof clk, "%02d:%02d", tm->tm_hour, tm->tm_min);
+	int c = 120 - dm_w(clk);
+	dm_text(c, 0, clk, 120);
+	if (ui_st.batt >= 0) {	/* battery 12 x 7 with a nub and up to 4 bars */
+		int bx = c - 16;
+		for (int x = 0; x < 12; x++) { dm_dot(bx + x, 0); dm_dot(bx + x, 6); }
+		for (int y = 0; y < 7; y++) { dm_dot(bx, y); dm_dot(bx + 11, y); }
+		dm_dot(bx + 12, 2); dm_dot(bx + 12, 3); dm_dot(bx + 12, 4);
+		int bars = ui_st.batt >= 85 ? 4 : ui_st.batt >= 60 ? 3 : ui_st.batt >= 35 ? 2 : ui_st.batt >= 10 ? 1 : 0;
+		for (int i = 0; i < bars; i++) for (int y = 2; y <= 4; y++) { dm_dot(bx + 2 + i * 2, y); dm_dot(bx + 3 + i * 2, y); }
+		c = bx - 2;
+		if (ui_st.charging) c = dm_text(c - 6, 0, "+", 120) - 8;
+	}
+	if (ui_st.hold) c = dm_text(c - 6, 0, "H", 120) - 8;
+	if (ui_st.bt) c = dm_text(c - 12, 0, "BT", 120) - 14;
+	int x = 0;
+	if (ui_st.playing == 1) { for (int y = 0; y < 7; y++) for (int k = 0; k <= (y < 4 ? y : 6 - y); k++) dm_dot(k, y); x = 7; }
+	else if (ui_st.playing == 2) { for (int y = 0; y < 7; y++) { dm_dot(0, y); dm_dot(1, y); dm_dot(3, y); dm_dot(4, y); } x = 7; }
+	if (left && *left) dm_text(x, 0, left, c - 2);
+	return c;
+}
 
 struct ui_status ui_st = { -1, 0, 0, 0, 0, 0, 0 };
 
@@ -105,6 +231,7 @@ static uint16_t bg_row(int y, int home)
 
 static void bg_fill(int x, int y, int w, int h, int home)
 {
+	if (SNRGY) { gfx_fill(x, y, w, h, th_paper); return; }
 	bg_row(0, home);	/* (re)builds the tables */
 	if (ui_wall <= 0 || ui_wall >= WALL_COUNT) {
 		for (int j = y; j < y + h; j++) gfx_fill(x, j, w, 1, bg_row(j, home));
@@ -210,8 +337,8 @@ static void rbox(int x, int y, int w, int h, uint16_t c)
 	}
 }
 
-#define C_TRACK RGB(56, 60, 72)	/* empty part of the thin progress bars */
-#define C_SURF RGB(28, 30, 36)	/* raised card */
+#define C_TRACK (SNRGY ? th_track : RGB(56, 60, 72))	/* empty part of the thin progress bars */
+#define C_SURF (SNRGY ? th_surf : RGB(28, 30, 36))	/* raised card */
 
 /* 4 px progress bar with rounded ends */
 static void pbar(int x, int y, int w, int pct, uint16_t fg)
@@ -243,6 +370,11 @@ static void text_outline(int x, int y, const char *s, uint16_t c, uint16_t o)
 
 static void title_bar(const char *title)
 {
+	if (SNRGY) {	/* the E-PLAYER's tab header: the title on the left, ink on paper */
+		gfx_fill(0, 0, W, TITLE_H, th_paper);
+		if (title && *title) gfx_text_clip(12, 5, title, C_WHITE, W - 24);
+		return;
+	}
 	gfx_vgrad(0, 0, W, TITLE_H - 1, RGB(132, 138, 148), RGB(200, 205, 212));
 	gfx_fill(0, 0, W, 1, RGB(120, 126, 134));
 	gfx_fill(0, TITLE_H - 1, W, 1, RGB(64, 68, 78));
@@ -273,6 +405,18 @@ static int bb_no_dl;
 static void bottom_bar(int kind, const char *text, uint16_t tc)
 {
 	int y = BOTTOM_Y, iy = BOTTOM_Y + 5;
+	if (SNRGY) {	/* the dot-matrix strip: row 1 state / elapsed + battery + clock, row 2 what is playing (or the hint) */
+		dm_status_row(kind == BB_TIME ? text : 0);
+		char line[96] = "";
+		if (kind == BB_TIME || kind == BB_NONE || kind == BB_NOTE || kind == BB_PERSON) {
+			if (ui_st.np_title && *ui_st.np_title) snprintf(line, sizeof line, "%s%s%s", ui_st.np_title, ui_st.np_artist && *ui_st.np_artist ? " - " : "", ui_st.np_artist ? ui_st.np_artist : "");
+			else if (text && kind != BB_TIME) snprintf(line, sizeof line, "%s", text);
+		} else if (text) snprintf(line, sizeof line, "%s", gfx_tr ? gfx_tr(text) : text);
+		if (dl_active() && !bb_no_dl && dl_percent() >= 0 && !line[0]) snprintf(line, sizeof line, "DL %d%%", dl_percent());
+		dm_text(0, 9, line, 120);
+		dm_flush();
+		return;
+	}
 	gfx_vgrad(0, y, W, H - y, RGB(104, 114, 132), RGB(30, 35, 46));
 	gfx_fill(0, y, W, 1, RGB(150, 158, 172));
 	int x = 2, right = W - 33;
@@ -381,6 +525,7 @@ static void home_badge(int i)
 
 void scr_home_icon(int i, int frame)
 {
+	if (SNRGY) return;	/* no icon animation in the SNRGY list */
 	home_src_init();
 	if (i < 0 || i >= HOME_SLOTS || home_src[i] < 0) return;
 	home_cell(i, frame);
@@ -398,8 +543,37 @@ void scr_warm(void (*touch)(const void *p, long n))
 	for (int i = 0, n = gfx_tex_n(31); i < n; i++) { struct img t = gfx_tex(31, i); if (t.w) touch(t.px, (long)t.w * t.h); }	/* 8-bit digit masks */
 }
 
+/* SNRGY home: the nine places as a list (rows of 28 px fill the content exactly), line icons, chevrons */
+static void snrgy_icon_draw(int k, int x, int y, uint16_t c)
+{
+	for (int j = 0; j < SNRGY_ICON; j++) for (int i = 0; i < SNRGY_ICON; i++) {
+		int a = snrgy_icon[k][j * SNRGY_ICON + i];
+		if (!a) continue;
+		uint16_t *d = fb + (y + j) * W + x + i, q = *d;
+		int r = ((q >> 11) * (15 - a) + (c >> 11) * a) / 15, g = (((q >> 5) & 63) * (15 - a) + ((c >> 5) & 63) * a) / 15, b = ((q & 31) * (15 - a) + (c & 31) * a) / 15;
+		*d = (uint16_t)(r << 11 | g << 5 | b);
+	}
+}
+static void snrgy_home(int sel, const char *nowline)
+{
+	bg_fill(0, TITLE_H, W, BOTTOM_Y - TITLE_H, 0);
+	title_bar("Inicio");
+	for (int i = 0; i < HOME_SLOTS; i++) {
+		int y = TITLE_H + 2 + i * LIST_ROW_H, on = i == sel;
+		uint16_t fg = on ? C_BLACK : C_WHITE;
+		if (on) rrect(4, y, W - 8, LIST_ROW_H - 1, 6, C_WHITE, 1);
+		else if (i + 1 != sel && i < HOME_SLOTS - 1) gfx_fill(10, y + LIST_ROW_H - 1, W - 20, 1, th_rule);
+		snrgy_icon_draw(i, 12, y + (LIST_ROW_H - 1 - SNRGY_ICON) / 2, fg);
+		gfx_text_clip(42, y + 3, home_labels[i], fg, W - 80);
+		if (i == 2 && ui_pod_new > 0) { char n[8]; snprintf(n, sizeof n, "%d", ui_pod_new); gfx_text(W - 26 - gfx_text_w(n, 1), y + 3, n, on ? C_BLACK : C_GREY, 1); }
+		chevron(W - 18, y + LIST_ROW_H / 2 - 1, fg);
+	}
+	bottom_bar(BB_NOTE, nowline, C_WHITE);
+}
+
 void scr_home(int sel, const int *frame, const char *nowline)
 {
+	if (SNRGY) { snrgy_home(sel, nowline); return; }
 	bg_fill(0, TITLE_H, W, BOTTOM_Y - TITLE_H, 1);
 	title_bar("Inicio");
 	for (int i = 0; i < HOME_SLOTS; i++) if (home_src[i] >= 0) { home_cell(i, frame[i]); home_badge(i); }
@@ -419,6 +593,7 @@ void scr_home(int sel, const int *frame, const char *nowline)
 
 static void panel(int x, int y, int w, int h)
 {
+	if (SNRGY) { rrect(x, y, w, h, 8, C_WHITE, 1); rrect(x + 2, y + 2, w - 4, h - 4, 6, th_paper, 1); return; }
 	gfx_vgrad(x, y, w, h, RGB(66, 72, 86), RGB(26, 29, 37));
 	gfx_frame(x, y, w, h, RGB(176, 182, 192));
 	gfx_frame(x + 1, y + 1, w - 2, h - 2, RGB(20, 22, 28));
@@ -436,6 +611,20 @@ void scr_toast(const char *msg)
  * segment per step, lit ones orange 34/7, the rest grey 34/5, and the level in Sony's digits: "06") */
 void scr_volume(int vol, int volmax)
 {
+	if (SNRGY) {	/* in the dot-matrix strip: VOL, one column per step, the level */
+		char b[8]; snprintf(b, sizeof b, "%02d", vol);
+		int seg = volmax > 0 ? volmax : 30;
+		dm_status_row(0);
+		int x = dm_text(0, 9, "VOL", 120) + 3, xe = 120 - dm_w(b);
+		dm_text(xe, 9, b, 120);
+		int span = xe - 3 - x;
+		for (int i = 0; i < seg && span > 0; i++) {
+			int sx = x + i * span / seg;
+			for (int yy = 9; yy < 16; yy++) if (i < vol || yy == 15) dm_dot(sx, yy);
+		}
+		dm_flush();
+		return;
+	}
 	int y = BOTTOM_Y, iy = BOTTOM_Y + 5;
 	gfx_vgrad(0, y, W, H - y, RGB(104, 114, 132), RGB(30, 35, 46));
 	gfx_fill(0, y, W, 1, RGB(150, 158, 172));
@@ -468,13 +657,15 @@ void scr_hold(void)
 static int row_tx(const struct list_view *v, int sel)
 {
 	if (v->thumb) return 36;
-	if (v->icon == LI_FOLDER) return 28;
+	if (v->icon == LI_FOLDER) return SNRGY ? 32 : 28;
+	if (SNRGY) return 12;
 	return sel ? 29 : 8;
 }
+static int snrgy_chev(const struct list_view *v) { return SNRGY && !v->big && !v->ep && v->icon != LI_TRACK; }
 
 static int row_right(const struct list_view *v, int i)
 {
-	int right = W - 10;
+	int right = W - 10 - (snrgy_chev(v) ? 18 : 0);
 	if (v->mark && v->mark(i)) right = W - 30;
 	if (v->value) { const char *val = v->value(i); if (val && *val) right -= gfx_text_w(val, 1) + 8; }
 	return right;
@@ -484,6 +675,7 @@ static void sel_bar_h(int y, int scrollbar, int h);
 static void sel_bar(int y, int scrollbar) { sel_bar_h(y, scrollbar, LIST_ROW_H); }
 static void sel_bar_h(int y, int scrollbar, int h)
 {
+	if (SNRGY) { rrect(4, y, (scrollbar ? W - 16 : W - 8), h - 1, 6, C_WHITE, 1); return; }
 	if (h != LIST_ROW_H) {	/* big rows: Sony's bar stretched to the height, scaled once */
 		static uint16_t big[2][W * BIG_ROW_H]; static struct img bi[2]; static int bh[2];
 		int k = !!scrollbar;
@@ -547,7 +739,7 @@ void scr_list(const struct list_view *v)
 			const char *val = v->value ? v->value(i) : 0;
 			int right = W - (sb ? 14 : 8), tx = 4 + th + (v->ep ? 6 : 8);
 			if (v->mark && v->mark(i)) { blit_mask(gfx_tex(T_ARROW), W - 30, y + (v->ep ? 16 : 22), sel ? C_BLACK : C_GREEN); right = W - 34; }
-			uint16_t tc = st == 2 && !sel ? RGB(120, 124, 132) : fg, vc = sel ? RGB(60, 40, 0) : st == 2 ? RGB(100, 104, 112) : C_GREY;
+			uint16_t tc = st == 2 && !sel ? RGB(120, 124, 132) : fg, vc = sel ? (SNRGY ? C_GREY : RGB(60, 40, 0)) : st == 2 ? RGB(100, 104, 112) : C_GREY;
 			int y1 = v->ep ? y + 3 : y + 10, y2 = v->ep ? y + 25 : y + 34;
 			if (val && *val) {
 				gfx_text_clip(tx, y1, v->label(i), tc, right - tx);
@@ -564,14 +756,18 @@ void scr_list(const struct list_view *v)
 			if (ic.w) { gfx_blit(gfx_scaled(ic, 26, 26, small), 4, y + 1); }
 			else { gfx_fill(4, y + 1, 26, 26, sel ? RGB(200, 120, 0) : RGB(46, 50, 60)); blit_mask(gfx_tex(T_NOTE), 8, y + 5, sel ? C_BLACK : C_GREY); }
 		} else if (v->icon == LI_FOLDER) blit_mask(gfx_tex(T_FOLDER), 6, y + 5, fg);
-		else if (sel) blit_mask(gfx_tex(T_PLAYBOX), 6, y + 5, C_BLACK);
+		else if (sel && !SNRGY) blit_mask(gfx_tex(T_PLAYBOX), 6, y + 5, C_BLACK);
 		int tx = row_tx(v, sel), right = row_right(v, i);
+		if (SNRGY) {	/* rules between rows (not next to the selection), a chevron where the row opens something */
+			if (!sel && i + 1 != v->sel && r < rows - 1 && i < v->n - 1) gfx_fill(10, y + rh - 1, W - (sb ? 30 : 20), 1, th_rule);
+			if (snrgy_chev(v)) chevron(W - (sb ? 28 : 18), y + rh / 2 - 1, fg);
+		}
 		if (v->mark && v->mark(i)) blit_mask(gfx_tex(T_ARROW), W - 28, y + 5, sel ? C_BLACK : C_GREEN);
 		if (v->value) {
 			const char *val = v->value(i);
 			if (val && *val) {
-				int vr = v->mark && v->mark(i) ? W - 30 : W - 10;
-				gfx_text(vr - gfx_text_w(val, 1), y + 3, val, sel ? C_BLACK : C_ORANGE, 1);
+				int vr = v->mark && v->mark(i) ? W - 30 : W - 10 - (snrgy_chev(v) ? (sb ? 28 : 18) : 0);
+				gfx_text(vr - gfx_text_w(val, 1), y + 3, val, sel ? C_BLACK : SNRGY ? C_GREY : C_ORANGE, 1);
 			}
 		}
 		const char *lb = v->label(i);
@@ -591,6 +787,7 @@ void scr_list(const struct list_view *v)
 		int y0 = LIST_Y0, hh = rows * rh;
 		int th = hh * rows / v->n, ty = y0 + (hh - th) * v->top / (v->n - rows);
 		if (th < 10) th = 10;
+		if (SNRGY) { rrect(W - 9, y0, 6, hh, 3, C_WHITE, 0); rrect(W - 8, ty + 1, 4, th - 2, 2, C_WHITE, 1); return; }
 		gfx_fill(W - 5, y0, 3, hh, RGB(50, 56, 70));
 		gfx_vgrad(W - 5, ty, 3, th, RGB(190, 220, 255), RGB(110, 160, 230));
 	}
@@ -680,11 +877,11 @@ void scr_player(const struct player_view *v, int full)
 			static uint16_t ph[PLAYER_ART * PLAYER_ART];
 			static struct img ph_img;	/* the placeholder, scaled once */
 			if (!art.w) { if (!ph_img.w) ph_img = gfx_scaled(gfx_tex(T_ART), PLAYER_ART, PLAYER_ART, ph); art = ph_img; }
-			if (art.w) { gfx_blit(art, 6, 56 + dy); gfx_frame(5, 55 + dy, art.w + 2, art.h + 2, RGB(70, 76, 90)); }
+			if (art.w) { gfx_blit(art, 6, 56 + dy); if (!SNRGY) gfx_frame(5, 55 + dy, art.w + 2, art.h + 2, RGB(70, 76, 90)); }
 			gfx_digits(W - 8 - gfx_digits_w(idx), 56 + dy + PLAYER_ART - 20, idx, C_WHITE);	/* "3/14" in Sony's digits */
 		}
 		int ys = 173 + dy;
-		gfx_fill(0, ys, W, 1, RGB(150, 156, 168));
+		gfx_fill(0, ys, W, 1, SNRGY ? th_rule : RGB(150, 156, 168));
 		/* artist / album (music: sub = "artist - album"), else the folder; then the podcast chapter */
 		const char *sub = v->sub ? v->sub : "", *dash = strstr(sub, " - ");
 		int y = ys + 4, maxy = P_STRIP - 20;
@@ -728,6 +925,13 @@ void scr_player(const struct player_view *v, int full)
 	gfx_digits(W - 8 - gfx_digits_w(b), P_STRIP + 2, b, C_GREY);
 	struct img tr = gfx_tex(T_PROG_BG), fi = gfx_tex(T_PROG);
 	int pw = W - 4, fill = v->total > 0 ? pw * (v->sec > v->total ? v->total : v->sec) / v->total : 0;
+	if (SNRGY) {	/* the E-PLAYER's bar: an outline, the elapsed part filled */
+		rrect(2, P_PROG, pw, 8, 3, C_WHITE, 0);
+		if (fill > 4) rrect(4, P_PROG + 2, fill - 4, 4, 1, C_WHITE, 1);
+		fmt_time(t1, v->sec);
+		bottom_bar(BB_TIME, t1, C_WHITE);
+		return;
+	}
 	if (tr.w) gfx_blit(tr, 2, P_PROG); else gfx_fill(2, P_PROG, pw, 8, RGB(60, 66, 80));
 	if (fi.w) { struct img part = fi; part.w = fill < fi.w ? fill : fi.w;	/* left part of the fill, row by row */
 		for (int j = 0; j < fi.h; j++) memcpy(fb + (P_PROG + j) * W + 2, fi.px + j * fi.w, part.w * 2); }
@@ -862,7 +1066,7 @@ static void big_digits(int cx, int y, const char *s)
 	int x = cx - w / 2;
 	for (const char *p = s; *p; p++) {
 		struct img d = *p == ':' ? gfx_tex(30, 12) : gfx_tex(30, 1 + (*p - '0'));
-		if (d.w) blit_max(d, x, y); else { char c[2] = { *p, 0 }; gfx_text(x, y, c, C_WHITE, 2); }
+		if (d.w && !SNRGY) blit_max(d, x, y); else { char c[2] = { *p, 0 }; gfx_text(x, y, c, C_WHITE, 2); }
 		x += *p == ':' ? 16 : 32;
 	}
 }
@@ -872,7 +1076,8 @@ void scr_focus(const struct focus_view *v)
 	background();
 	struct img ring = gfx_tex(T_RING);
 	int cy = 128;
-	if (ring.w) blit_max(ring, 0, cy - ring.h / 2);
+	if (SNRGY) for (int t = 0; t < 1440; t++) { double q = t * 3.14159265 / 720; for (int r = 98; r <= 99; r++) gfx_fill(W / 2 + (int)lround(r * cos(q)), cy + (int)lround(r * sin(q)), 1, 1, C_WHITE); }
+	else if (ring.w) blit_max(ring, 0, cy - ring.h / 2);
 	scr_status("Modo foco");
 	char b[16];
 	int l = v->left < 0 ? 0 : v->left;
@@ -928,8 +1133,8 @@ void scr_keyboard(const char *title, const char *text, const char *placeholder, 
 	title_bar(title);
 	bottom_bar(BB_TEXT, *text ? "BACK: borrar" : "BACK: volver", C_WHITE);
 	/* the text field: the end of the text is what matters while typing (a long one scrolls left) */
-	rbox(6, 35, W - 12, 30, RGB(150, 156, 168));
-	rbox(7, 36, W - 14, 28, RGB(22, 24, 30));
+	rbox(6, 35, W - 12, 30, SNRGY ? C_WHITE : RGB(150, 156, 168));
+	rbox(7, 36, W - 14, 28, SNRGY ? th_paper : RGB(22, 24, 30));
 	const char *t = text;
 	int maxw = W - 34;
 	while (*t && gfx_text_w(t, 1) > maxw) { t++; while ((*t & 0xC0) == 0x80) t++; }
@@ -943,7 +1148,7 @@ void scr_keyboard(const char *title, const char *text, const char *placeholder, 
 		for (int i = 0; i < n; i++) {
 			int x = 1 + k[i].col * KB_W, y = KB_Y0 + r * KB_H, w = k[i].span * KB_W - 2, h = KB_H - 2, on = r == row && i == key;
 			const char *lb = k[i].ch;
-			uint16_t fg = C_WHITE, bg = r < 4 ? RGB(46, 50, 60) : RGB(34, 37, 46);
+			uint16_t fg = C_WHITE, bg = SNRGY ? th_surf : r < 4 ? RGB(46, 50, 60) : RGB(34, 37, 46);
 			switch (k[i].kind) {
 			case KB_SHIFT: lb = upper ? "abc" : "ABC"; fg = upper ? C_ORANGE : C_GREY; break;
 			case KB_MODE: lb = mode ? "abc" : "123"; fg = C_GREY; break;
@@ -951,7 +1156,8 @@ void scr_keyboard(const char *title, const char *text, const char *placeholder, 
 			case KB_DEL: lb = "Borrar"; fg = C_GREY; break;
 			case KB_OK: lb = ok_label ? ok_label : "OK"; fg = C_ORANGE; break;
 			}
-			if (on) {	/* the selected key in Sony's orange, like a list's selection bar */
+			if (on && SNRGY) { rrect(x, y, w, h, 5, C_WHITE, 1); fg = C_BLACK; }
+			else if (on) {	/* the selected key in Sony's orange, like a list's selection bar */
 				rbox(x, y, w, h, RGB(255, 170, 0));
 				gfx_vgrad(x + 2, y + 1, w - 4, h / 2, RGB(255, 222, 140), RGB(255, 186, 40));
 				fg = C_BLACK;

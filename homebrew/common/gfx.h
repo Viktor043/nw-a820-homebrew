@@ -50,4 +50,8 @@ extern const char *(*gfx_tr)(const char *s);	/* optional translation of every te
 int gfx_digits(int x, int y, const char *s, uint16_t c);
 int gfx_digits_w(const char *s);
 #define LINE_H 22
+/* SNRGY themes: gfx_face 1 = the bitmap font from tools/mkfont.py (ui_font.h; Sony's font if not built in),
+ * gfx_caps 1 = upper case; gfx_rot = rows the frame is rotated down on the LCD (32: status strip on top) */
+extern int gfx_face, gfx_caps, gfx_rot;
+void gfx_composed(uint16_t *out);	/* the frame as the LCD shows it (gfx_rot applied) */
 #endif

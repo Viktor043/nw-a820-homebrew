@@ -75,7 +75,7 @@ static const struct tr tab[] = {
 	{ "el DSP de Sony está apagado", "Sony's DSP is off" }, { "el audio va por Bluetooth", "audio goes over Bluetooth" },
 	{ "velocidad distinta de 1x", "speed other than 1x" }, { "Modo 1", "Mode 1" }, { "Modo 2", "Mode 2" }, { "Modo 3", "Mode 3" },
 	{ "Modo 4", "Mode 4" }, { "Modo 5", "Mode 5" }, { "Modo 6", "Mode 6" }, { "Duración", "Length" }, { "Campana cada", "Bell every" },
-	{ "Fondo", "Background" }, { "ruido blanco", "white noise" }, { "ruido rosa", "pink noise" }, { "ruido marrón", "brown noise" },
+	{ "Fondo", "Background" }, { "Estilo", "Look" }, { "SNRGY plata", "SNRGY silver" }, { "SNRGY negro", "SNRGY black" }, { "ruido blanco", "white noise" }, { "ruido rosa", "pink noise" }, { "ruido marrón", "brown noise" },
 	{ "campana al inicio y al final", "bell at start and end" }, { "campana cada %d min", "bell every %d min" },
 	{ "inicio/fin", "start/end" }, { "Tiempo ahorrado (sesión)", "Time saved (this session)" }, { "Sesión terminada.", "Session finished." },
 	{ "HOME 3 s: volver a Sony", "HOME 3 s: back to Sony" },

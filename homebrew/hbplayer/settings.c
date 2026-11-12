@@ -288,18 +288,20 @@ static void reset_menu(void)
 /* Ajustes > Pantalla */
 static void screen_menu(void)
 {
-	struct list_view v = { "Pantalla", 4, 0, 0, it_label, it_value, 0, LI_NONE, 0, 0 };
+	struct list_view v = { "Pantalla", 5, 0, 0, it_label, it_value, 0, LI_NONE, 0, 0 };
 	for (;;) {
 		snprintf(items[0], 48, "Brillo"); snprintf(values[0], 24, "%d%%", ui_brightness);
 		snprintf(items[1], 48, "Apagar pantalla"); snprintf(values[1], 24, "%d s", ui_dim_secs);
 		snprintf(items[2], 48, "Filas grandes con portada"); snprintf(values[2], 24, "%s", ui_big_rows ? "sí" : "no");
 		snprintf(items[3], 48, "Fondo"); snprintf(values[3], 24, "%s", wall_names[ui_wall]);
+		snprintf(items[4], 48, "Estilo"); snprintf(values[4], 24, "%s", theme_names[ui_theme]);
 		int s = list_run(&v);
 		if (s < 0) return;
 		if (s == 0) { ui_brightness = ui_brightness >= 100 ? 20 : ui_brightness + 20; gfx_backlight(ui_brightness); }
 		else if (s == 1) ui_dim_secs = ui_dim_secs >= 120 ? 15 : ui_dim_secs * 2;
 		else if (s == 2) ui_big_rows = !ui_big_rows;	/* álbumes, podcasts y audiolibros: from the next time the list opens */
 		else if (s == 3) { ui_wall = (ui_wall + 1) % WALL_COUNT; scr_wall_changed(); }
+		else if (s == 4) { ui_theme_set((ui_theme + 1) % THEME_COUNT); scr_wall_changed(); }	/* Sony, SNRGY plata, SNRGY negro */
 		settings_save();
 	}
 }

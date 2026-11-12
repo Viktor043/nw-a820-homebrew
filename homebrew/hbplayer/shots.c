@@ -45,7 +45,9 @@ static void save(const char *name)
 {
 	char p[512]; snprintf(p, sizeof p, "%s/%s.rgb565", outdir, name);
 	FILE *f = fopen(p, "wb"); if (!f) return;
-	fwrite(fb, 2, W * H, f); fclose(f);
+	static uint16_t out[W * H];
+	gfx_composed(out);	/* as the LCD shows it (the SNRGY looks move the status strip to the top) */
+	fwrite(out, 2, W * H, f); fclose(f);
 }
 
 static const char *tracks[] = { "01 - La abeja haragana", "02 - Historia de dos cachorros de coatí y de dos cachorros de hombre",
@@ -94,6 +96,7 @@ int main(int argc, char **argv)
 	gfx_open();
 	printf("res %d\n", gfx_load_res(argv[1]));
 	if (argc > 4 && !strcmp(argv[4], "en")) { ui_lang_set(1); gfx_tr = check_tr; }
+	if (argc > 5) ui_theme_set(atoi(argv[5]));	/* look: 0 Sony, 1 SNRGY silver, 2 SNRGY black */
 	ui_st.batt = 72;
 
 	int fr[HOME_SLOTS];

@@ -105,3 +105,7 @@ hbtest
 # the installer .exe (firmware/build_installer.py)
 dist/
 *.spec
+
+# --- SNRGY theme font: your own font file and what mkfont.py derives from it ---
+fonts/
+homebrew/common/ui_font.h

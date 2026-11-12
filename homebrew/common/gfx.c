@@ -33,6 +33,12 @@ int gfx_open(void)
 	return 0;
 }
 
+/* gfx_rot: the LCD shows back-buffer row y at screen row (y + gfx_rot) % H. 0 = as drawn. The SNRGY themes use 32:
+ * the screens keep drawing Sony's layout (title bar 0..28, content, status bar 288..320) and the status bar, drawn
+ * as a dot-matrix strip, appears on top, the title and the content right under it. Only the copy to the LCD moves. */
+int gfx_rot;
+#define SROW(y) (((y) + gfx_rot) % H)
+
 /* show only a rectangle of the back buffer (animations that change a small part of the screen) */
 void gfx_flip_rect(int x, int y, int w, int h)
 {
@@ -41,9 +47,15 @@ void gfx_flip_rect(int x, int y, int w, int h)
 	if (x + w > W) w = W - x;
 	if (y + h > H) h = H - y;
 	for (int j = y; j < y + h; j++) {
-		if (screen) memcpy(screen + j * W + x, fb + j * W + x, w * 2);
+		if (screen) memcpy(screen + SROW(j) * W + x, fb + j * W + x, w * 2);
 		memcpy(shown + j * W + x, fb + j * W + x, w * 2);
 	}
+}
+
+/* the frame as it is on the LCD (fb with gfx_rot applied): screenshots */
+void gfx_composed(uint16_t *out)
+{
+	for (int j = 0; j < H; j++) memcpy(out + SROW(j) * W, fb + j * W, W * 2);
 }
 
 /* only the rows that changed since the last flip reach the (uncached) frame buffer: a list step or a clock tick
@@ -74,7 +86,8 @@ void gfx_invalidate(void) { shown_valid = 0; }
 void gfx_flip(void)
 {
 	if (!shown_valid) {
-		if (screen) gfx_copy32(screen, fb, W * H * 2);
+		if (screen && !gfx_rot) gfx_copy32(screen, fb, W * H * 2);
+		else if (screen) { gfx_copy32(screen + gfx_rot * W, fb, (H - gfx_rot) * W * 2); gfx_copy32(screen, fb + (H - gfx_rot) * W, gfx_rot * W * 2); }
 		gfx_copy32(shown, fb, W * H * 2);
 		shown_valid = 1;
 		return;
@@ -83,7 +96,7 @@ void gfx_flip(void)
 		const uint16_t *a = fb + j * W;
 		uint16_t *b = shown + j * W;
 		if (row_same((const uint32_t *)a, (const uint32_t *)b)) continue;
-		if (screen) gfx_copy32(screen + j * W, a, W * 2);	/* (glibc's memcpy: ~2x slower here, measured) */
+		if (screen) gfx_copy32(screen + SROW(j) * W, a, W * 2);	/* (glibc's memcpy: ~2x slower here, measured) */
 		gfx_copy32(b, a, W * 2);
 	}
 }
@@ -99,12 +112,12 @@ void gfx_slide(int dir, void (*between)(void))
 		for (int k = 0; k < 4; k++) {
 			int off = steps[k];	/* how far the new frame has come in */
 			for (int y = SLIDE_Y0; y < SLIDE_Y1; y++) {	/* the title bar and the bottom status bar stay put */
-				uint16_t *d = screen + y * W, *o = shown + y * W, *n = fb + y * W;
+				uint16_t *d = screen + SROW(y) * W, *o = shown + y * W, *n = fb + y * W;
 				if (dir > 0) { memcpy(d, o + off, (W - off) * 2); memcpy(d + W - off, n, off * 2); }
 				else { memcpy(d, n + W - off, off * 2); memcpy(d + off, o, (W - off) * 2); }
 			}
-			memcpy(screen, fb, SLIDE_Y0 * W * 2);
-			memcpy(screen + SLIDE_Y1 * W, fb + SLIDE_Y1 * W, (H - SLIDE_Y1) * W * 2);
+			for (int y = 0; y < SLIDE_Y0; y++) memcpy(screen + SROW(y) * W, fb + y * W, W * 2);
+			for (int y = SLIDE_Y1; y < H; y++) memcpy(screen + SROW(y) * W, fb + y * W, W * 2);
 			if (between) between();
 		}
 	gfx_invalidate();	/* the screen holds a composed frame: copy everything once */
@@ -438,8 +451,51 @@ static int fallback_glyph(unsigned cp, int x, int y, uint16_t col, int scale, in
 	return 8 * scale;
 }
 
+/* the SNRGY themes' font (common/ui_font.h from tools/mkfont.py, 4 bpp anti-aliased, Latin-1), when it was built
+ * in: gfx_face 1 draws with it, gfx_caps upper-cases. Code points it lacks fall back to Sony's font. */
+int gfx_face, gfx_caps;
+#if defined(__has_include)
+#if __has_include("ui_font.h")
+#include "ui_font.h"
+#endif
+#endif
+static unsigned caps_cp(unsigned cp)
+{
+	if (cp >= 'a' && cp <= 'z') return cp - 32;
+	if (cp >= 0xE0 && cp <= 0xFE && cp != 0xF7) return cp - 32;	/* à..þ -> À..Þ (not ÷) */
+	return cp;
+}
+#ifdef UI_FONT
+static uint16_t blend16(uint16_t d, uint16_t c, int a)	/* a 0..15 */
+{
+	int r = ((d >> 11) * (15 - a) + (c >> 11) * a) / 15, g = (((d >> 5) & 63) * (15 - a) + ((c >> 5) & 63) * a) / 15, b = ((d & 31) * (15 - a) + (c & 31) * a) / 15;
+	return (uint16_t)(r << 11 | g << 5 | b);
+}
+static int ui_glyph(unsigned cp, int x, int y, uint16_t col, int scale, int draw)
+{
+	const unsigned char *px;
+	int i = cp - UI_FONT_FIRST, adv = ui_font_g[i].adv, w = ui_font_g[i].w, h = ui_font_g[i].h;
+	if (!draw || !w) return adv * scale;
+	px = ui_font_px + ui_font_g[i].off;
+	for (int r = 0; r < h; r++)
+		for (int k = 0; k < w; k++) {
+			int n = r * w + k, a = n & 1 ? px[n >> 1] & 15 : px[n >> 1] >> 4;
+			if (!a) continue;
+			int xx = x + (ui_font_g[i].x + k) * scale, yy = y + (ui_font_g[i].y + r) * scale;
+			if (scale != 1) { if (a > 7) gfx_fill(xx, yy, scale, scale, col); continue; }
+			if (xx < 0 || xx >= W || yy < 0 || yy >= H) continue;
+			uint16_t *d = fb + yy * W + xx;
+			*d = a == 15 ? col : blend16(*d, col, a);
+		}
+	return adv * scale;
+}
+#endif
 static int glyph(unsigned cp, int x, int y, uint16_t col, int scale, int draw)
 {
+	if (gfx_caps) cp = caps_cp(cp);
+#ifdef UI_FONT
+	if (gfx_face && cp >= UI_FONT_FIRST && cp <= UI_FONT_LAST && ui_font_g[cp - UI_FONT_FIRST].adv) return ui_glyph(cp, x, y, col, scale, draw);	/* adv 0: not in the font */
+#endif
 	return fsub ? sony_glyph(cp, x, y, col, scale, draw) : fallback_glyph(cp, x, y, col, scale, draw);
 }
 

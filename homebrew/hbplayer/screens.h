@@ -5,11 +5,18 @@
 #define SCREENS_H
 #include "../common/gfx.h"
 
-#define C_BLACK 0
-#define C_WHITE RGB(255, 255, 255)
-#define C_GREY RGB(170, 170, 170)
+/* look (Ajustes > Pantalla > Estilo): 0 Sony, 1 SNRGY plata, 2 SNRGY negro. The four theme colours are variables:
+ * "white" = text, "black" = text on the selection, grey = secondary, "orange" = accent */
+#define THEME_COUNT 3
+extern int ui_theme;
+extern const char *const theme_names[THEME_COUNT];
+extern uint16_t ui_pal[4];
+void ui_theme_set(int t);	/* palette, font, layout rotation; the next frame is drawn whole */
+#define C_WHITE ui_pal[0]
+#define C_BLACK ui_pal[1]
+#define C_GREY ui_pal[2]
 #define C_DARK RGB(60, 60, 64)
-#define C_ORANGE RGB(255, 150, 0)
+#define C_ORANGE ui_pal[3]
 #define C_BLUE RGB(80, 140, 255)
 #define C_RED RGB(255, 90, 90)
 #define C_GREEN RGB(120, 230, 120)

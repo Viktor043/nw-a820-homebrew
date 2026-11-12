@@ -728,6 +728,7 @@ static void pos_load(void)
 			continue;
 		}
 		if (!strncmp(line, "rows ", 5)) { ui_big_rows = atoi(line + 5) == 1; continue; }
+		if (!strncmp(line, "theme ", 6)) { ui_theme_set(atoi(line + 6)); continue; }
 		if (!strncmp(line, "wall ", 5)) { ui_wall = atoi(line + 5); if (ui_wall < 0 || ui_wall >= WALL_COUNT) ui_wall = 0; continue; }
 		if (!strncmp(line, "grid ", 5)) { ui_album_grid = atoi(line + 5) == 1; continue; }
 		if (!strncmp(line, "beep ", 5)) { ui_beep = atoi(line + 5) == 1; continue; }
@@ -759,7 +760,7 @@ void pos_save(void)
 	if (!f) { lg("cannot write %s", tmp); return; }
 	fprintf(f, "vol30 %d\nmode %d %d\nui %d %d\nalarm %d %d %d %d\nspeed %d\nrg %d\n", volume, eng_shuffle, eng_repeat, ui_brightness, ui_dim_secs, alarm_cfg.on, alarm_cfg.hour, alarm_cfg.min, alarm_cfg.src, eng_speed, replaygain_mode);
 	{ char fo[32]; focus_save(fo, sizeof fo); fprintf(f, "rows %d\ngrid %d\nbeep %d\npodc %s\nlang %d\nfocus %s\n", ui_big_rows, ui_album_grid, ui_beep, pod_country, ui_lang, fo); }
-	fprintf(f, "wall %d\n", ui_wall);
+	fprintf(f, "wall %d\ntheme %d\n", ui_wall, ui_theme);
 	if (lastfile[0]) fprintf(f, "last %s\n", lastfile);
 	for (int i = 0; i < npos; i++) fprintf(f, "%ld %d %s\n", poss[i].bytes, poss[i].sec, poss[i].path);
 	int bad = ferror(f);
@@ -1719,6 +1720,8 @@ static void home(void)
 		int ns = sel;
 		if (k == K_LEFT) { do ns = (ns + HOME_SLOTS - 1) % HOME_SLOTS; while (!home_valid(ns)); }
 		else if (k == K_RIGHT) { do ns = (ns + 1) % HOME_SLOTS; while (!home_valid(ns)); }
+		else if (k == K_UP && ui_theme) { do ns = (ns + HOME_SLOTS - 1) % HOME_SLOTS; while (!home_valid(ns)); }	/* SNRGY: a list */
+		else if (k == K_DOWN && ui_theme) { do ns = (ns + 1) % HOME_SLOTS; while (!home_valid(ns)); }
 		else if (k == K_UP) { ns = (sel + HOME_SLOTS - 3) % HOME_SLOTS; if (!home_valid(ns)) ns = sel; }
 		else if (k == K_DOWN) { ns = (sel + 3) % HOME_SLOTS; if (!home_valid(ns)) ns = sel; }
 		else if (k == K_PLAY) {
@@ -1742,6 +1745,7 @@ static void home(void)
 		else if (k == K_OPTION && eng_active()) { pending_slide = 1; nowplaying_run(); redraw = 1; continue; }
 		else if (k == K_BT) { pending_slide = 1; bt_menu(); pending_slide = -1; redraw = 1; continue; }
 		else change_volume(k);
+		if (ns != sel && ui_theme) { sel = ns; redraw = 1; continue; }	/* SNRGY list: no icon animation */
 		if (ns != sel) { home_animate(sel, ns); sel = ns; continue; }	/* the animation left the final frame on screen */
 		redraw = 1;
 	}
