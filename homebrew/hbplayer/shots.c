@@ -3,6 +3,7 @@
  * In English every text drawn is checked: Spanish left untranslated goes to OUTDIR/untranslated.txt. */
 #include "hb.h"
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 /* English check: what ui_tr leaves as it was and still looks Spanish (accents, common words), minus the sample
