@@ -26,7 +26,8 @@ void ui_theme_set(int t);	/* palette, font, layout rotation; the next frame is d
 #define BOTTOM_Y (ui_theme ? 264 : 288)	/* SNRGY: the 3-row status strip is 56 px (gfx_rot) */
 
 /* playing: 0 idle, 1 playing, 2 paused. np_title / np_artist: what the bottom bar shows (0 = nothing) */
-struct ui_status { int batt, charging, bt, hold, playing; const char *np_title, *np_artist; int np_idx, np_n, np_sec, np_total; };
+struct ui_status { int batt, charging, bt, hold, playing; const char *np_title, *np_artist; int np_idx, np_n, np_sec, np_total;
+	int rd_on, rd_pct; const char *rd_l1, *rd_l2, *rd_left; };	/* reading (reader.c): the strip shows the book */
 extern struct ui_status ui_st;
 
 enum { LI_NONE, LI_FOLDER, LI_TRACK, LI_GAME, LI_BT, LI_SETTING };
@@ -109,7 +110,14 @@ void scr_list(const struct list_view *v);
 int scr_list_overflow(const struct list_view *v);	/* pixels the selected label exceeds its row by (0 = fits) */
 void scr_sony_eq(const char *const *names, int n, int sel, int top, int active, int cb, const int *bands, int edit, int grey);	/* Sony EQ screen */
 void scr_player(const struct player_view *v, int full);
-void scr_strip(void);		/* SNRGY: redraw the status strip (clock, progress) in the back buffer's status band */
+void scr_strip(void);
+void scr_page(const char *title);	/* the reader's page: background (and Sony's title bar) */
+void scr_page_status(const char *text);	/* the reader's status: the SNRGY strip with the reading lines, Sony's bar with text */
+#define HOME_BOOKS 9			/* SNRGY home: the Books row (not a Sony grid slot) */
+int scr_strip_marquee(double t);	/* SNRGY: advances the strip's scrolling title; 1 = it moved (redraw the band) */
+int scr_strip_scrolls(void);		/* SNRGY: the title is too long for the strip, so it scrolls */
+void scr_aod(void);			/* SNRGY always-on display: everything black but the strip */
+extern int ui_aod, ui_aod_now, ui_strip_calm;	/* settings: always-on display, strip refreshed every 5 s and still */		/* SNRGY: redraw the status strip (clock, progress) in the back buffer's status band */
 extern int ui_home_tab;		/* SNRGY home: 0 the list has the focus, 1 the HOME tab, 2 the RESUME tab */
 extern const int home_order[];	/* SNRGY home: the slots in list order (no "Reproduciendo": the RESUME tab is that) */
 extern const int home_order_n;

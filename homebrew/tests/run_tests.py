@@ -62,8 +62,10 @@ else:
 res = sys.argv[1] if len(sys.argv) > 1 else os.path.join(os.path.dirname(HB), 'research', 'ui', 'res')
 if os.path.isdir(res):
     exe = os.path.join(OUT, 'shots.exe')
-    ok, _ = cc(exe, [os.path.join(p, f) for f in ('shots.c', 'screens.c', 'cover.c', 'i18n.c')] +
-               [os.path.join(HB, 'third_party', 'tjpgd', 'src', 'tjpgd.c'), os.path.join(HB, 'common', 'gfx.c')])
+    Z = os.path.join(HB, 'third_party', 'zlib-1.3.1')	# the reader's page (reader.c, READER_SHOT) reads EPUB zips
+    ok, _ = cc(exe, [os.path.join(p, f) for f in ('shots.c', 'screens.c', 'cover.c', 'i18n.c', 'reader.c')] +
+               [os.path.join(HB, 'third_party', 'tjpgd', 'src', 'tjpgd.c'), os.path.join(HB, 'common', 'gfx.c')] +
+               [os.path.join(Z, f) for f in ('inflate.c', 'inftrees.c', 'inffast.c', 'adler32.c', 'crc32.c', 'zutil.c')], ['-DREADER_SHOT', '-I' + Z])
     if ok:
         for lang in ('es', 'en'):
             d = os.path.join(OUT, 'shots_' + lang)

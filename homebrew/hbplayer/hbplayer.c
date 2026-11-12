@@ -77,6 +77,7 @@ void beep(int kind)
 #define AUTO_SUSPEND (10 * 60)	/* s idle and not playing before suspending (screen on: browsing) */
 #define AUTO_SUSPEND_DARK (3 * 60)	/* s idle, paused / stopped and the screen already off: amp + codec + CPU off sooner */
 #define BRIGHT ui_brightness
+#define AOD_LEVEL 5	/* backlight of the always-on display (0..100) */
 
 struct ev { long sec, usec; unsigned short type, code; int value; };
 
@@ -293,6 +294,7 @@ void flip(void)
 void wake(void)
 {
 	last_key = time(0);
+	if (ui_aod_now) { ui_aod_now = 0; force_redraw = 1; }	/* the screen behind the strip is drawn again */
 	if (!backlight_on) { gfx_lcd(1); gfx_backlight(BRIGHT); backlight_on = 1; }
 }
 
@@ -344,11 +346,18 @@ static int audio_period(void)
 
 /* waits for a key event. Meanwhile it keeps the background work going: podcast downloads (every ~10 ms) and the
  * audio engine (every ~20 ms; the buffer holds ~0.4 s), so no screen that waits for a key can starve the audio. */
+static void strip_tick(void)	/* SNRGY: the strip's scrolling title, ~10 steps a second */
+{
+	if (!ui_theme || !backlight_on || in_game || in_slide || popup_active()) return;
+	if (scr_strip_marquee(now())) { scr_strip(); gfx_flip_rect(0, BOTTOM_Y, W, H - BOTTOM_Y); }
+}
 static int raw_event(struct ev *e, int timeout_ms)
 {
 	double end = now() + timeout_ms / 1000.0;
 	for (;;) {
 		int slice = timeout_ms, feed = eng_playing() && !in_game, net = dl_active() || pod_net_busy();
+		int marq = ui_theme && backlight_on && !in_game && scr_strip_scrolls();
+		strip_tick();
 		if (net || feed) {
 			if (net) dl_tick();	/* downloads, or just the phone link a podcast screen holds */
 			if (feed) eng_step();
@@ -357,10 +366,11 @@ static int raw_event(struct ev *e, int timeout_ms)
 			double rem = (end - now()) * 1000;
 			slice = rem > cap ? cap : rem > 0 ? (int)rem : 0;
 		}
+		if (marq) { double rem = (end - now()) * 1000; if (slice > 100) slice = 100; if (rem < slice) slice = rem > 0 ? (int)rem : 0; }
 		fd_set rs; FD_ZERO(&rs); FD_SET(keyfd, &rs);
 		struct timeval tv = { slice / 1000, (slice % 1000) * 1000 };
 		if (select(keyfd + 1, &rs, 0, 0, &tv) > 0) return read(keyfd, e, sizeof *e) == sizeof *e;
-		if ((!dl_active() && !pod_net_busy() && !(eng_playing() && !in_game)) || now() >= end) return 0;
+		if ((!dl_active() && !pod_net_busy() && !(eng_playing() && !in_game) && !marq) || now() >= end) return 0;
 	}
 }
 
@@ -570,16 +580,21 @@ void idle_tick(int playing)
 	ui_st.bt = bt_connected();
 	ui_st.playing = eng_active() ? (eng_playing() ? 1 : 2) : 0;
 	np_update();
-	if (ui_theme && backlight_on && !in_game && !in_slide && !popup_active()) {	/* SNRGY: the strip's clock and bar stay live */
-		static int last_sec = -1, last_min = -1;
+	if (ui_theme && (backlight_on || ui_aod_now) && !in_game && !in_slide && !popup_active()) {	/* SNRGY: the strip's clock and bar stay live */
+		static int last_step = -1, last_min = -1;
 		time_t tt = time(0); struct tm *tm = localtime(&tt);
-		int m = tm ? tm->tm_min : 0;
-		if (ui_st.np_sec != last_sec || m != last_min) { last_sec = ui_st.np_sec; last_min = m; scr_strip(); gfx_flip_rect(0, BOTTOM_Y, W, H - BOTTOM_Y); }
+		int m = tm ? tm->tm_min : 0, step = ui_strip_calm || ui_aod_now ? ui_st.np_sec / 5 : ui_st.np_sec;
+		if (step != last_step || m != last_min) { last_step = step; last_min = m; scr_strip(); gfx_flip_rect(0, BOTTOM_Y, W, H - BOTTOM_Y); }
 	}
 	if (eng_take_sleep()) { suspend_now(); return; }
 	int idle = (int)(time(0) - last_key);
 	playing |= eng_playing();
-	if (backlight_on && idle > (playing ? ui_dim_secs : (ui_dim_secs > DIM_IDLE ? ui_dim_secs : DIM_IDLE))) { gfx_backlight(0); gfx_lcd(0); backlight_on = 0; }
+	if (backlight_on && idle > (playing ? ui_dim_secs : (ui_dim_secs > DIM_IDLE ? ui_dim_secs : DIM_IDLE))) {
+		if (ui_theme && ui_aod && !in_game) {	/* always-on display: only the strip stays, the backlight at its lowest */
+			ui_aod_now = 1; scr_aod(); gfx_flip(); gfx_backlight(AOD_LEVEL);
+		} else { gfx_backlight(0); gfx_lcd(0); }
+		backlight_on = 0;
+	}
 	if (batt_low >= 3) power_off_full("Batería agotada");
 	if (!playing && !dl_active() && idle > (backlight_on ? AUTO_SUSPEND : AUTO_SUSPEND_DARK)) suspend_now();
 	static time_t last_alarm;
@@ -737,6 +752,8 @@ static void pos_load(void)
 		}
 		if (!strncmp(line, "rows ", 5)) { ui_big_rows = atoi(line + 5) == 1; continue; }
 		if (!strncmp(line, "theme ", 6)) { ui_theme_set(atoi(line + 6)); continue; }
+		if (!strncmp(line, "aod ", 4)) { ui_aod = atoi(line + 4) == 1; continue; }
+		if (!strncmp(line, "calm ", 5)) { ui_strip_calm = atoi(line + 5) == 1; continue; }
 		if (!strncmp(line, "wall ", 5)) { ui_wall = atoi(line + 5); if (ui_wall < 0 || ui_wall >= WALL_COUNT) ui_wall = 0; continue; }
 		if (!strncmp(line, "grid ", 5)) { ui_album_grid = atoi(line + 5) == 1; continue; }
 		if (!strncmp(line, "beep ", 5)) { ui_beep = atoi(line + 5) == 1; continue; }
@@ -768,7 +785,7 @@ void pos_save(void)
 	if (!f) { lg("cannot write %s", tmp); return; }
 	fprintf(f, "vol30 %d\nmode %d %d\nui %d %d\nalarm %d %d %d %d\nspeed %d\nrg %d\n", volume, eng_shuffle, eng_repeat, ui_brightness, ui_dim_secs, alarm_cfg.on, alarm_cfg.hour, alarm_cfg.min, alarm_cfg.src, eng_speed, replaygain_mode);
 	{ char fo[32]; focus_save(fo, sizeof fo); fprintf(f, "rows %d\ngrid %d\nbeep %d\npodc %s\nlang %d\nfocus %s\n", ui_big_rows, ui_album_grid, ui_beep, pod_country, ui_lang, fo); }
-	fprintf(f, "wall %d\ntheme %d\n", ui_wall, ui_theme);
+	fprintf(f, "wall %d\ntheme %d\naod %d\ncalm %d\n", ui_wall, ui_theme, ui_aod, ui_strip_calm);
 	if (lastfile[0]) fprintf(f, "last %s\n", lastfile);
 	for (int i = 0; i < npos; i++) fprintf(f, "%ld %d %s\n", poss[i].bytes, poss[i].sec, poss[i].path);
 	int bad = ferror(f);
@@ -1772,6 +1789,7 @@ static void home(void)
 			case 6: bt_menu(); break;
 			case 7: power_menu(); break;
 			case 8: settings_menu(); break;
+			case HOME_BOOKS: books_menu(); break;	/* SNRGY home only */
 			}
 			pos_save();
 			ui_pod_new = dl_pending();

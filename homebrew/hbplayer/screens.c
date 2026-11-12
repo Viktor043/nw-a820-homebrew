@@ -90,6 +90,10 @@ static int dm_text(int col, int row, const char *s, int maxcol)	/* returns the c
 {
 	const unsigned char *p = (const unsigned char *)s;
 	while (*p && col + 5 <= maxcol) {
+		if (col < -6) {	/* scrolled off the left: skip the glyph */
+			unsigned c0 = *p++; if (c0 >= 0xC0) while ((*p & 0xC0) == 0x80) p++;
+			col += 6; continue;
+		}
 		unsigned cp = *p++;
 		if (cp >= 0xC0 && (*p & 0xC0) == 0x80) { cp = ((cp & 0x1F) << 6) | (*p++ & 0x3F); while ((*p & 0xC0) == 0x80) p++; }
 		const unsigned char *g = dm5x7[dm_ch(cp)];
@@ -105,7 +109,7 @@ static int dm_w(const char *s) { int n = 0; for (const unsigned char *p = (const
 static void dm_flush(void)
 {
 	gfx_fill(0, 264, W, 2 + DM_ROWS * 2, th_strip);
-	gfx_fill(0, DM_Y + DM_ROWS * 2, W, H - DM_Y - DM_ROWS * 2, th_paper);
+	gfx_fill(0, DM_Y + DM_ROWS * 2, W, H - DM_Y - DM_ROWS * 2, ui_aod_now ? 0 : th_paper);
 	for (int y = 0; y < DM_ROWS; y++) for (int x = 0; x < 120; x++) {
 		uint16_t *d = fb + (DM_Y + y * 2) * W + x * 2;
 		if (!dm_on[y][x]) { d[0] = th_dotoff; continue; }
@@ -135,7 +139,8 @@ static int dm_status_row(const char *left)
 	if (ui_st.bt) c = dm_text(c - 12, 0, "BT", 120) - 14;
 	int x = 0;
 	char cnt[16] = "";
-	if (!left && ui_st.np_n > 0) { snprintf(cnt, sizeof cnt, "%d/%d", ui_st.np_idx + 1, ui_st.np_n); left = cnt; }
+	if (!left && ui_st.rd_on && ui_st.rd_l1) left = ui_st.rd_l1;
+	else if (!left && ui_st.np_n > 0) { snprintf(cnt, sizeof cnt, "%d/%d", ui_st.np_idx + 1, ui_st.np_n); left = cnt; }
 	if (ui_st.playing == 1) { for (int y = 0; y < 7; y++) for (int k = 0; k <= (y < 4 ? y : 6 - y); k++) dm_dot(k, y); x = 7; }
 	else if (ui_st.playing == 2) { for (int y = 0; y < 7; y++) { dm_dot(0, y); dm_dot(1, y); dm_dot(3, y); dm_dot(4, y); } x = 7; }
 	if (left && *left) dm_text(x + (x ? 4 : 0), 0, left, c - 2);
@@ -186,13 +191,43 @@ static const int home_fallback[HOME_SLOTS] = { ICON_LOTUS, ICON_BOOK, ICON_MIC, 
 
 /* the whole strip: status / the song (or a hint when nothing plays) / elapsed, bar, remaining (or the volume) */
 static char strip_hint[96];
+int ui_aod, ui_aod_now, ui_strip_calm;
+static int strip_scroll;	/* dots the song line is scrolled left */
+#define MQ_GAP 18		/* dots between the end of the title and its repeat */
+static void strip_line(char *line, size_t n)
+{
+	if (ui_st.rd_on && ui_st.rd_l2) snprintf(line, n, "%s", ui_st.rd_l2);
+	else if (ui_st.np_title && *ui_st.np_title) snprintf(line, n, "%s%s%s", ui_st.np_title, ui_st.np_artist && *ui_st.np_artist ? " - " : "", ui_st.np_artist ? ui_st.np_artist : "");
+	else snprintf(line, n, "%s", strip_hint);
+}
+int scr_strip_scrolls(void)
+{
+	char line[160]; strip_line(line, sizeof line);
+	return SNRGY && !ui_strip_calm && !ui_aod_now && dm_w(line) > 120;
+}
+/* a long title scrolls at 10 dots a second, resting 2 s at the start of each pass */
+int scr_strip_marquee(double t)
+{
+	static char last[160]; static double t0;
+	char line[160]; strip_line(line, sizeof line);
+	int old = strip_scroll;
+	if (strcmp(line, last)) { snprintf(last, sizeof last, "%s", line); t0 = t; strip_scroll = 0; return old != 0; }
+	if (!scr_strip_scrolls()) { strip_scroll = 0; return old != 0; }
+	double pass = (dm_w(line) + MQ_GAP) / 10.0, ph = t - t0;
+	while (ph >= 2.0 + pass) ph -= 2.0 + pass;
+	strip_scroll = ph < 2.0 ? 0 : (int)((ph - 2.0) * 10);
+	return strip_scroll != old;
+}
 static void strip_draw(int vol, int volmax)
 {
 	dm_status_row(0);
 	char line[160] = "";
-	if (ui_st.np_title && *ui_st.np_title) snprintf(line, sizeof line, "%s%s%s", ui_st.np_title, ui_st.np_artist && *ui_st.np_artist ? " - " : "", ui_st.np_artist ? ui_st.np_artist : "");
-	else snprintf(line, sizeof line, "%s", strip_hint);
-	dm_text(0, 9, line, 120);
+	strip_line(line, sizeof line);
+	if (strip_scroll && dm_w(line) > 120) {	/* the scrolling title, and its next pass coming in behind it */
+		int w = dm_w(line);
+		dm_text(-strip_scroll, 9, line, 120 + 6);
+		dm_text(-strip_scroll + w + MQ_GAP, 9, line, 120 + 6);
+	} else dm_text(0, 9, line, 120);
 	int x0 = 0, x1 = 119, fill = 0;
 	if (vol >= 0) {	/* VOL, one column per step, the level */
 		char b[8]; snprintf(b, sizeof b, "%02d", vol);
@@ -203,21 +238,30 @@ static void strip_draw(int vol, int volmax)
 		dm_flush();
 		return;
 	}
-	if (ui_st.np_total > 0) {	/* 1:12 [=====-----] -1:36 */
+	if (ui_st.rd_on) {	/* reading: 37% ------ 4H 12M */
+		char a[8]; snprintf(a, sizeof a, "%d%%", ui_st.rd_pct);
+		const char *b = ui_st.rd_left ? ui_st.rd_left : "";
+		x0 = dm_text(0, 18, a, 120) + 2; x1 = 120 - dm_w(b) - 3;
+		dm_text(x1 + 3, 18, b, 120);
+		fill = (x1 - x0 - 3) * ui_st.rd_pct / 100;
+	} else if (ui_st.np_total > 0) {	/* 1:12 [=====-----] -1:36 */
 		char a[16], b[16]; int s = ui_st.np_sec < 0 ? 0 : ui_st.np_sec, r = ui_st.np_total - s;
 		if (r < 0) r = 0;
 		if (ui_st.np_total >= 3600) { snprintf(a, sizeof a, "%d:%02d:%02d", s / 3600, s / 60 % 60, s % 60); snprintf(b, sizeof b, "-%d:%02d:%02d", r / 3600, r / 60 % 60, r % 60); }
 		else { snprintf(a, sizeof a, "%d:%02d", s / 60, s % 60); snprintf(b, sizeof b, "-%d:%02d", r / 60, r % 60); }
 		x0 = dm_text(0, 18, a, 120) + 2; x1 = 120 - dm_w(b) - 3;
 		dm_text(x1 + 3, 18, b, 120);
-		fill = (x1 - x0 - 2) * (s > ui_st.np_total ? ui_st.np_total : s) / ui_st.np_total;
+		fill = (x1 - x0 - 3) * (s > ui_st.np_total ? ui_st.np_total : s) / ui_st.np_total;
 	}
-	for (int x = x0; x <= x1; x++) { dm_dot(x, 18); dm_dot(x, 24); }	/* the bar, always there (empty when idle) */
-	for (int y = 18; y <= 24; y++) { dm_dot(x0, y); dm_dot(x1, y); }
-	for (int x = x0 + 2; x < x0 + 2 + fill; x++) for (int y = 20; y <= 22; y++) dm_dot(x, y);
+	for (int x = x0 + 2; x < x0 + 2 + fill; x++) for (int y = 20; y <= 22; y++) dm_dot(x, y);	/* just the line filling up, no frame */
 	dm_flush();
 }
 void scr_strip(void) { if (SNRGY) strip_draw(-1, 0); }
+void scr_aod(void)
+{
+	gfx_fill(0, 0, W, BOTTOM_Y, 0);
+	strip_draw(-1, 0);
+}
 
 /* ---------- colours and blending ---------- */
 
@@ -593,8 +637,9 @@ static void snrgy_icon_draw(int k, int x, int y, uint16_t c)
 	}
 }
 int ui_home_tab;
-const int home_order[] = { 4, 1, 2, 5, 0, 6, 7, 8 };	/* Música, Audiolibros, Podcasts, Juegos, Modo foco, Bluetooth, Apagar, Ajustes */
-const int home_order_n = 8;
+const int home_order[] = { 4, 1, HOME_BOOKS, 2, 5, 0, 6, 7, 8 };	/* Música, Audiolibros, Libros, Podcasts, Juegos, Modo foco, Bluetooth, Apagar, Ajustes */
+const int home_order_n = 9;
+#define HOME_RH 26	/* nine rows between the tabs and the strip */
 static void snrgy_home(int sel, const char *nowline)
 {
 	bg_fill(0, 0, W, BOTTOM_Y, 0);
@@ -608,15 +653,15 @@ static void snrgy_home(int sel, const char *nowline)
 		tx += w + 22;
 	}
 	for (int r = 0; r < home_order_n; r++) {
-		int i = home_order[r], y = TITLE_H + 2 + r * LIST_ROW_H, on = !ui_home_tab && i == sel;
+		int i = home_order[r], y = TITLE_H + 1 + r * HOME_RH, on = !ui_home_tab && i == sel;
 		int next_on = r + 1 < home_order_n && !ui_home_tab && home_order[r + 1] == sel;
 		uint16_t fg = on ? C_BLACK : C_WHITE;
-		if (on) rrect(4, y, W - 8, LIST_ROW_H - 1, 6, C_WHITE, 1);
-		else if (!next_on && r < home_order_n - 1) gfx_fill(10, y + LIST_ROW_H - 1, W - 20, 1, th_rule);
-		snrgy_icon_draw(i, 12, y + (LIST_ROW_H - 1 - SNRGY_ICON) / 2, fg);
-		gfx_text_clip(42, y + 3, home_labels[i], fg, W - 80);
-		if (i == 2 && ui_pod_new > 0) { char n[8]; snprintf(n, sizeof n, "%d", ui_pod_new); gfx_text(W - 26 - gfx_text_w(n, 1), y + 3, n, on ? C_BLACK : C_GREY, 1); }
-		chevron(W - 18, y + LIST_ROW_H / 2 - 1, fg);
+		if (on) rrect(4, y, W - 8, HOME_RH - 1, 6, C_WHITE, 1);
+		else if (!next_on && r < home_order_n - 1) gfx_fill(10, y + HOME_RH - 1, W - 20, 1, th_rule);
+		snrgy_icon_draw(i == HOME_BOOKS ? SNRGY_ICON_BOOKS : i, 12, y + (HOME_RH - 1 - SNRGY_ICON) / 2, fg);
+		gfx_text_clip(42, y + 2, i == HOME_BOOKS ? "Libros" : home_labels[i], fg, W - 80);
+		if (i == 2 && ui_pod_new > 0) { char n[8]; snprintf(n, sizeof n, "%d", ui_pod_new); gfx_text(W - 26 - gfx_text_w(n, 1), y + 2, n, on ? C_BLACK : C_GREY, 1); }
+		chevron(W - 18, y + HOME_RH / 2 - 1, fg);
 	}
 	bottom_bar(BB_NOTE, nowline, C_WHITE);
 }
@@ -1292,3 +1337,12 @@ void scr_pod_show(const char *name, const char *author, const char *info, struct
 		gfx_text_clip(i == sel ? 29 : 8, y + 3, items[i], i == sel ? C_BLACK : C_WHITE, W - 40);
 	}
 }
+
+/* ---------- the reader (reader.c) ---------- */
+
+void scr_page(const char *title)
+{
+	if (SNRGY) { bg_fill(0, 0, W, BOTTOM_Y, 0); return; }
+	background(); title_bar(title);
+}
+void scr_page_status(const char *text) { bottom_bar(BB_TEXT, text, C_WHITE); }

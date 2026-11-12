@@ -73,6 +73,7 @@ void eng_stop(void);
 void eng_pause(int p);
 void eng_toggle(void);
 void eng_next(void);
+void books_menu(void);		/* reader.c: EPUB / TXT from /contents/Libros */
 const char *eng_queue_title(int i);	/* queue position i (play order) */
 void eng_play_at(int i);		/* jump to queue position i */
 void eng_prev(void);

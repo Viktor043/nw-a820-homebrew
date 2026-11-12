@@ -454,9 +454,13 @@ static int fallback_glyph(unsigned cp, int x, int y, uint16_t col, int scale, in
 /* the SNRGY themes' font (common/ui_font.h from tools/mkfont.py, 4 bpp anti-aliased, Latin-1), when it was built
  * in: gfx_face 1 draws with it, gfx_caps upper-cases. Code points it lacks fall back to Sony's font. */
 int gfx_face, gfx_caps;
+#define FONT_FIRST 32	/* both faces: code points 32..255 */
 #if defined(__has_include)
 #if __has_include("ui_font.h")
 #include "ui_font.h"
+#endif
+#if __has_include("book_font.h")
+#include "book_font.h"	/* gfx_face 2: the reader's serif (tools/mkfont.py --name book) */
 #endif
 #endif
 static unsigned caps_cp(unsigned cp)
@@ -465,23 +469,24 @@ static unsigned caps_cp(unsigned cp)
 	if (cp >= 0xE0 && cp <= 0xFE && cp != 0xF7) return cp - 32;	/* à..þ -> À..Þ (not ÷) */
 	return cp;
 }
-#ifdef UI_FONT
+#if defined(UI_FONT) || defined(BOOK_FONT)
 static uint16_t blend16(uint16_t d, uint16_t c, int a)	/* a 0..15 */
 {
 	int r = ((d >> 11) * (15 - a) + (c >> 11) * a) / 15, g = (((d >> 5) & 63) * (15 - a) + ((c >> 5) & 63) * a) / 15, b = ((d & 31) * (15 - a) + (c & 31) * a) / 15;
 	return (uint16_t)(r << 11 | g << 5 | b);
 }
-static int ui_glyph(unsigned cp, int x, int y, uint16_t col, int scale, int draw)
+struct fglyph { signed char adv, x, y; unsigned char w, h; unsigned short off; };
+static int face_glyph(const struct fglyph *g, const unsigned char *pxd, unsigned cp, int x, int y, uint16_t col, int scale, int draw)
 {
 	const unsigned char *px;
-	int i = cp - UI_FONT_FIRST, adv = ui_font_g[i].adv, w = ui_font_g[i].w, h = ui_font_g[i].h;
+	int i = cp - FONT_FIRST, adv = g[i].adv, w = g[i].w, h = g[i].h;
 	if (!draw || !w) return adv * scale;
-	px = ui_font_px + ui_font_g[i].off;
+	px = pxd + g[i].off;
 	for (int r = 0; r < h; r++)
 		for (int k = 0; k < w; k++) {
 			int n = r * w + k, a = n & 1 ? px[n >> 1] & 15 : px[n >> 1] >> 4;
 			if (!a) continue;
-			int xx = x + (ui_font_g[i].x + k) * scale, yy = y + (ui_font_g[i].y + r) * scale;
+			int xx = x + (g[i].x + k) * scale, yy = y + (g[i].y + r) * scale;
 			if (scale != 1) { if (a > 7) gfx_fill(xx, yy, scale, scale, col); continue; }
 			if (xx < 0 || xx >= W || yy < 0 || yy >= H) continue;
 			uint16_t *d = fb + yy * W + xx;
@@ -493,8 +498,11 @@ static int ui_glyph(unsigned cp, int x, int y, uint16_t col, int scale, int draw
 static int glyph(unsigned cp, int x, int y, uint16_t col, int scale, int draw)
 {
 	if (gfx_caps) cp = caps_cp(cp);
+#ifdef BOOK_FONT
+	if (gfx_face == 2 && cp >= FONT_FIRST && cp <= 255 && book_font_g[cp - FONT_FIRST].adv) return face_glyph((const struct fglyph *)book_font_g, book_font_px, cp, x, y, col, scale, draw);
+#endif
 #ifdef UI_FONT
-	if (gfx_face && cp >= UI_FONT_FIRST && cp <= UI_FONT_LAST && ui_font_g[cp - UI_FONT_FIRST].adv) return ui_glyph(cp, x, y, col, scale, draw);	/* adv 0: not in the font */
+	if (gfx_face && cp >= FONT_FIRST && cp <= 255 && ui_font_g[cp - FONT_FIRST].adv) return face_glyph((const struct fglyph *)ui_font_g, ui_font_px, cp, x, y, col, scale, draw);	/* adv 0: not in the font */
 #endif
 	return fsub ? sony_glyph(cp, x, y, col, scale, draw) : fallback_glyph(cp, x, y, col, scale, draw);
 }

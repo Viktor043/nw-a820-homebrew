@@ -160,6 +160,21 @@ int main(int argc, char **argv)
 	p.browsing = 1; p.cursor = 4; p.shuffle = 0; p.repeat = 1;
 	scr_player(&p, 1); save("08c_reproduciendo_lista");
 	p.browsing = 0; p.repeat = 0;
+	{	/* the reader: an original sample page (reader.c, READER_SHOT) */
+		extern void reader_shot(const char *title, const char *author, const char *text);
+		reader_shot("The Harbour Clock", "M. Ostberg",
+			"\1Chapter One\n"
+			"The clock above the harbour office had run four minutes slow for as long as anyone in the town could remember, and nobody had ever thought to correct it. The ferries kept their own time, the fishermen kept the tide's, and the children kept whatever time the bells at the school decided to keep.\n"
+			"Ines noticed it on the first morning, standing on the quay with her suitcase between her feet. She checked her watch twice, then a third time, and finally decided that the town was simply living a little behind the rest of the world.\n"
+			"It suited her. She had come here to be a little behind.");
+		save("21_libro");
+	}
+	if (ui_theme) {	/* the strip: a long title scrolling, and the always-on display */
+		const char *ot = ui_st.np_title; ui_st.np_title = "A Very Long Song Title That Has To Scroll";
+		scr_player(&p, 1); scr_strip_marquee(0); scr_strip_marquee(4.5); scr_strip(); save("08e_titulo_largo");
+		ui_aod_now = 1; scr_aod(); save("08f_siempre_activa"); ui_aod_now = 0;
+		ui_st.np_title = ot; scr_strip_marquee(10);
+	}
 	p.paused = 1; p.sleep_left = 30; ui_st.bt = 1; p.out = "BT"; ui_st.playing = 2;
 	scr_player(&p, 1); save("09_pausa_timer_bt");
 	p.paused = 0; ui_st.playing = 1; scr_player(&p, 1); scr_volume(6, 30); save("10_volumen");
