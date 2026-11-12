@@ -4,7 +4,7 @@
  * the status bar. The SNRGY strip shows the E-PLAYER's reading lines: chapter and page / book - author / progress
  * and the reading time left. Positions and bookmarks: <statedir>/books.txt.
  *
- * Keys: RIGHT / DOWN next page, LEFT / UP previous page, PLAY portrait / landscape (the whole screen, no strip;
+ * Keys: DOWN next page, UP previous page, LEFT / RIGHT darker / brighter, PLAY portrait / landscape (the whole screen, no strip;
  * held sideways, the keys on the right), VOL+ / VOL- the music's volume, OPTION chapters and bookmarks, BACK the
  * list. The text size: Ajustes > Pantalla > Letra de los libros. The screen never goes dark while a book is open.
  * READER_HOST builds the parsing and layout alone (tests on the PC). */
@@ -752,11 +752,19 @@ static void reader_run(const char *path)
 			redraw = 1;
 			continue;
 		}
-		if (k == K_RIGHT || k == K_DOWN) {
+		if (k == K_LEFT || k == K_RIGHT) {	/* the backlight, in its 5 real steps */
+			int b = ui_brightness + (k == K_RIGHT ? 20 : -20);
+			if (b < 20) b = 20;
+			if (b > 100) b = 100;
+			if (b != ui_brightness) { ui_brightness = b; gfx_backlight(b); settings_save(); }
+			if (!ui_book_land) { char n[32]; snprintf(n, sizeof n, "Brillo %d%%", ui_brightness); eng_note(n); redraw_strip = 1; }
+			continue;
+		}
+		if (k == K_DOWN) {
 			if (page + 1 < np) page++;
 			else if (cur_ch + 1 < bk.nch) { load_chapter(cur_ch + 1); page = 0; }
 			moved = 1;
-		} else if (k == K_LEFT || k == K_UP) {
+		} else if (k == K_UP) {
 			if (page > 0) page--;
 			else if (cur_ch > 0) { load_chapter(cur_ch - 1); page = npages() - 1; }
 			moved = 1;
