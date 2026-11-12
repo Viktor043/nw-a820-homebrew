@@ -531,6 +531,8 @@ static void np_update(void)
 		}
 	}
 	ui_st.np_title = t; ui_st.np_artist = a;
+	if (eng_active()) { struct eng_info e; eng_info(&e); ui_st.np_idx = e.idx; ui_st.np_n = e.n; ui_st.np_sec = e.sec; ui_st.np_total = e.total; }
+	else ui_st.np_idx = ui_st.np_n = ui_st.np_sec = ui_st.np_total = 0;
 }
 
 static void settings_flush(void);
@@ -568,6 +570,12 @@ void idle_tick(int playing)
 	ui_st.bt = bt_connected();
 	ui_st.playing = eng_active() ? (eng_playing() ? 1 : 2) : 0;
 	np_update();
+	if (ui_theme && backlight_on && !in_game && !in_slide && !popup_active()) {	/* SNRGY: the strip's clock and bar stay live */
+		static int last_sec = -1, last_min = -1;
+		time_t tt = time(0); struct tm *tm = localtime(&tt);
+		int m = tm ? tm->tm_min : 0;
+		if (ui_st.np_sec != last_sec || m != last_min) { last_sec = ui_st.np_sec; last_min = m; scr_strip(); gfx_flip_rect(0, BOTTOM_Y, W, H - BOTTOM_Y); }
+	}
 	if (eng_take_sleep()) { suspend_now(); return; }
 	int idle = (int)(time(0) - last_key);
 	playing |= eng_playing();
@@ -924,7 +932,11 @@ static void play_options(int music)
 
 void nowplaying_run(void)
 {
-	static uint16_t art[PLAYER_ART * PLAYER_ART];
+	static uint16_t art_small[PLAYER_ART * PLAYER_ART], art_big[PLAYER_ART_BIG * PLAYER_ART_BIG];
+	uint16_t *art = ui_theme ? art_big : art_small;
+	int asz = ui_theme ? PLAYER_ART_BIG : PLAYER_ART;	/* SNRGY: the cover across the width */
+	int browsing = 0, cursor = 0;	/* SNRGY: UP / DOWN browse the queue under the cover */
+	double browse_t = 0;
 	struct player_view pv;
 	struct eng_info e;
 	char lastpath[384] = "";
@@ -943,7 +955,7 @@ void nowplaying_run(void)
 		if (strcmp(lastpath, e.path)) {	/* new track: its cover from the cache right away, else after the first frame */
 			snprintf(lastpath, sizeof lastpath, "%s", e.path);
 			double t = now();
-			has_art = cover_cached(e.path, art, PLAYER_ART);
+			has_art = cover_cached(e.path, art, asz);
 			art_pending = !has_art;
 			if (now() - t > 0.05) lg("art: cache read %d ms", (int)((now() - t) * 1000));
 			show_lrc = lrc_count() > 0;
@@ -973,7 +985,9 @@ void nowplaying_run(void)
 			pv.idx = e.idx; pv.ntr = e.n; pv.sec = scrub ? (int)scrub_pos : e.sec; pv.total = e.total; pv.paused = e.paused;
 			pv.vol = volume; pv.volmax = VOLMAX; pv.sleep_left = eng_sleep_left();
 			pv.out = bt_connected() ? "BT" : "";
-			if (has_art) { pv.art.w = pv.art.h = PLAYER_ART; pv.art.px = art; }
+			if (has_art) { pv.art.w = pv.art.h = asz; pv.art.px = art; }
+			pv.shuffle = eng_shuffle; pv.repeat = eng_repeat; pv.qtitle = eng_queue_title;
+			pv.browsing = browsing; pv.cursor = cursor;
 			pv.speed = e.mode == ENG_BOOK ? eng_speed : 100;
 			pv.lrc_prev = show_lrc && lidx > 0 ? lrc_text(lidx - 1) : 0;
 			pv.lrc_cur = show_lrc ? lrc_text(lidx) : 0;
@@ -988,7 +1002,7 @@ void nowplaying_run(void)
 			if (art_pending) {
 				double t = now();
 				cover_cancel = key_waiting;	/* skipping tracks quickly: never wait for a cover nobody will see */
-				art_pending = 0; has_art = cover_load(e.path, art, PLAYER_ART);
+				art_pending = 0; has_art = cover_load(e.path, art, asz);
 				cover_cancel = 0;
 				if (cover_aborted()) art_pending = 1;	/* again once the keys settle */
 				else lg("art: decoded in %d ms (%s)", (int)((now() - t) * 1000), has_art ? "ok" : "none");
@@ -1016,8 +1030,18 @@ void nowplaying_run(void)
 			} else if (k == K_LEFT || k == K_RIGHT) continue;
 		}
 		if (k == K_REDRAW) { full = 1; continue; }
+		if (browsing && now() - browse_t > 8) { browsing = 0; full = 1; }	/* back to the cover by itself */
 		if (k < 0) continue;
 		int music = e.mode == ENG_MUSIC;
+		if (ui_theme && (k == K_UP || k == K_DOWN)) {
+			if (!browsing) { browsing = 1; cursor = e.idx; }
+			if (k == K_UP && cursor > 0) cursor--;
+			if (k == K_DOWN && cursor + 1 < e.n) cursor++;
+			browse_t = now(); full = 1;
+			continue;
+		}
+		if (ui_theme && browsing && k == K_BACK) { browsing = 0; full = 1; continue; }
+		if (ui_theme && browsing && k == K_PLAY) { if (cursor != e.idx) { beep(BEEP_ONE); eng_play_at(cursor); } else eng_toggle(); browsing = 0; full = 1; continue; }
 		if (k == K_PLAY) { beep(BEEP_ONE); eng_toggle(); }
 		else if (k == K_BACK) { pending_slide = -1; return; }
 		else if (k == K_LEFT || k == K_RIGHT) { lr_key = k; lr_t = now(); scrub = 0; continue; }	/* decided on release / hold */
@@ -1698,6 +1722,7 @@ static void home(void)
 	int sel = 4, redraw = 1;	/* Música, in the centre */
 	for (int i = 0; i < HOME_SLOTS; i++) home_frame[i] = 8;
 	if (lastfile[0] || eng_active()) sel = 3;	/* "Reproduciendo": one press resumes where it was */
+	if (ui_theme) { ui_home_tab = sel == 3 ? 2 : 0; if (sel == 3) sel = 4; }	/* SNRGY: that is the RESUME tab */
 	home_frame[sel] = 0;
 	ui_pod_new = dl_pending();
 	for (;;) {
@@ -1718,15 +1743,26 @@ static void home(void)
 			continue;
 		}
 		int ns = sel;
+		if (ui_theme && k != K_PLAY && (k == K_UP || k == K_DOWN || k == K_LEFT || k == K_RIGHT)) {	/* SNRGY: a list under two tabs */
+			int pos = 0;
+			for (int r = 0; r < home_order_n; r++) if (home_order[r] == sel) pos = r;
+			if (ui_home_tab) {
+				if (k == K_LEFT) ui_home_tab = 1;
+				else if (k == K_RIGHT) ui_home_tab = 2;
+				else if (k == K_DOWN) ui_home_tab = 0;
+			} else if (k == K_UP) { if (pos == 0) ui_home_tab = 2; else sel = home_order[pos - 1]; }
+			else if (k == K_DOWN) { if (pos + 1 < home_order_n) sel = home_order[pos + 1]; }
+			redraw = 1;
+			continue;
+		}
+		if (ui_theme && k == K_PLAY && ui_home_tab == 1) { ui_home_tab = 0; redraw = 1; continue; }	/* HOME: back to the list */
 		if (k == K_LEFT) { do ns = (ns + HOME_SLOTS - 1) % HOME_SLOTS; while (!home_valid(ns)); }
 		else if (k == K_RIGHT) { do ns = (ns + 1) % HOME_SLOTS; while (!home_valid(ns)); }
-		else if (k == K_UP && ui_theme) { do ns = (ns + HOME_SLOTS - 1) % HOME_SLOTS; while (!home_valid(ns)); }	/* SNRGY: a list */
-		else if (k == K_DOWN && ui_theme) { do ns = (ns + 1) % HOME_SLOTS; while (!home_valid(ns)); }
 		else if (k == K_UP) { ns = (sel + HOME_SLOTS - 3) % HOME_SLOTS; if (!home_valid(ns)) ns = sel; }
 		else if (k == K_DOWN) { ns = (sel + 3) % HOME_SLOTS; if (!home_valid(ns)) ns = sel; }
 		else if (k == K_PLAY) {
 			pending_slide = 1;
-			switch (sel) {
+			switch (ui_theme && ui_home_tab == 2 ? 3 : sel) {	/* the RESUME tab = "Reproduciendo" */
 			case 0: focus_menu(); break;
 			case 1: browse("/contents/Audiolibros", "Audiolibros", 0); break;
 			case 2: browse("/contents/Podcasts", "Podcasts", 1); break;

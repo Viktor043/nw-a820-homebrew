@@ -37,7 +37,7 @@ void ui_theme_set(int t)
 	}
 	th_strip = RGB(6, 6, 7); th_dot = RGB(0xF2, 0xF2, 0xF2); th_dotoff = RGB(0x18, 0x18, 0x1A);
 	gfx_face = gfx_caps = SNRGY;
-	gfx_rot = SNRGY ? H - 288 : 0;
+	gfx_rot = SNRGY ? H - 264 : 0;	/* the 56 px strip band on top */
 	gfx_invalidate();
 }
 
@@ -76,8 +76,9 @@ static const unsigned char dm5x7[][7] = {	/* ' ' .. 'Z', one byte per row, 5 low
 	{30,17,17,30,16,16,16},{14,17,17,17,21,18,13},{30,17,17,30,20,18,17},{15,16,16,14,1,1,30},{31,4,4,4,4,4,4},{17,17,17,17,17,17,14},{17,17,17,17,17,10,4},{17,17,17,21,21,21,10},
 	{17,17,10,4,10,17,17},{17,17,10,4,4,4,4},{31,1,2,4,8,16,31},
 };
-static unsigned char dm_on[16][120];
-static void dm_dot(int x, int y) { if (x >= 0 && x < 120 && y >= 0 && y < 16) dm_on[y][x] = 1; }
+#define DM_ROWS 25	/* 3 rows of 7 dots, 2 dots apart */
+static unsigned char dm_on[DM_ROWS][120];
+static void dm_dot(int x, int y) { if (x >= 0 && x < 120 && y >= 0 && y < DM_ROWS) dm_on[y][x] = 1; }
 static int dm_ch(unsigned cp)	/* Latin-1 letters to their base capital, the rest to ' '..'Z' */
 {
 	static const char lat[] = "AAAAAAACEEEEIIIIDNOOOOOxOUUUUYPSaaaaaaaceeeeiiiidnooooo/ouuuuypy";
@@ -98,11 +99,15 @@ static int dm_text(int col, int row, const char *s, int maxcol)	/* returns the c
 	return col;
 }
 static int dm_w(const char *s) { int n = 0; for (const unsigned char *p = (const unsigned char *)s; *p; p++) if ((*p & 0xC0) != 0x80) n++; return n * 6; }
-static void dm_flush(void)	/* the dots into the status band of the back buffer */
+/* the dots into the status band of the back buffer (264..320, shown on top): 2 px margin, 25 dot rows at 2 px,
+ * then 4 px of paper so the strip never touches the title under it */
+#define DM_Y 266
+static void dm_flush(void)
 {
-	gfx_fill(0, 288, W, 32, th_strip);
-	for (int y = 0; y < 16; y++) for (int x = 0; x < 120; x++) {
-		uint16_t *d = fb + (288 + y * 2) * W + x * 2;
+	gfx_fill(0, 264, W, 2 + DM_ROWS * 2, th_strip);
+	gfx_fill(0, DM_Y + DM_ROWS * 2, W, H - DM_Y - DM_ROWS * 2, th_paper);
+	for (int y = 0; y < DM_ROWS; y++) for (int x = 0; x < 120; x++) {
+		uint16_t *d = fb + (DM_Y + y * 2) * W + x * 2;
 		if (!dm_on[y][x]) { d[0] = th_dotoff; continue; }
 		d[0] = th_dot; d[1] = RGB(0x9A, 0x9A, 0x9C); d[W] = RGB(0x9A, 0x9A, 0x9C);	/* a lit 2x2 cell, the PMOLED's pixel grid */
 	}
@@ -129,9 +134,11 @@ static int dm_status_row(const char *left)
 	if (ui_st.hold) c = dm_text(c - 6, 0, "H", 120) - 8;
 	if (ui_st.bt) c = dm_text(c - 12, 0, "BT", 120) - 14;
 	int x = 0;
+	char cnt[16] = "";
+	if (!left && ui_st.np_n > 0) { snprintf(cnt, sizeof cnt, "%d/%d", ui_st.np_idx + 1, ui_st.np_n); left = cnt; }
 	if (ui_st.playing == 1) { for (int y = 0; y < 7; y++) for (int k = 0; k <= (y < 4 ? y : 6 - y); k++) dm_dot(k, y); x = 7; }
 	else if (ui_st.playing == 2) { for (int y = 0; y < 7; y++) { dm_dot(0, y); dm_dot(1, y); dm_dot(3, y); dm_dot(4, y); } x = 7; }
-	if (left && *left) dm_text(x, 0, left, c - 2);
+	if (left && *left) dm_text(x + (x ? 4 : 0), 0, left, c - 2);
 	return c;
 }
 
@@ -176,6 +183,41 @@ static void home_src_init(void)
 	memcpy(home_src, home_src_intl, sizeof home_src);
 }
 static const int home_fallback[HOME_SLOTS] = { ICON_LOTUS, ICON_BOOK, ICON_MIC, ICON_PLAY, ICON_PLAY, ICON_GAMEPAD, ICON_BT, ICON_POWER, ICON_GEAR };
+
+/* the whole strip: status / the song (or a hint when nothing plays) / elapsed, bar, remaining (or the volume) */
+static char strip_hint[96];
+static void strip_draw(int vol, int volmax)
+{
+	dm_status_row(0);
+	char line[160] = "";
+	if (ui_st.np_title && *ui_st.np_title) snprintf(line, sizeof line, "%s%s%s", ui_st.np_title, ui_st.np_artist && *ui_st.np_artist ? " - " : "", ui_st.np_artist ? ui_st.np_artist : "");
+	else snprintf(line, sizeof line, "%s", strip_hint);
+	dm_text(0, 9, line, 120);
+	int x0 = 0, x1 = 119, fill = 0;
+	if (vol >= 0) {	/* VOL, one column per step, the level */
+		char b[8]; snprintf(b, sizeof b, "%02d", vol);
+		x0 = dm_text(0, 18, "VOL", 120) + 3; x1 = 120 - dm_w(b) - 3;
+		dm_text(x1 + 3, 18, b, 120);
+		int seg = volmax > 0 ? volmax : 30, span = x1 - x0;
+		for (int i = 0; i < seg && span > 0; i++) { int sx = x0 + i * span / seg; for (int y = 18; y < 25; y++) if (i < vol || y == 24) dm_dot(sx, y); }
+		dm_flush();
+		return;
+	}
+	if (ui_st.np_total > 0) {	/* 1:12 [=====-----] -1:36 */
+		char a[16], b[16]; int s = ui_st.np_sec < 0 ? 0 : ui_st.np_sec, r = ui_st.np_total - s;
+		if (r < 0) r = 0;
+		if (ui_st.np_total >= 3600) { snprintf(a, sizeof a, "%d:%02d:%02d", s / 3600, s / 60 % 60, s % 60); snprintf(b, sizeof b, "-%d:%02d:%02d", r / 3600, r / 60 % 60, r % 60); }
+		else { snprintf(a, sizeof a, "%d:%02d", s / 60, s % 60); snprintf(b, sizeof b, "-%d:%02d", r / 60, r % 60); }
+		x0 = dm_text(0, 18, a, 120) + 2; x1 = 120 - dm_w(b) - 3;
+		dm_text(x1 + 3, 18, b, 120);
+		fill = (x1 - x0 - 2) * (s > ui_st.np_total ? ui_st.np_total : s) / ui_st.np_total;
+	}
+	for (int x = x0; x <= x1; x++) { dm_dot(x, 18); dm_dot(x, 24); }	/* the bar, always there (empty when idle) */
+	for (int y = 18; y <= 24; y++) { dm_dot(x0, y); dm_dot(x1, y); }
+	for (int x = x0 + 2; x < x0 + 2 + fill; x++) for (int y = 20; y <= 22; y++) dm_dot(x, y);
+	dm_flush();
+}
+void scr_strip(void) { if (SNRGY) strip_draw(-1, 0); }
 
 /* ---------- colours and blending ---------- */
 
@@ -406,15 +448,11 @@ static void bottom_bar(int kind, const char *text, uint16_t tc)
 {
 	int y = BOTTOM_Y, iy = BOTTOM_Y + 5;
 	if (SNRGY) {	/* the dot-matrix strip: row 1 state / elapsed + battery + clock, row 2 what is playing (or the hint) */
-		dm_status_row(kind == BB_TIME ? text : 0);
-		char line[96] = "";
-		if (kind == BB_TIME || kind == BB_NONE || kind == BB_NOTE || kind == BB_PERSON) {
-			if (ui_st.np_title && *ui_st.np_title) snprintf(line, sizeof line, "%s%s%s", ui_st.np_title, ui_st.np_artist && *ui_st.np_artist ? " - " : "", ui_st.np_artist ? ui_st.np_artist : "");
-			else if (text && kind != BB_TIME) snprintf(line, sizeof line, "%s", text);
-		} else if (text) snprintf(line, sizeof line, "%s", gfx_tr ? gfx_tr(text) : text);
-		if (dl_active() && !bb_no_dl && dl_percent() >= 0 && !line[0]) snprintf(line, sizeof line, "DL %d%%", dl_percent());
-		dm_text(0, 9, line, 120);
-		dm_flush();
+		strip_hint[0] = 0;	/* the hint shows only while nothing plays (the song has that row) */
+		if (kind == BB_TEXT && text) snprintf(strip_hint, sizeof strip_hint, "%s", gfx_tr ? gfx_tr(text) : text);
+		else if (kind != BB_TIME && text) snprintf(strip_hint, sizeof strip_hint, "%s", text);
+		if (dl_active() && !bb_no_dl && dl_percent() >= 0 && !strip_hint[0]) snprintf(strip_hint, sizeof strip_hint, "DL %d%%", dl_percent());
+		strip_draw(-1, 0);
 		return;
 	}
 	gfx_vgrad(0, y, W, H - y, RGB(104, 114, 132), RGB(30, 35, 46));
@@ -554,15 +592,27 @@ static void snrgy_icon_draw(int k, int x, int y, uint16_t c)
 		*d = (uint16_t)(r << 11 | g << 5 | b);
 	}
 }
+int ui_home_tab;
+const int home_order[] = { 4, 1, 2, 5, 0, 6, 7, 8 };	/* Música, Audiolibros, Podcasts, Juegos, Modo foco, Bluetooth, Apagar, Ajustes */
+const int home_order_n = 8;
 static void snrgy_home(int sel, const char *nowline)
 {
-	bg_fill(0, TITLE_H, W, BOTTOM_Y - TITLE_H, 0);
-	title_bar("Inicio");
-	for (int i = 0; i < HOME_SLOTS; i++) {
-		int y = TITLE_H + 2 + i * LIST_ROW_H, on = i == sel;
+	bg_fill(0, 0, W, BOTTOM_Y, 0);
+	/* the tab header: HOME (this page) and RESUME (what played last); UP from the first row reaches them */
+	const char *tab[2] = { "Inicio", "Reanudar" };
+	int tx = 12;
+	for (int t = 0; t < 2; t++) {
+		int w = gfx_text_w(tab[t], 1), focus = ui_home_tab == t + 1;
+		if (focus) rrect(tx - 7, 2, w + 14, 24, 6, C_WHITE, 1);
+		gfx_text(tx, 5, tab[t], focus ? C_BLACK : t == 0 ? C_WHITE : C_GREY, 1);
+		tx += w + 22;
+	}
+	for (int r = 0; r < home_order_n; r++) {
+		int i = home_order[r], y = TITLE_H + 2 + r * LIST_ROW_H, on = !ui_home_tab && i == sel;
+		int next_on = r + 1 < home_order_n && !ui_home_tab && home_order[r + 1] == sel;
 		uint16_t fg = on ? C_BLACK : C_WHITE;
 		if (on) rrect(4, y, W - 8, LIST_ROW_H - 1, 6, C_WHITE, 1);
-		else if (i + 1 != sel && i < HOME_SLOTS - 1) gfx_fill(10, y + LIST_ROW_H - 1, W - 20, 1, th_rule);
+		else if (!next_on && r < home_order_n - 1) gfx_fill(10, y + LIST_ROW_H - 1, W - 20, 1, th_rule);
 		snrgy_icon_draw(i, 12, y + (LIST_ROW_H - 1 - SNRGY_ICON) / 2, fg);
 		gfx_text_clip(42, y + 3, home_labels[i], fg, W - 80);
 		if (i == 2 && ui_pod_new > 0) { char n[8]; snprintf(n, sizeof n, "%d", ui_pod_new); gfx_text(W - 26 - gfx_text_w(n, 1), y + 3, n, on ? C_BLACK : C_GREY, 1); }
@@ -611,20 +661,7 @@ void scr_toast(const char *msg)
  * segment per step, lit ones orange 34/7, the rest grey 34/5, and the level in Sony's digits: "06") */
 void scr_volume(int vol, int volmax)
 {
-	if (SNRGY) {	/* in the dot-matrix strip: VOL, one column per step, the level */
-		char b[8]; snprintf(b, sizeof b, "%02d", vol);
-		int seg = volmax > 0 ? volmax : 30;
-		dm_status_row(0);
-		int x = dm_text(0, 9, "VOL", 120) + 3, xe = 120 - dm_w(b);
-		dm_text(xe, 9, b, 120);
-		int span = xe - 3 - x;
-		for (int i = 0; i < seg && span > 0; i++) {
-			int sx = x + i * span / seg;
-			for (int yy = 9; yy < 16; yy++) if (i < vol || yy == 15) dm_dot(sx, yy);
-		}
-		dm_flush();
-		return;
-	}
+	if (SNRGY) { strip_draw(vol, volmax); return; }	/* in the strip's bottom row */
 	int y = BOTTOM_Y, iy = BOTTOM_Y + 5;
 	gfx_vgrad(0, y, W, H - y, RGB(104, 114, 132), RGB(30, 35, 46));
 	gfx_fill(0, y, W, 1, RGB(150, 158, 172));
@@ -856,8 +893,82 @@ static void info_line(int y, struct img ic, const char *s)
 	gfx_text_clip(24, y, s, C_WHITE, W - 30);
 }
 
+/* SNRGY now playing: the cover across the width, the counter and play mode under it, then the queue (album or
+ * folder, in play order). One virtual column; while browsing (UP / DOWN) it scrolls to keep the cursor in view.
+ * Time and progress are in the strip on top. */
+#define SP_INFO (2 + PLAYER_ART_BIG + 2)	/* the counter / mode row */
+#define SP_LIST (SP_INFO + 24)			/* the first queue row */
+static void icon_x4(int k, int cx, int cy, uint16_t c)	/* a line icon at 4x (the cover placeholder) */
+{
+	int s = SNRGY_ICON * 4, x0 = cx - s / 2, y0 = cy - s / 2;
+	for (int j = 0; j < s; j++) for (int i = 0; i < s; i++) {
+		int a = snrgy_icon[k][(j / 4) * SNRGY_ICON + i / 4];
+		if (a > 6) gfx_fill(x0 + i, y0 + j, 1, 1, c);
+	}
+}
+static void snrgy_player(const struct player_view *v)
+{
+	int n = v->ntr, off = 0, rh = LIST_ROW_H;
+	if (v->browsing && v->qtitle) {	/* keep the cursor row in the middle of the view */
+		int maxoff = SP_LIST + n * rh - BOTTOM_Y;
+		off = SP_LIST + v->cursor * rh + rh / 2 - BOTTOM_Y / 2;
+		if (off > maxoff) off = maxoff;
+		if (off < 0) off = 0;
+	}
+	bg_fill(0, 0, W, BOTTOM_Y, 0);
+	int cs = PLAYER_ART_BIG, cx = (W - cs) / 2, cy = 2 - off;
+	if (cy + cs > 0) {
+		if (v->show_lrc) {	/* the user's .lrc lines in the cover's place: previous, current, next */
+			rrect(cx, cy, cs, cs, 6, th_surf, 1);
+			if (v->lrc_prev) gfx_text_wrap(cx + 10, cy + 40, v->lrc_prev, C_GREY, cs - 20, 2, 22);
+			gfx_text_wrap(cx + 10, cy + 96, v->lrc_cur && *v->lrc_cur ? v->lrc_cur : "...", C_WHITE, cs - 20, 3, 22);
+			if (v->lrc_next) gfx_text_wrap(cx + 10, cy + 170, v->lrc_next, C_GREY, cs - 20, 2, 22);
+		} else if (v->art.w == cs) {
+			for (int j = 0; j < cs; j++) {
+				int y = cy + j;
+				if (y < 0) continue;
+				if (y >= BOTTOM_Y) break;
+				memcpy(fb + y * W + cx, v->art.px + j * cs, cs * 2);
+			}
+		} else {
+			rrect(cx, cy, cs, cs, 6, th_surf, 1);
+			icon_x4(4, W / 2, cy + cs / 2 - 14, C_GREY);
+			if (v->track) gfx_text_clip(cx + 12, cy + cs - 34, v->track, C_GREY, cs - 24);
+		}
+	}
+	int iy = SP_INFO - off;
+	if (iy > -24 && iy < BOTTOM_Y) {
+		char b[32]; snprintf(b, sizeof b, "%d / %d", v->idx + 1, n);
+		int x = gfx_text(8, iy, b, C_WHITE, 1) + 12;
+		if (v->sleep_left > 0) { snprintf(b, sizeof b, "%d'", v->sleep_left); x = gfx_text(x, iy, b, C_GREY, 1) + 10; }
+		if (v->speed && v->speed != 100) { snprintf(b, sizeof b, "%d.%02dx", v->speed / 100, v->speed % 100); x = gfx_text(x, iy, b, C_GREY, 1) + 10; }
+		if (v->out && *v->out) gfx_text(x, iy, v->out, C_GREY, 1);
+		if (!v->meta) {	/* music: in order / shuffle / repeat all / repeat one, an icon and its name */
+			static const char *const names[4] = { "En orden", "Aleatorio", "Repetir todo", "Repetir una" };
+			int m = v->shuffle ? 1 : v->repeat == 1 ? 2 : v->repeat == 2 ? 3 : 0;
+			int w = gfx_text_w(names[m], 1), rx = W - 8 - w;
+			gfx_text(rx, iy, names[m], C_GREY, 1);
+			snrgy_icon_draw(SNRGY_ICON_MODE + m, rx - SNRGY_ICON - 6, iy + 1, C_WHITE);
+			if (v->shuffle && v->repeat) snrgy_icon_draw(SNRGY_ICON_MODE + 1 + v->repeat, rx - 2 * SNRGY_ICON - 10, iy + 1, C_WHITE);
+		}
+	}
+	for (int i = 0; i < n && v->qtitle; i++) {
+		int y = SP_LIST + i * rh - off;
+		if (y + rh <= 0) continue;
+		if (y >= BOTTOM_Y) break;
+		int on = v->browsing && i == v->cursor, playing = i == v->idx;
+		uint16_t fg = on ? C_BLACK : playing ? C_WHITE : C_GREY;
+		if (on) rrect(4, y, W - 8, rh - 1, 6, C_WHITE, 1);
+		else if (!(v->browsing && i + 1 == v->cursor) && i < n - 1) gfx_fill(10, y + rh - 1, W - 20, 1, th_rule);
+		if (playing) for (int r = 0; r < 9; r++) gfx_fill(12, y + 9 + r, (r < 5 ? r : 8 - r) + 1, 1, fg);	/* the playing one: a small triangle */
+		gfx_text_clip(24, y + 3, v->qtitle(i), fg, W - 36);
+	}
+	bottom_bar(BB_TIME, 0, C_WHITE);
+}
+
 void scr_player(const struct player_view *v, int full)
 {
+	if (SNRGY) { snrgy_player(v); return; }
 	char b[64], t1[16];
 	int dy = 0;
 	if (full) {
@@ -925,13 +1036,6 @@ void scr_player(const struct player_view *v, int full)
 	gfx_digits(W - 8 - gfx_digits_w(b), P_STRIP + 2, b, C_GREY);
 	struct img tr = gfx_tex(T_PROG_BG), fi = gfx_tex(T_PROG);
 	int pw = W - 4, fill = v->total > 0 ? pw * (v->sec > v->total ? v->total : v->sec) / v->total : 0;
-	if (SNRGY) {	/* the E-PLAYER's bar: an outline, the elapsed part filled */
-		rrect(2, P_PROG, pw, 8, 3, C_WHITE, 0);
-		if (fill > 4) rrect(4, P_PROG + 2, fill - 4, 4, 1, C_WHITE, 1);
-		fmt_time(t1, v->sec);
-		bottom_bar(BB_TIME, t1, C_WHITE);
-		return;
-	}
 	if (tr.w) gfx_blit(tr, 2, P_PROG); else gfx_fill(2, P_PROG, pw, 8, RGB(60, 66, 80));
 	if (fi.w) { struct img part = fi; part.w = fill < fi.w ? fill : fi.w;	/* left part of the fill, row by row */
 		for (int j = 0; j < fi.h; j++) memcpy(fb + (P_PROG + j) * W + 2, fi.px + j * fi.w, part.w * 2); }

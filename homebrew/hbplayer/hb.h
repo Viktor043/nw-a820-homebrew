@@ -73,6 +73,8 @@ void eng_stop(void);
 void eng_pause(int p);
 void eng_toggle(void);
 void eng_next(void);
+const char *eng_queue_title(int i);	/* queue position i (play order) */
+void eng_play_at(int i);		/* jump to queue position i */
 void eng_prev(void);
 void eng_seek(int secs);
 void eng_seek_to(double sec);

@@ -255,6 +255,17 @@ static int advance(int dir, int user)
 	return open_file(user) == 0;
 }
 void eng_next(void) { if (active) advance(1, 1); }
+/* the queue in play order (shuffled when shuffle is on): title of position i, and a jump there */
+const char *eng_queue_title(int i) { return active && i >= 0 && i < nq ? q[order[i]].title : ""; }
+void eng_play_at(int i)
+{
+	if (!active || i < 0 || i >= nq || i == qi) return;
+	pos_set(q[order[qi]].path, 0, 0);
+	dspfx_reset(); aout_stop_now();
+	qi = i;
+	settings_save();
+	open_file(1);
+}
 void eng_prev(void) { if (active) advance(-1, 1); }
 
 /* absolute seek (chapters) */

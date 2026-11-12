@@ -104,7 +104,7 @@ void gfx_flip(void)
 /* the new frame (fb) pushes the old one (shown) out horizontally, eased, in 6 steps; rows above SLIDE_Y0 and from
  * SLIDE_Y1 down (hbplayer's title bar and bottom status bar) are replaced in place instead */
 #define SLIDE_Y0 28
-#define SLIDE_Y1 288
+#define SLIDE_Y1 (gfx_rot ? H - gfx_rot : 288)
 void gfx_slide(int dir, void (*between)(void))
 {
 	static const int steps[] = { 95, 170, 222, 240 };	/* 4 eased steps (was 6): ~40 ms instead of ~85 */

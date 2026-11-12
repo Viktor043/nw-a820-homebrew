@@ -42,6 +42,7 @@ int dl_active(void) { return fake_dl; }
 int dl_percent(void) { return fake_pct; }
 
 static const char *outdir;
+static const char *song_at(int i);
 static void save(const char *name)
 {
 	char p[512]; snprintf(p, sizeof p, "%s/%s.rgb565", outdir, name);
@@ -90,6 +91,7 @@ static struct img gthumb(int i) { struct img im = { GRID_TH, GRID_TH, gthumb_px 
 static struct img ethumb(int i) { (void)i; struct img im = { EP_THUMB, EP_THUMB, ethumb_px }; return im; }
 static int epstate(int i) { return i < 2 ? 1 : i >= 3 ? 2 : 0; }
 static int epprog(int i) { return i == 2 ? 62 : -1; }
+static const char *song_at(int i) { return i >= 0 && i < 7 ? songs[i] : ""; }
 int main(int argc, char **argv)
 {
 	if (argc < 3) return 1;
@@ -104,6 +106,7 @@ int main(int argc, char **argv)
 	for (int i = 0; i < HOME_SLOTS; i++) fr[i] = 8;
 	ui_pod_new = 3;
 	fr[4] = 0; scr_home(4, fr, 0); save("01_home_musica");
+	ui_home_tab = 2; scr_home(4, fr, 0); save("01b_home_reanudar"); ui_home_tab = 0;
 	ui_st.playing = 1; ui_st.np_title = "Northern Lights"; ui_st.np_artist = "The Lanterns";
 	fr[4] = 8; fr[1] = 0; scr_home(1, fr, "Northern Lights"); save("02_home_audiolibros_sonando");
 	fr[1] = 4; fr[2] = 4; scr_home(2, fr, "Northern Lights"); save("03_home_animacion_mitad");
@@ -148,7 +151,15 @@ int main(int argc, char **argv)
 	struct player_view p = { "Canciones", "Ghost of the Harbor", "The Lanterns - Lowlands (Deluxe Edition)", 2, 14, 71, 233, 0, 14, 20, 0, "", { 0, 0, 0 } };
 	p.genre = "Alternative"; p.year = "2010";
 	if (argc > 3 && argv[3][0] && cover_load(argv[3], art, PLAYER_ART)) { p.art.w = p.art.h = PLAYER_ART; p.art.px = art; printf("cover ok\n"); }
+	p.qtitle = song_at; p.ntr = 7;	/* the queue under the cover (SNRGY) */
+	ui_st.np_title = "Ghost of the Harbor"; ui_st.np_artist = "The Lanterns"; ui_st.np_idx = 2; ui_st.np_n = 7; ui_st.np_sec = 71; ui_st.np_total = 233;
+	static uint16_t big_art[PLAYER_ART_BIG * PLAYER_ART_BIG];	/* SNRGY: an invented gradient cover at the big size */
+	if (ui_theme) { for (int y = 0; y < PLAYER_ART_BIG; y++) for (int x = 0; x < PLAYER_ART_BIG; x++) { int d = (x - 150) * (x - 150) + (y - 90) * (y - 90); int t = d > 40000 ? 0 : 255 - d * 255 / 40000; big_art[y * PLAYER_ART_BIG + x] = RGB(40 + t * 3 / 4, 55 + t / 2, 72 + t / 6); }
+	  p.art.w = p.art.h = PLAYER_ART_BIG; p.art.px = big_art; }
 	scr_player(&p, 1); save("08_reproduciendo_musica");
+	p.browsing = 1; p.cursor = 4; p.shuffle = 0; p.repeat = 1;
+	scr_player(&p, 1); save("08c_reproduciendo_lista");
+	p.browsing = 0; p.repeat = 0;
 	p.paused = 1; p.sleep_left = 30; ui_st.bt = 1; p.out = "BT"; ui_st.playing = 2;
 	scr_player(&p, 1); save("09_pausa_timer_bt");
 	p.paused = 0; ui_st.playing = 1; scr_player(&p, 1); scr_volume(6, 30); save("10_volumen");

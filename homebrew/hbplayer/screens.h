@@ -23,10 +23,10 @@ void ui_theme_set(int t);	/* palette, font, layout rotation; the next frame is d
 
 /* layout: title bar [0, TITLE_H), content, bottom status bar [BOTTOM_Y, H) */
 #define TITLE_H 28
-#define BOTTOM_Y 288
+#define BOTTOM_Y (ui_theme ? 264 : 288)	/* SNRGY: the 3-row status strip is 56 px (gfx_rot) */
 
 /* playing: 0 idle, 1 playing, 2 paused. np_title / np_artist: what the bottom bar shows (0 = nothing) */
-struct ui_status { int batt, charging, bt, hold, playing; const char *np_title, *np_artist; };
+struct ui_status { int batt, charging, bt, hold, playing; const char *np_title, *np_artist; int np_idx, np_n, np_sec, np_total; };
 extern struct ui_status ui_st;
 
 enum { LI_NONE, LI_FOLDER, LI_TRACK, LI_GAME, LI_BT, LI_SETTING };
@@ -49,15 +49,15 @@ struct list_view {
 	int (*state)(int);		/* ep rows: 0 normal, 1 new (orange dot on the cover), 2 already heard (dimmed) */
 	int (*progress)(int);		/* ep rows: % heard of an episode started, -1 = none */
 };
-#define LIST_ROWS 9
+#define LIST_ROWS (ui_theme ? 8 : 9)
 #define LIST_Y0 32		/* y of the first row */
 #define LIST_ROW_H 28		/* row pitch (= height of the selection bar) */
-#define BIG_ROWS 4
+#define BIG_ROWS (ui_theme ? 3 : 4)
 #define BIG_ROW_H 64
 #define BIG_THUMB 60
 #define GRID_TH 72		/* mosaic cover size, 3 per row, 3 rows */
 #define GRID_N 9
-#define EP_ROWS 5
+#define EP_ROWS (ui_theme ? 4 : 5)
 #define EP_ROW_H 51
 #define EP_THUMB 46
 static inline int lv_rows(const struct list_view *v) { return v->grid ? GRID_N : v->ep ? EP_ROWS : v->big ? BIG_ROWS : LIST_ROWS; }
@@ -85,6 +85,9 @@ struct player_view {
 	const char *year;		/* music: the album's year, on the line under the genre (0/"" = none) */
 	int meta;			/* podcasts / audiobooks: show, publication date, chapter or length (like the music lines) */
 	const char *date;		/* publication date ("25 jun 2026", "" = unknown) */
+	int shuffle, repeat;		/* SNRGY: the play mode shown under the cover (eng_shuffle, eng_repeat) */
+	int browsing, cursor;		/* SNRGY: the queue under the cover is being browsed; the highlighted row */
+	const char *(*qtitle)(int);	/* SNRGY: title of queue position i (0..ntr-1) */
 };
 
 struct focus_view { int left, total, paused; const char *l1, *l2; };
@@ -106,6 +109,11 @@ void scr_list(const struct list_view *v);
 int scr_list_overflow(const struct list_view *v);	/* pixels the selected label exceeds its row by (0 = fits) */
 void scr_sony_eq(const char *const *names, int n, int sel, int top, int active, int cb, const int *bands, int edit, int grey);	/* Sony EQ screen */
 void scr_player(const struct player_view *v, int full);
+void scr_strip(void);		/* SNRGY: redraw the status strip (clock, progress) in the back buffer's status band */
+extern int ui_home_tab;		/* SNRGY home: 0 the list has the focus, 1 the HOME tab, 2 the RESUME tab */
+extern const int home_order[];	/* SNRGY home: the slots in list order (no "Reproduciendo": the RESUME tab is that) */
+extern const int home_order_n;
+#define PLAYER_ART_BIG 236	/* SNRGY player: the cover across the width */
 void scr_volume(int vol, int volmax);
 void scr_hold(void);
 void scr_message(const char *title, const char *l1, const char *l2);
