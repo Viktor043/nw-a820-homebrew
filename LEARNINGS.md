@@ -130,3 +130,5 @@ A91x support were also offered upstream as PR #3 (`mac-installer` branch).
 - The Mac sync tool (covers pre-sized to 236 px, `._` cleanup, FLAC conversion), a SNRGY EQ screen, PDF via a Mac-side
   converter, Books in the Sony theme's grid.
 - Open-licence fonts for anything shared beyond prototypes.
+
+Future projects and ideas (USB audio, USB-C, LoRa mesh, AirPods, UI ideas): see [FUTURE.md](FUTURE.md).
