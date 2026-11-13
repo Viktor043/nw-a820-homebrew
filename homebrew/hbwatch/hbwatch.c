@@ -160,10 +160,9 @@ int main(int argc, char **argv)
 	system("killall -9 gemini > /dev/null 2>&1");
 	if (!gfx_open()) {
 		gfx_load_res(RESDIR);
-		struct img s = gfx_tex(17, 19);	/* the WALKMAN splash */
-		if (s.w) gfx_blit(s, 0, 0); else gfx_fill(0, 0, W, H, 0);
-		gfx_fill(0, 252, W, 40, 0);
-		gfx_text_center(W / 2, 262, en ? "Opening..." : "Abriendo...", 0xFFFF, 1);
+		gfx_walkman_logo(118);	/* 2026-11-13: black, logo alone */
+		gfx_text_center(W / 2, 258, "Opening...", 0x7BEF, 1);
+		(void)en;
 		gfx_flip();
 	}
 	sync();

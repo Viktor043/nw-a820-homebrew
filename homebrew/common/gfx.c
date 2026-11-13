@@ -599,3 +599,25 @@ int gfx_text_w(const char *s, int scale) { return text_w_raw(TR(s), scale); }
 void gfx_text_clip(int x, int y, const char *s, uint16_t c, int maxw) { clip_raw(x, y, TR(s), c, maxw); }
 void gfx_text_center(int cx, int y, const char *s, uint16_t c, int scale) { s = TR(s); text_raw(cx - text_w_raw(s, scale) / 2, y, s, c, scale); }
 int gfx_text_wrap(int x, int y, const char *s, uint16_t c, int maxw, int lines, int lineh) { return wrap_raw(x, y, TR(s), c, maxw, lines, lineh); }
+
+/* 2026-11-13: black screen with the WALKMAN logo alone. Cut from Sony's splash (17,19: logo at x 61-178, y 119-180)
+ * keeping only the white core (the smallest channel, as grey): the blue glow and gradient are gone. Screen rows
+ * (gfx_rot applied), so it sits in the same place under the SNRGY looks. */
+void gfx_walkman_logo(int sy0)
+{
+	for (int i = 0; i < W * H; i++) fb[i] = 0;
+	struct img s = gfx_tex(17, 19);
+	if (!s.w || s.h < 188) { gfx_text_center(W / 2, (sy0 + 20 - gfx_rot + H) % H, "WALKMAN", 0xFFFF, 1); return; }
+	for (int y = 112; y < 188; y++) {
+		uint16_t *d = fb + ((sy0 + y - 119 - gfx_rot + 2 * H) % H) * W;
+		for (int x = 50; x < 190; x++) {
+			uint16_t v = s.px[y * s.w + x];
+			int r = (v >> 11 & 31) * 255 / 31, g = (v >> 5 & 63) * 255 / 63, b = (v & 31) * 255 / 31;
+			int m = r < g ? r : g; if (b < m) m = b;
+			int l = (m - 40) * 255 / 170;
+			if (l <= 0) continue;
+			if (l > 255) l = 255;
+			d[x] = (uint16_t)((l >> 3) << 11 | (l >> 2) << 5 | (l >> 3));
+		}
+	}
+}

@@ -447,20 +447,9 @@ static int wait_key(void)
 
 static void menu_draw(const char *const *items, int n, int sel, const char *note)
 {
-	struct img bar = gfx_tex(14, 4), status = gfx_tex(16, 0);
 	char info[64];
-	gfx_fill(0, 0, W, H, 0);
-	if (status.w) gfx_blit(status, 0, 0); else gfx_fill(0, 0, W, 29, 0x4208);
-	gfx_text(6, 4, "Juego en pausa", 0xFFFF, 1);
-	for (int i = 0; i < n; i++) {
-		int y = 40 + i * 34;
-		if (i == sel) { if (bar.w) gfx_blit(bar, 0, y); else gfx_fill(0, y, W, 28, 0xFCA0); }
-		gfx_text(10, y + 3, items[i], i == sel ? 0 : 0xFFFF, 1);
-	}
-	if (note) gfx_text_center(W / 2, 250, note, 0xFCA0, 1);
 	snprintf(info, sizeof info, "%d.%d fps", fps_shown10 / 10, fps_shown10 % 10);
-	gfx_text_center(W / 2, 290, info, 0x8410, 1);
-	gfx_flip();
+	game_menu_draw(items, n, sel, note, info);	/* SNRGY look (common/game_i18n.h) */
 }
 
 static void game_menu(void)

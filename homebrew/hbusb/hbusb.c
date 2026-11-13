@@ -60,9 +60,7 @@ static void screen(const char *t_es, const char *t_en, const char *s_es, const c
 	static int ok = -1;
 	if (ok < 0) { ok = !gfx_open(); if (ok) gfx_load_res(RESDIR); }
 	if (!ok) return;
-	struct img s = gfx_tex(17, 19);
-	if (s.w) gfx_blit(s, 0, 0); else gfx_fill(0, 0, W, H, 0);
-	gfx_fill(0, 240, W, 80, 0);
+	gfx_walkman_logo(118);	/* 2026-11-13: black, logo alone */
 	gfx_text_center(W / 2, 246, en ? t_en : t_es, 0xFFFF, 1);
 	const char *sub = en ? s_en : s_es;
 	for (int y = 274; sub && *sub && y < 320; y += LINE_H) {
@@ -155,7 +153,8 @@ static void firmware_update(void)
 int main(int argc, char **argv)
 {
 	if (argc > 1) statedir = argv[1];
-	en = lang_en();
+	en = 1;	/* 2026-11-13: English only */
+	(void)lang_en;
 	int fd = open("/dev/usbconn", O_RDWR);
 	if (fd < 0) { lg("no /dev/usbconn"); return 1; }
 	int st = status(fd);

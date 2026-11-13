@@ -650,7 +650,7 @@ static void snrgy_home(int sel, const char *nowline)
 	{
 		int tx = 12, w = gfx_text_w("Reanudar", 1), focus = ui_home_tab != 0;
 		if (focus) rrect(tx - 7, 2, w + 14, 24, 6, C_WHITE, 1);
-		gfx_text(tx, 5, "Reanudar", focus ? C_BLACK : C_WHITE, 1);
+		gfx_text(tx, 5, "Reanudar", RGB(0xE2, 0x06, 0x13), 1);	/* 2026-11-13: Leica red, focused or not */
 	}
 	for (int r = 0; r < home_order_n; r++) {
 		int i = home_order[r], y = TITLE_H + 1 + r * HOME_RH, on = !ui_home_tab && i == sel;
@@ -1184,17 +1184,21 @@ int scr_downloads(const char *header, const char *sub, int active, int reading, 
 
 /* ---------- full-screen images ---------- */
 
+/* 2026-11-13: start-up and power-off are black with the WALKMAN logo alone. The logo is cut from Sony's splash
+ * (x 61-178, y 119-180) keeping only its white core (the smallest channel, as grey), so the blue glow and the blue
+ * gradient are gone. Drawn in screen rows: the SNRGY looks shift the frame by gfx_rot. */
+static int srow(int sy) { return (sy - gfx_rot + H) % H; }
+
 void scr_splash(const char *line)
 {
-	struct img s = gfx_tex(T_SPLASH);
-	if (s.w) gfx_blit(s, 0, 0); else gfx_fill(0, 0, W, H, C_BLACK);
-	if (line) { gfx_fill(0, 252, W, 40, C_BLACK); gfx_text_center(W / 2, 262, line, C_WHITE, 1); }
+	gfx_walkman_logo(118);
+	if (line) gfx_text_center(W / 2, srow(258), line, RGB(120, 120, 120), 1);
 }
 
 void scr_poweroff(void)
 {
-	struct img s = gfx_tex(T_POWEROFF);
-	if (s.w) gfx_blit(s, 0, 0); else { gfx_fill(0, 0, W, H, C_BLACK); gfx_text_center(W / 2, 150, "POWER OFF", C_BLUE, 1); }
+	gfx_walkman_logo(118);
+	gfx_text_center(W / 2, srow(258), "Goodbye", RGB(200, 200, 200), 1);
 }
 
 void scr_ask(void)

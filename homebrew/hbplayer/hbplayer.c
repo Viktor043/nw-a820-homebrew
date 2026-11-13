@@ -453,6 +453,7 @@ static void power_off_full(const char *why);
 static double opt_since;
 static int opt_dark, opt_stage;
 #define OPT_TAP 0.8
+#define OPT_PROMPT 1.0
 #define OPT_SLEEP 3.0
 #define OPT_OFF 6.0
 
@@ -460,7 +461,8 @@ static int option_tick(void)	/* while OPTION is held: prompt at 3 s, power off a
 {
 	double held = now() - opt_since;
 	if (held >= OPT_OFF) { opt_since = 0; opt_stage = 0; lg("option held %.1f s: power off", held); power_off_full("OPTION held"); return K_REDRAW; }
-	if (held >= OPT_SLEEP && opt_stage < 1) { opt_stage = 1; message("Power", "Let go: sleep", "Keep holding: power off"); }
+	if (held >= OPT_PROMPT && opt_stage < 1) { opt_stage = 1; message("Power", "Hold 3 s, let go: sleep", "Hold 6 s: power off"); }
+	if (held >= OPT_SLEEP && opt_stage < 2) { opt_stage = 2; message("Power", "Let go now: sleep", "Keep holding: power off"); }
 	return -1;
 }
 
@@ -471,7 +473,7 @@ static int option_released(void)
 	opt_since = 0; opt_stage = 0;
 	if (held >= OPT_SLEEP) { lg("option held %.1f s: sleep", held); suspend_now(); return K_REDRAW; }
 	if (held < OPT_TAP) return dark ? K_REDRAW : K_OPTION;
-	return K_REDRAW;	/* held 0.8-3 s: nothing */
+	return K_REDRAW;	/* held 0.8-3 s: nothing (the prompt goes away) */
 }
 
 /* a pressed key code, -1 (nothing) or K_REDRAW (screen woke up / hold changed). Held direction keys repeat. */

@@ -98,7 +98,7 @@ static const struct tr tab[] = {
 	{ "Revisá que esté en modo emparejamiento.", "Make sure it is in pairing mode." },
 	{ "No respondió. Poné el dispositivo en modo emparejamiento y apretá PLAY.", "No answer. Put the device in pairing mode and press PLAY." },
 	{ "No pude encender el Bluetooth.", "Could not turn Bluetooth on." },
-	{ "Emparejar AirPods", "Pair AirPods" }, { "Let go: sleep", "Let go: sleep" }, { "Keep holding: power off", "Keep holding: power off" }, { "Power", "Power" }, { "Buscando AirPods...", "Looking for AirPods..." }, { "PLAY: buscar", "PLAY: search" },
+	{ "Emparejar AirPods", "Pair AirPods" }, { "Hold 3 s, let go: sleep", "Hold 3 s, let go: sleep" }, { "Hold 6 s: power off", "Hold 6 s: power off" }, { "Let go now: sleep", "Let go now: sleep" }, { "Goodbye", "Goodbye" }, { "Keep holding: power off", "Keep holding: power off" }, { "Power", "Power" }, { "Buscando AirPods...", "Looking for AirPods..." }, { "PLAY: buscar", "PLAY: search" },
 	{ "BACK: cancelar", "BACK: cancel" }, { "No encontré los AirPods.", "AirPods not found." },
 	{ "Revisá que la luz parpadee en blanco.", "Check that the light is flashing white." },
 	{ "Cerrá y abrí el estuche, y probá de nuevo.", "Close and open the case, then try again." },

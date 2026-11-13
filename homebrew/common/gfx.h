@@ -56,5 +56,6 @@ extern int gfx_face, gfx_caps, gfx_rot;
 extern int gfx_book_size, gfx_landscape;	/* the reader: face 2's size; text turned 90 degrees (a 320 x 240 page) */
 int gfx_book_sizes(void);		/* how many sizes face 2 has */
 int gfx_book_line(void);		/* the line pitch of face 2 at gfx_book_size */
-void gfx_composed(uint16_t *out);	/* the frame as the LCD shows it (gfx_rot applied) */
+void gfx_composed(uint16_t *out);
+void gfx_walkman_logo(int sy0);	/* black screen, the WALKMAN logo alone (white core of Sony's splash), top at screen row sy0 */	/* the frame as the LCD shows it (gfx_rot applied) */
 #endif
