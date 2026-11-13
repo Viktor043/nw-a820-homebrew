@@ -445,6 +445,35 @@ static int script_key(int *code)
 }
 #endif
 
+static void suspend_now(void);
+static void power_off_full(const char *why);
+
+/* OPTION is also the power key (2026-11-13): a short press is OPTION (sent on release), held 3 s = sleep when let go,
+ * held 6 s = power off. opt_since = when it went down (0 = up), opt_dark = the press only woke the screen. */
+static double opt_since;
+static int opt_dark, opt_stage;
+#define OPT_TAP 0.8
+#define OPT_SLEEP 3.0
+#define OPT_OFF 6.0
+
+static int option_tick(void)	/* while OPTION is held: prompt at 3 s, power off at 6 s */
+{
+	double held = now() - opt_since;
+	if (held >= OPT_OFF) { opt_since = 0; opt_stage = 0; lg("option held %.1f s: power off", held); power_off_full("OPTION held"); return K_REDRAW; }
+	if (held >= OPT_SLEEP && opt_stage < 1) { opt_stage = 1; message("Power", "Let go: sleep", "Keep holding: power off"); }
+	return -1;
+}
+
+static int option_released(void)
+{
+	double held = now() - opt_since;
+	int dark = opt_dark;
+	opt_since = 0; opt_stage = 0;
+	if (held >= OPT_SLEEP) { lg("option held %.1f s: sleep", held); suspend_now(); return K_REDRAW; }
+	if (held < OPT_TAP) return dark ? K_REDRAW : K_OPTION;
+	return K_REDRAW;	/* held 0.8-3 s: nothing */
+}
+
 /* a pressed key code, -1 (nothing) or K_REDRAW (screen woke up / hold changed). Held direction keys repeat. */
 int getkey(int timeout_ms)
 {
@@ -458,14 +487,20 @@ int getkey(int timeout_ms)
 	}
 #endif
 	if (force_redraw) { force_redraw = 0; return K_REDRAW; }
-	if (held_code >= 0 && timeout_ms > 90) timeout_ms = 90;
+	if ((held_code >= 0 || opt_since > 0) && timeout_ms > 90) timeout_ms = 90;
 	if (!raw_event(&e, timeout_ms)) {
+		if (opt_since > 0) return option_tick();
 		double every = held_code == K_VOLUP || held_code == K_VOLDN ? 0.15 : 0.09;	/* volume steps a bit slower */
 		if (held_code >= 0 && now() - held_since > 0.4 && now() - last_repeat > every) { last_repeat = now(); wake(); return held_code; }
 		return -1;
 	}
 	if (e.type != 1) return -1;
-	if (!KEY_PRESSED(e.value)) { if ((e.code & 0x7f) == held_code) held_code = -1; if ((e.code & 0x7f) == K_BACK) back_since = 0; return -1; }
+	if (!KEY_PRESSED(e.value)) {
+		if ((e.code & 0x7f) == K_OPTION && opt_since > 0) return option_released();
+		if ((e.code & 0x7f) == held_code) held_code = -1;
+		if ((e.code & 0x7f) == K_BACK) back_since = 0;
+		return -1;
+	}
 	if ((e.code & 0x7f) == K_HOLD_B) {	/* HOLD switch moved: 15 = off, 143 = on */
 		read_hold(); lg("hold %d", ui_st.hold);
 		if (backlight_on) { show_hold(); return K_REDRAW; }
@@ -485,6 +520,7 @@ int getkey(int timeout_ms)
 	if (cpu_mhz != 248 && !in_game) set_cpu(248);
 	if (e.code == K_UP || e.code == K_DOWN || e.code == K_LEFT || e.code == K_RIGHT || e.code == K_VOLUP || e.code == K_VOLDN) { held_code = e.code; held_since = last_repeat = now(); }
 	back_since = e.code == K_BACK ? now() : 0;	/* another key: not a HOME hold */
+	if (e.code == K_OPTION) { opt_since = now(); opt_dark = was_dark; opt_stage = 0; return was_dark ? K_REDRAW : -1; }	/* decided on release */
 	return was_dark ? K_REDRAW : e.code;
 }
 
