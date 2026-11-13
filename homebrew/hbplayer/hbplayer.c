@@ -1646,7 +1646,7 @@ static void games_menu(void)
 static char pw_items[3][40];
 static const char *pw_label(int i) { return pw_items[i]; }
 
-static void power_menu(void)
+void power_menu(void)
 {
 	snprintf(pw_items[0], 40, "Suspender");
 	snprintf(pw_items[1], 40, "Apagar del todo");

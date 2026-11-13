@@ -335,7 +335,7 @@ static void switch_menu(void)
 
 void settings_menu(void)
 {
-	struct list_view v = { "Ajustes", 11, 0, 0, it_label, it_value, 0, LI_NONE, 0, 0 };
+	struct list_view v = { "Ajustes", 12, 0, 0, it_label, it_value, 0, LI_NONE, 0, 0 };
 	for (;;) {
 		{ static const char *pn[6] = { "EQ no", "Heavy", "Pop", "Jazz", "Exclusivo", "Personaliz." };	/* the EQ: the path ("máx. batería") is inside */
 		  snprintf(items[0], 48, "Sonido"); snprintf(values[0], 24, "%s", pn[sony_eq < 0 || sony_eq > 5 ? 0 : sony_eq]); }
@@ -347,8 +347,9 @@ void settings_menu(void)
 		snprintf(items[6], 48, "Idioma"); snprintf(values[6], 24, "%s", ui_lang ? "English" : "Español");
 		snprintf(items[7], 48, "Walkman de Sony: ahorro"); snprintf(values[7], 24, "%s", access(SONY124, F_OK) ? "no" : "sí");
 		snprintf(items[8], 48, "Cambiar al Walkman de Sony"); values[8][0] = 0;
-		snprintf(items[9], 48, "Restablecer todo"); values[9][0] = 0;
-		snprintf(items[10], 48, "Acerca de"); values[10][0] = 0;
+		snprintf(items[9], 48, "Apagar"); values[9][0] = 0;	/* 2026-11-13: moved here from the SNRGY home list */
+		snprintf(items[10], 48, "Restablecer todo"); values[10][0] = 0;
+		snprintf(items[11], 48, "Acerca de"); values[11][0] = 0;
 		int s = list_run(&v);
 		if (s < 0) return;
 		if (s == 0) sound_menu(0);
@@ -360,7 +361,8 @@ void settings_menu(void)
 		else if (s == 6) { ui_lang_set(!ui_lang); settings_save(); }
 		else if (s == 7) sony_clock_menu();
 		else if (s == 8) switch_menu();
-		else if (s == 9) reset_menu();
-		else if (s == 10) about_screen();
+		else if (s == 9) power_menu();
+		else if (s == 10) reset_menu();
+		else if (s == 11) about_screen();
 	}
 }

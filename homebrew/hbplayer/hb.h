@@ -314,6 +314,7 @@ void focus_bells(void);			/* focus.c: ring bells until a key (alarm) */
 
 /* settings.c: the "Ajustes" screen */
 void settings_menu(void);
+void power_menu(void);	/* Suspender / Apagar del todo (Ajustes; Sony grid keeps its icon) */
 
 /* music.c / focus.c */
 void music_menu(void);

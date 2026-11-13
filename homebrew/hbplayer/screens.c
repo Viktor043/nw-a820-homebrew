@@ -640,9 +640,9 @@ static void snrgy_icon_draw(int k, int x, int y, uint16_t c)
 	}
 }
 int ui_home_tab;	/* 0 the list, 2 RESUME (the header) */
-const int home_order[] = { 4, 1, HOME_BOOKS, 2, 5, 0, 7, 8 };	/* Música, Audiolibros, Libros, Podcasts, Juegos, Modo foco, Apagar, Ajustes (Bluetooth: Ajustes) */
-const int home_order_n = 8;
-#define HOME_RH 31	/* eight rows between the tabs and the strip */
+const int home_order[] = { 4, 1, HOME_BOOKS, 2, 5, 0, 8 };	/* Música, Audiolibros, Libros, Podcasts, Juegos, Modo foco, Ajustes (Bluetooth and Apagar: Ajustes) */
+const int home_order_n = 7;
+#define HOME_RH 35	/* seven rows between the tabs and the strip (was 8 x 31 with Apagar) */
 static void snrgy_home(int sel, const char *nowline)
 {
 	bg_fill(0, 0, W, BOTTOM_Y, 0);
