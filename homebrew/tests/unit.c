@@ -123,8 +123,8 @@ static void test_i18n(void)
 		t = ui_tr(pairs[i][0]);	/* again: from the cache */
 		CHECK(!strcmp(t, pairs[i][1]), "cached tr [%s] -> [%s]", pairs[i][0], t);
 	}
-	ui_lang_set(0);
-	CHECK(!strcmp(ui_tr("Ajustes"), "Ajustes"), "spanish untouched");
+	ui_lang_set(0);	/* 2026-11-13: English only, even when asked for Spanish */
+	CHECK(strcmp(ui_tr("Ajustes"), "Ajustes"), "english forced");
 }
 
 int main(int argc, char **argv)

@@ -301,7 +301,7 @@ static void screen_menu(void)
 		snprintf(items[2], 48, "Filas grandes con portada"); snprintf(values[2], 24, "%s", ui_big_rows ? "sí" : "no");
 		snprintf(items[3], 48, "Fondo"); snprintf(values[3], 24, "%s", wall_names[ui_wall]);
 		snprintf(items[4], 48, "Tema"); snprintf(values[4], 24, "%s", theme_names[ui_theme]);
-		snprintf(items[5], 48, "Pantalla siempre activa"); snprintf(values[5], 24, "%s", !ui_theme ? "solo SNRGY" : ui_aod ? "sí" : "no");
+		snprintf(items[5], 48, "Pantalla siempre activa"); snprintf(values[5], 24, "%s", ui_aod ? "sí" : "no");
 		snprintf(items[6], 48, "Brillo siempre activa"); snprintf(values[6], 24, "%d%%", ui_aod_level);
 		snprintf(items[7], 48, "Barra de estado"); snprintf(values[7], 24, "%s", ui_strip_calm ? "tranquila" : "viva");
 		{ static const char *const sz[4] = { "pequeña", "mediana", "grande", "muy grande" };
@@ -312,7 +312,7 @@ static void screen_menu(void)
 		else if (s == 1) ui_dim_secs = ui_dim_secs >= 120 ? 15 : ui_dim_secs * 2;
 		else if (s == 2) ui_big_rows = !ui_big_rows;	/* álbumes, podcasts y audiolibros: from the next time the list opens */
 		else if (s == 3) { ui_wall = (ui_wall + 1) % WALL_COUNT; scr_wall_changed(); }
-		else if (s == 4) { ui_theme_set((ui_theme + 1) % THEME_COUNT); scr_wall_changed(); }	/* Sony, SNRGY plata, SNRGY negro */
+		else if (s == 4) { ui_theme_set(ui_theme == 1 ? 2 : 1); scr_wall_changed(); }	/* SNRGY plata <-> SNRGY negro */
 		else if (s == 5) ui_aod = !ui_aod;	/* the strip stays on when the screen times out (SNRGY looks) */
 		else if (s == 6) ui_aod_level = ui_aod_level >= 100 ? 20 : ui_aod_level + 20;
 		else if (s == 7) ui_strip_calm = !ui_strip_calm;
@@ -335,7 +335,7 @@ static void switch_menu(void)
 
 void settings_menu(void)
 {
-	struct list_view v = { "Ajustes", 12, 0, 0, it_label, it_value, 0, LI_NONE, 0, 0 };
+	struct list_view v = { "Ajustes", 11, 0, 0, it_label, it_value, 0, LI_NONE, 0, 0 };
 	for (;;) {
 		{ static const char *pn[6] = { "EQ no", "Heavy", "Pop", "Jazz", "Exclusivo", "Personaliz." };	/* the EQ: the path ("máx. batería") is inside */
 		  snprintf(items[0], 48, "Sonido"); snprintf(values[0], 24, "%s", pn[sony_eq < 0 || sony_eq > 5 ? 0 : sony_eq]); }
@@ -344,12 +344,11 @@ void settings_menu(void)
 		snprintf(items[3], 48, "Despertador"); snprintf(values[3], 24, alarm_cfg.on ? "%02d:%02d" : "no", alarm_cfg.hour, alarm_cfg.min);
 		{ time_t t = time(0); struct tm *tm = localtime(&t); snprintf(items[4], 48, "Fecha y hora"); if (tm) snprintf(values[4], 24, "%02d:%02d", tm->tm_hour, tm->tm_min); else values[4][0] = 0; }
 		snprintf(items[5], 48, "Pitido"); snprintf(values[5], 24, "%s", ui_beep ? "sí" : "no");
-		snprintf(items[6], 48, "Idioma"); snprintf(values[6], 24, "%s", ui_lang ? "English" : "Español");
-		snprintf(items[7], 48, "Walkman de Sony: ahorro"); snprintf(values[7], 24, "%s", access(SONY124, F_OK) ? "no" : "sí");
-		snprintf(items[8], 48, "Cambiar al Walkman de Sony"); values[8][0] = 0;
-		snprintf(items[9], 48, "Apagar"); values[9][0] = 0;	/* 2026-11-13: moved here from the SNRGY home list */
-		snprintf(items[10], 48, "Restablecer todo"); values[10][0] = 0;
-		snprintf(items[11], 48, "Acerca de"); values[11][0] = 0;
+		snprintf(items[6], 48, "Walkman de Sony: ahorro"); snprintf(values[6], 24, "%s", access(SONY124, F_OK) ? "no" : "sí");
+		snprintf(items[7], 48, "Cambiar al Walkman de Sony"); values[7][0] = 0;
+		snprintf(items[8], 48, "Apagar"); values[8][0] = 0;	/* 2026-11-13: moved here from the SNRGY home list */
+		snprintf(items[9], 48, "Restablecer todo"); values[9][0] = 0;
+		snprintf(items[10], 48, "Acerca de"); values[10][0] = 0;	/* Idioma removed 2026-11-13: English only */
 		int s = list_run(&v);
 		if (s < 0) return;
 		if (s == 0) sound_menu(0);
@@ -358,11 +357,10 @@ void settings_menu(void)
 		else if (s == 3) alarm_menu();
 		else if (s == 4) clock_menu();
 		else if (s == 5) { ui_beep = !ui_beep; settings_save(); beep(BEEP_ONE); }	/* turning it on beeps once, like Sony */
-		else if (s == 6) { ui_lang_set(!ui_lang); settings_save(); }
-		else if (s == 7) sony_clock_menu();
-		else if (s == 8) switch_menu();
-		else if (s == 9) power_menu();
-		else if (s == 10) reset_menu();
-		else if (s == 11) about_screen();
+		else if (s == 6) sony_clock_menu();
+		else if (s == 7) switch_menu();
+		else if (s == 8) power_menu();
+		else if (s == 9) reset_menu();
+		else if (s == 10) about_screen();
 	}
 }

@@ -25,7 +25,7 @@ static uint16_t th_paper, th_rule, th_surf, th_track, th_dot, th_dotoff, th_stri
 #define SNRGY (ui_theme != 0)
 void ui_theme_set(int t)
 {
-	ui_theme = t < 0 || t >= THEME_COUNT ? 0 : t;
+	ui_theme = t < 1 || t >= THEME_COUNT ? 1 : t;	/* 2026-11-13: SNRGY only (silver or black); the Sony look is retired */
 	if (ui_theme == 0) {
 		ui_pal[0] = RGB(255, 255, 255); ui_pal[1] = 0; ui_pal[2] = RGB(170, 170, 170); ui_pal[3] = RGB(255, 150, 0);
 	} else if (ui_theme == 1) {	/* silver: ink on paper */

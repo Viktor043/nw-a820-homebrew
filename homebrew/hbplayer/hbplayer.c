@@ -749,6 +749,8 @@ void set_lastfile(const char *path) { if (strcmp(lastfile, path)) { snprintf(las
 static void pos_load(void)
 {
 	char fn[PATHLEN + 16]; snprintf(fn, sizeof fn, "%s/pos.txt", statedir);
+	ui_theme_set(1);	/* SNRGY silver unless pos.txt says black */
+	ui_lang_set(1);	/* English only */
 	FILE *f = fopen(fn, "r");
 	if (!f) return;
 	char line[PATHLEN + 64];
@@ -1875,8 +1877,8 @@ static void first_run(void)
 	struct list_view v = { .title = "Idioma / Language", .n = 2, .label = 0, .bar_y = -1 };
 	v.label = pw_label;
 	snprintf(pw_items[0], 40, "%s", l[0]); snprintf(pw_items[1], 40, "%s", l[1]);
-	int s;
-	while ((s = list_run(&v)) < 0) ;
+	int s = 1;	/* 2026-11-13: English only, no language picker */
+	(void)v;
 	ui_lang_set(s == 1);
 	settings_save();
 	scr_message("Bienvenido", "Ajustes > Cambiar al Walkman de Sony: al firmware de Sony.", "En el Walkman de Sony, HOME y VOL- juntos 2 s: volver acá.");

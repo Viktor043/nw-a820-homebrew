@@ -277,7 +277,7 @@ const char *ui_tr(const char *s)
 
 void ui_lang_set(int lang)
 {
-	ui_lang = lang ? 1 : 0;
+	(void)lang; ui_lang = 1;	/* 2026-11-13: English only (the Spanish strings stay as lookup keys) */
 	memset(cache, 0, sizeof cache);
 	gfx_tr = ui_tr;
 }
