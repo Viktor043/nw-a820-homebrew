@@ -1787,8 +1787,13 @@ static void home(void)
 		if (ui_theme && k != K_PLAY && (k == K_UP || k == K_DOWN || k == K_LEFT || k == K_RIGHT)) {	/* SNRGY: a list under two tabs */
 			int pos = 0;
 			for (int r = 0; r < home_order_n; r++) if (home_order[r] == sel) pos = r;
-			if (ui_home_tab) { if (k == K_DOWN) ui_home_tab = 0; }	/* RESUME: DOWN back to the list */ else if (k == K_UP) { if (pos == 0) ui_home_tab = 2; else sel = home_order[pos - 1]; }
-			else if (k == K_DOWN) { if (pos + 1 < home_order_n) sel = home_order[pos + 1]; }
+			/* one loop: RESUME, the rows, then RESUME again (UP from RESUME = the last row, DOWN from the last row = RESUME) */
+			if (ui_home_tab) {
+				if (k == K_DOWN) { ui_home_tab = 0; sel = home_order[0]; }
+				else if (k == K_UP) { ui_home_tab = 0; sel = home_order[home_order_n - 1]; }
+			}
+			else if (k == K_UP) { if (pos == 0) ui_home_tab = 2; else sel = home_order[pos - 1]; }
+			else if (k == K_DOWN) { if (pos + 1 < home_order_n) sel = home_order[pos + 1]; else ui_home_tab = 2; }
 			redraw = 1;
 			continue;
 		}

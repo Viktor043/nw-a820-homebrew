@@ -7,6 +7,7 @@
  * Link keys persist in STATEDIR/bt/sc_db.db (a2d's cwd). The last device is remembered in STATEDIR/bt.txt. */
 #include "hb.h"
 #include "../net/pan.h"
+#include <ctype.h>
 #include <fcntl.h>
 #include <sys/ioctl.h>
 #include <sys/select.h>
@@ -389,6 +390,49 @@ static void search_new(void)
 	message("Bluetooth", "No encontré dispositivos.", "Revisá que esté en modo emparejamiento."); msg_wait(3);
 }
 
+/* AirPods (or Beats): one guided step instead of picking from a list. Shows how to put them in pairing mode,
+ * searches, and pairs + connects the first device whose name says AirPods / Beats as soon as it shows up. a2d only
+ * accepts one-digit indexes, so in a crowded room the AirPods can land past 9 and never be listed: the search is
+ * restarted (new order) when ten other devices are found first. */
+static int is_airpods(const char *n)
+{
+	char l[64]; int i = 0;
+	for (; n[i] && i < 63; i++) l[i] = (char)tolower((unsigned char)n[i]);
+	l[i] = 0;
+	return strstr(l, "airpods") || strstr(l, "beats");
+}
+
+static void airpods_pair(void)
+{
+	message("AirPods", "Abrí el estuche y mantené apretado el botón de atrás.", "Luz blanca parpadeando: PLAY");
+	int k;
+	double give_up = now() + 120;
+	do { idle_tick(0); k = getkey(500); } while (k != K_PLAY && k != K_BACK && now() < give_up);
+	if (k != K_PLAY) return;
+	for (int round = 0; round < 3; round++) {
+		long from = log_size();
+		send("0");
+		message("AirPods", "Buscando AirPods...", "BACK: cancelar");
+		double end = now() + 40;
+		while (now() < end) {
+			parse_found(from);
+			for (int i = 0; i < nfound; i++) if (is_airpods(fl[i].name)) {
+				struct found f = fl[i];
+				lg("bt: airpods found: %s %s (idx %d)", f.name, f.addr, f.idx);
+				select_found(&f);
+				if (pair_connect(&f, 1)) { set_auto(1); message("AirPods", "Conectado a", f.name); msg_wait(2); }
+				else { message("AirPods", "No se pudo conectar.", "Cerrá y abrí el estuche, y probá de nuevo."); msg_wait(4); }
+				return;
+			}
+			if (nfound >= 10) { lg("bt: airpods: 10 other devices first, searching again"); break; }
+			ui_tick();
+			if (getkey(400) == K_BACK) { stop_search(); return; }
+		}
+		stop_search();
+	}
+	message("AirPods", "No encontré los AirPods.", "Revisá que la luz parpadee en blanco."); msg_wait(4);
+}
+
 /* a nearby device for another use (the phone that shares its internet, for podcasts): the stack's search, nothing
  * paired or connected here; Bluetooth is left as it was. 0 = picked (addr "NAP:UAP:LAP" as pan_up wants it) */
 int bt_pick_device(const char *title, const char *hint, char *addr, size_t amax, char *name, size_t nmax)
@@ -549,7 +593,7 @@ void bt_receiver(void)
 	if (!ok) { message("Receptor Bluetooth", "No se conectó ningún teléfono.", ""); msg_wait(2); }
 }
 
-static char mitems[5][48];
+static char mitems[7][48];
 static const char *m_label(int i) { return mitems[i]; }
 
 void bt_menu(void)
@@ -559,11 +603,12 @@ void bt_menu(void)
 	in_menu = 1;
 	for (;;) {
 		bt_poll();
-		int n = 0, act[6];
+		int n = 0, act[7];
 		if (connected) { snprintf(mitems[n], 48, "Desconectar"); act[n++] = 3; }
 		else {
 			if (dev_addr[0]) { snprintf(mitems[n], 48, "Conectar: %.30s", bt_device_name()); act[n++] = 1; }
 			snprintf(mitems[n], 48, "Buscar dispositivo nuevo"); act[n++] = 2;
+			snprintf(mitems[n], 48, "Emparejar AirPods"); act[n++] = 7;
 		}
 		if (on) { snprintf(mitems[n], 48, "Apagar Bluetooth"); act[n++] = 4; }
 		snprintf(mitems[n], 48, "Modo receptor (desde el teléfono)"); act[n++] = 5;
@@ -575,9 +620,9 @@ void bt_menu(void)
 		int s = list_run(&v);
 		if (s < 0) { in_menu = 0; return; }
 		int a = act[s];
-		if (a == 1 || a == 2) {
+		if (a == 1 || a == 2 || a == 7) {
 			if (bt_on()) { message("Bluetooth", "No pude encender el Bluetooth.", ""); msg_wait(3); continue; }
-			if (a == 1) reconnect(); else search_new();
+			if (a == 1) reconnect(); else if (a == 7) airpods_pair(); else search_new();
 			if (connected) { in_menu = 0; return; }
 		} else if (a == 3) {
 			bt_poll();
