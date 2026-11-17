@@ -65,6 +65,11 @@ A91x support were also offered upstream as PR #3 (`mac-installer` branch).
 - **DSP.** The A91x has only the direct OMX config (`omx_nw_walkman_audio.cfg`), no `_ftb` one. `dspdec` used to die
   at start ("helper did not start") and everything decoded on the ARM. It now starts idle and only brings up the
   direct core for direct sessions. **Not verified on the device yet**: look for `direct` in `HB/out/player_log.txt`.
+- **The notification light** (`/dev/icx1101_led`, loaded by Sony's `icx1087driver` init script). The ioctls came
+  from Sony's own `/usr/local/test/test_led` run in Unicorn (`emu_led.py` approach: stub `open`/`ioctl` in the PLT,
+  dump the block): `0x40046c02` takes `{0, priority 0..4, repeat (-1 forever), steps, *step}` with 12-byte steps
+  `{ms, brightness 0..100, abortok}`; `0x6c03` on, `0x6c04` off, `0x6c00` reset, `0xc0046c01` read. Sony's
+  "hotaru" breathing is 103 steps of 30 ms. `led.c` uses it; the A82x has the module but no light.
 - **Diagnostics first.** Stage 1 of `install_mac_a910.py` installs a boot.sh that only writes `HB/out/diag.txt`
   (kernel, fb, input, devices) and boots Sony's UI: a safe way to check an untested model before running the player.
 
