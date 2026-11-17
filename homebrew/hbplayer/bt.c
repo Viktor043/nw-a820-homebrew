@@ -219,6 +219,7 @@ static void sm_tick(void)
 
 void bt_auto_start(void)
 {
+	if (hw_a91x) return;	/* no Bluetooth on the NW-A91x */
 	if (dl_active()) return;	/* the radio is busy with the podcast downloads */
 	load_dev();
 	if (!on && !user_off && dev_addr[0] && auto_wanted()) start_async();

@@ -825,6 +825,15 @@ static const char *book_value(int i)
 	return b;
 }
 
+/* OPTION > Empezar este libro de nuevo: its position goes (bookmarks stay) */
+void reader_restart(int i)
+{
+	if (i < 0 || i >= nbooks) return;
+	for (int k = 0; k < nmarks; k++)
+		if (!marks[k].bm && !strcmp(marks[k].path, bpaths[i])) { memmove(&marks[k], &marks[k + 1], (nmarks - k - 1) * sizeof *marks); nmarks--; break; }
+	marks_save();
+}
+
 void books_menu(void)
 {
 	mkdir(BOOKS_DIR, 0755);
@@ -833,9 +842,11 @@ void books_menu(void)
 	qsort(bpaths, nbooks, PATHLEN, cmp_path);
 	marks_load();
 	struct list_view v = { "Libros", nbooks, 0, 0, book_label, book_value, 0, LI_NONE, "No hay libros. Copiá archivos EPUB o TXT a la carpeta Libros.", 0 };
+	v.option = opt_books;	/* text size, orientation, start this book over (ctxopt.c) */
 	for (;;) {
 		v.n = nbooks;
 		int s = list_run(&v);
+		if (s == -2) { marks_load(); continue; }	/* "start over": the list shows 0 % again */
 		if (s < 0 || s >= nbooks) break;
 		v.sel = s;
 		reader_run(bpaths[s]);

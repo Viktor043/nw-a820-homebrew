@@ -37,6 +37,17 @@ int ui_volume_key(int k);	/* VOL+/VOL- -> volume change + popup; 1 if it was one
 void msg_wait(double secs);	/* message on screen for up to secs, any key dismisses; audio keeps playing */
 void flip(void);			/* gfx_flip, or the pending slide transition */
 void nowplaying_run(void);
+/* ctxopt.c: OPTION inside a menu (what fits that menu) */
+enum { OPT_MUSIC = 1, OPT_ALBUMS, OPT_AUDIOBOOKS, OPT_BOOKS, OPT_GAMES };
+enum { OA_NP = 1, OA_SHUFFLE, OA_REPEAT, OA_VIEW, OA_SOUND, OA_SPEED, OA_SLEEP, OA_COVERS, OA_VOICE, OA_BOOKSIZE, OA_BOOKLAND, OA_RESTART, OA_CONTROLS };
+struct opt_state { int np, shuffle, repeat, grid, big, speed, sleep, book_size, book_land; };
+int opt_rows(int kind, const struct opt_state *st, char lab[][48], int *act);
+int opt_run(int kind, int sel);
+int opt_music(int i), opt_albums(int i), opt_audiobooks(int i), opt_books(int i), opt_games(int i);
+void voice_quick_menu(void);		/* settings.c: speed, silence trimming, voice boost */
+void reader_restart(int i);		/* reader.c: forget where book i of the list was */
+void game_controls(int i);		/* hbplayer.c: the keys of game i */
+extern int hw_a91x;			/* hbplayer.c: an NW-A91x (no Bluetooth; an LED) rather than an NW-A82x */
 extern int eng_resume_music;	/* engine.c: resume the next song opened at its saved position (only "Reproduciendo") */		/* the "now playing" screen for whatever the engine plays */
 extern int backlight_on;
 extern int ui_brightness, ui_dim_secs;	/* settings (saved in pos.txt) */

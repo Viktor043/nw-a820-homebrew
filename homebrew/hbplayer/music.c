@@ -454,6 +454,7 @@ static void play_songs2(int start, const char *ctx, int shuffle)
 static void song_list(const char *title)
 {
 	struct list_view v = { title, nsel, 0, 0, song_label, 0, 0, LI_TRACK, "No hay canciones", 0 };
+	v.option = opt_music;
 	for (;;) {
 		int s = list_run(&v);
 		if (s < 0) return;
@@ -484,31 +485,13 @@ static void album_songs(const char *artist, const char *album)
 	song_list(album);
 }
 
-/* OPTION in an album list: switch list <-> mosaic (remembered), or the sound settings */
-static char ao_items[3][32];
-static const char *ao_label(int i) { return ao_items[i]; }
-static int album_option(int i)
-{
-	(void)i;
-	snprintf(ao_items[0], sizeof ao_items[0], "%s", ui_album_grid ? "Ver como lista" : "Ver como mosaico");
-	snprintf(ao_items[1], sizeof ao_items[1], "Sonido");
-	snprintf(ao_items[2], sizeof ao_items[2], "Cancelar");
-	struct list_view m = { "Álbumes", 3, 0, 0, ao_label, 0, 0, LI_NONE, 0, 0, 0, -1, 0 };
-	int r = list_run(&m);
-	if (r == 1) { if (sound_quick_menu(eng_active())) nowplaying_run(); return 0; }
-	if (r != 0) return 0;
-	ui_album_grid = !ui_album_grid;
-	settings_save();
-	return 1;	/* list_run returns -2: the album list is set up again in the new view */
-}
-
 static void album_view(struct list_view *v)
 {
 	thumbs_setup();
 	v->grid = ui_album_grid;
 	v->big = !ui_album_grid && ui_big_rows;
 	v->value = v->grid || v->big ? count_value : 0;
-	v->option = album_option;
+	v->option = opt_albums;	/* playback order, sound, list / mosaic (ctxopt.c) */
 	v->top = v->grid ? v->sel - v->sel % 3 : v->sel;
 }
 
@@ -568,6 +551,7 @@ static void artists(void)
 {
 	uniq(0);
 	struct list_view v = { "Artistas", nnames, 0, 0, name_label, 0, 0, LI_FOLDER, "Vacío", 0 };
+	v.option = opt_music;
 	for (;;) {
 		int s = list_run(&v);
 		if (s < 0) return;
@@ -584,6 +568,7 @@ void music_menu(void)
 {
 	if (!load_library()) { message("Música", "No encontré MP3 en H:\\Music.", "Copialos desde la PC y volvé a entrar."); msg_wait(3); return; }
 	struct list_view v = { "Música", 4, 0, 0, root_label, 0, 0, LI_FOLDER, 0, 0 };
+	v.option = opt_music;
 	for (;;) {
 		int s = list_run(&v);
 		if (s < 0) return;

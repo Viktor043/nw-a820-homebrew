@@ -15,6 +15,9 @@
 B=/contents/HB/bin
 O=/contents/HB/out
 mkdir -p $O
+# which Walkman this is (the player tells it the same way): Sony's UI is gemini-ICX1101 on the NW-A91x (1seg, no
+# Bluetooth, an LED), ICX1115 / ICX1113 on the NW-A82x
+if [ -e /usr/local/bin/gemini-ICX1101 ]; then echo "NW-A91x" > $O/model.txt; else echo "NW-A82x" > $O/model.txt; fi
 VM=0
 if ! grep -q " /var " /proc/mounts; then mount -t ext2 /dev/mtdblock/3 /var && VM=1; fi
 mkdir -p /var/hb

@@ -753,13 +753,10 @@ int list_run(struct list_view *v)
 		}
 		else if (k == K_UP) v->sel = v->sel > 0 ? v->sel - 1 : v->n - 1;
 		else if (k == K_DOWN) v->sel = v->sel < v->n - 1 ? v->sel + 1 : 0;
-		else if (k == K_RIGHT) v->sel = v->sel + lv_rows(v) < v->n ? v->sel + lv_rows(v) : v->n - 1;
-		else if (k == K_LEFT) v->sel = v->sel - lv_rows(v) > 0 ? v->sel - lv_rows(v) : 0;
-		else if (k == K_PLAY && v->n) { pending_slide = 1; return v->sel; }
-		else if (k == K_BACK) { pending_slide = -1; return -1; }
+		else if ((k == K_PLAY || k == K_RIGHT) && v->n) { pending_slide = 1; return v->sel; }	/* RIGHT: forward, like PLAY */
+		else if (k == K_BACK || k == K_LEFT) { pending_slide = -1; return -1; }	/* LEFT: back */
 		else if (k == K_OPTION && v->option && v->n) { pending_slide = 1; int r = v->option(v->sel); pending_slide = -1; redraw = 1; if (r == 1) return -2; }
-		else if (k == K_OPTION && !quick_open) { pending_slide = 1; if (sound_quick_menu(eng_active())) nowplaying_run(); pending_slide = -1; redraw = 1; }
-		else if (k == K_BT) { pending_slide = 1; bt_menu(); pending_slide = -1; redraw = 1; }
+		else if (k == K_BT && !hw_a91x) { pending_slide = 1; bt_menu(); pending_slide = -1; redraw = 1; }
 		else change_volume(k);
 		if (v->sel < 0) v->sel = 0;
 	}
@@ -1519,7 +1516,7 @@ reload:;
 	fo_px = podcasts ? EP_THUMB : ui_big_rows ? BIG_THUMB : 28; fo_books = !podcasts;
 	v.thumb = fo_thumb; v.bar_y = -1;
 	if (podcasts) { v.ep = 1; v.value = fo_value_big; v.option = fo_option; }	/* shows like their episodes: cover, name, "12 episodios · 2 sin escuchar" */
-	else { v.big = ui_big_rows; if (ui_big_rows) v.value = fo_value_big; }
+	else { v.big = ui_big_rows; if (ui_big_rows) v.value = fo_value_big; v.option = opt_audiobooks; }
 	for (;;) {
 		list_idle_hook = fo_thumbs_pending;
 		int b = list_run(&v);
@@ -1531,7 +1528,7 @@ reload:;
 	tracks_reload:;
 		ntracks = list_dir(folders[b].path, 0, ".mp3", podcasts);
 		memcpy(tracks, items, sizeof tracks[0] * ntracks);
-		struct list_view t = { folders[b].name, ntracks, 0, 0, tr_label, 0, tr_mark, LI_TRACK, "No hay archivos MP3", 0, 0, -1, podcasts ? episode_option : 0 };
+		struct list_view t = { folders[b].name, ntracks, 0, 0, tr_label, 0, tr_mark, LI_TRACK, "No hay archivos MP3", 0, 0, -1, podcasts ? episode_option : opt_audiobooks };
 		if (podcasts) { ep_setup(ntracks); t.ep = 1; t.thumb = ep_thumb; t.value = ep_value; t.state = ep_state; t.progress = ep_progress; }
 		for (int i = 0; i < ntracks; i++) if (tr_mark(i)) t.sel = i;
 		for (;;) {
@@ -1603,6 +1600,19 @@ void remote_mode(void)
 	bt_auto_start();
 }
 
+/* OPTION > Controles in the games list: the keys of the selected game's system */
+void game_controls(int i)
+{
+	char kind = game_kind[i];
+	const char *title = kind == 'n' ? "NES" : kind == 'd' ? "Doom" : kind == 'a' ? "Game Boy Advance" : "Game Boy";
+	const char *keys = kind == 'd' ? "PLAY dispara · OPTION usa · VOL: lateral · BACK: menú, 2 s: salir"
+		: kind == 'n' ? "PLAY = A · OPTION = B · BACK = Start (2 s: salir)"
+		: kind == 'a' ? "PLAY = A · OPTION = B · VOL = L/R · BACK = Start (2 s: salir)"
+		: "PLAY = A · OPTION = B · BACK = Start (2 s: salir)";
+	message(title, games[i].name, keys);
+	msg_wait(6);
+}
+
 static void games_menu(void)
 {
 	if (dl_active()) { message("Juegos", "Hay podcasts bajándose.", "Esperá o cancelá en Podcasts > Descargas"); msg_wait(3); return; }
@@ -1613,6 +1623,7 @@ static void games_menu(void)
 	n = add_games(n, "/contents/Juegos/NES", ".nes", 'n');
 	n = add_games(n, "/contents/Juegos/Doom", ".wad", 'd');
 	struct list_view v = { "Juegos", n, 0, 0, ga_label, ga_value, 0, LI_NONE, "Copiá juegos a H:\\Juegos (GB), Juegos\\GBA, Juegos\\NES, Juegos\\Doom", 0 };
+	v.option = opt_games;
 	for (;;) {
 		int s = list_run(&v);
 		if (s < 0) return;
@@ -1720,8 +1731,8 @@ static void power_prompt(void)
 	if (open || in_game) return;
 	open = 1;
 	wake();
-	snprintf(pw_items[0], 40, "Apagar"); snprintf(pw_items[1], 40, "Cancelar");
-	struct list_view v = { alarm_cfg.on ? "¿Apagar? (sin despertador)" : "¿Apagar el Walkman?", 2, 1, 0, pw_label, 0, 0, LI_NONE, 0, 0 };
+	snprintf(pw_items[0], 40, "Apagar ahora"); snprintf(pw_items[1], 40, "Cancelar");
+	struct list_view v = { alarm_cfg.on ? "¿Apagar? (sin despertador)" : "¿Apagar?", 2, 1, 0, pw_label, 0, 0, LI_NONE, 0, 0 };
 	int s = list_run(&v);
 	open = 0;
 	if (s == 0) power_off_full("OPTION held");
@@ -1843,6 +1854,7 @@ static void home(void)
 			continue;
 		}
 		int ns = sel;
+		if (ui_theme && k == K_RIGHT) k = K_PLAY;	/* forward = open the row, as in every list */
 		if (ui_theme && k != K_PLAY && (k == K_UP || k == K_DOWN || k == K_LEFT || k == K_RIGHT)) {	/* SNRGY: a list under two tabs */
 			int pos = 0;
 			for (int r = 0; r < home_order_n; r++) if (home_order[r] == sel) pos = r;
@@ -2171,8 +2183,11 @@ static int bench(void)
 
 #endif
 
+int hw_a91x;	/* NW-A91x: Sony's UI there is gemini-ICX1101 (no Bluetooth, the LED); the A82x has ICX1115 / ICX1113 */
+
 int main(int argc, char **argv)
 {
+	hw_a91x = access("/usr/local/bin/gemini-ICX1101", F_OK) == 0;
 	if (argc < 2) { fprintf(stderr, "usage: hbplayer ask SECONDS | run STATEDIR | wdoff\n"); return 2; }
 	if (gfx_open()) { fprintf(stderr, "fb failed\n"); return 3; }
 	gfx_load_res(RESDIR);
@@ -2200,6 +2215,7 @@ int main(int argc, char **argv)
 	logf = fopen(lf, "a");
 	if (logf) set_cloexec(fileno(logf));
 	lg("hbplayer start");
+	lg("model: %s", hw_a91x ? "NW-A91x (no Bluetooth)" : "NW-A82x (no LED)");
 	{	/* every way to die leaves the LCD refresh on and the watchdog off for the Sony UI that follows */
 		struct sigaction sa; memset(&sa, 0, sizeof sa);
 		sa.sa_sigaction = on_fatal_info; sa.sa_flags = SA_SIGINFO;

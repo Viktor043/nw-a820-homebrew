@@ -60,8 +60,16 @@ static const char *artists[] = { "The Lanterns", "Paper Satellites", "June Harbo
 static const char *songs[] = { "Northern Lights", "Glass Rivers", "Ghost of the Harbor", "Slow Weather", "Paper Moon", "Static Bloom", "Long Way Home" };
 static const char *opts[] = { "Temporizador: 30 min", "Aleatorio: sí", "Repetir: todo" };
 static const char *games[] = { "Libbet and the Magic Floor", "Tobu Tobu Girl", "uCity" };
-static const char *set_l[] = { "Sonido", "Despertador", "Brillo", "Apagar pantalla", "Acerca de" };
-static const char *set_v[] = { "máx. batería", "07:30", "80%", "30 s", "" };
+static const char *set_l[] = { "Sonido", "Pantalla", "Bluetooth", "Despertador", "Fecha y hora", "Pitido", "Walkman de Sony: ahorro", "Cambiar al Walkman de Sony", "Apagar", "Restablecer todo", "Acerca de" };
+static const char *set_v[] = { "EQ no", "", "", "07:30", "21:14", "no", "no", "", "", "", "" };
+static const char *disp_l[] = { "Brillo", "Apagar pantalla", "Filas grandes con portada", "Fondo", "Tema", "Pantalla siempre activa", "Brillo siempre activa", "Barra de estado", "Letra de los libros" };
+static const char *disp_v[] = { "80%", "30 s", "no", "Sony (negro)", "SNRGY plata", "sí", "20%", "viva", "mediana" };
+static const char *books_l[] = { "Pride and Prejudice - Jane Austen", "Moby Dick - Herman Melville", "The Time Machine - H. G. Wells", "Dracula - Bram Stoker", "Middlemarch - George Eliot", "The Odyssey - Homer", "Walden - Henry David Thoreau", "Emma - Jane Austen", "Persuasion - Jane Austen" };
+static const char *books_v[] = { "37%", "", "100%", "12%", "", "", "4%", "", "" };
+static char optl[8][48];
+static int opta[8];
+static const char *optl_label(int i) { return optl[i]; }
+static const char *pw_l[] = { "Apagar ahora", "Cancelar" };
 static const char *games2[] = { "Libbet and the Magic Floor", "Tobu Tobu Girl", "sir-ababol-remastered", "twindragons", "freedoom1" };
 static const char *games2_v[] = { "GB", "GB", "NES", "NES", "Doom" };
 static const char *snd2_l[] = { "Reproduciendo", "Ahora", "Ecualizador", "Auriculares", "Voz", "Volumen parejo", "Efectos de Sony", "Máxima batería", "DSP de Sony" };
@@ -113,8 +121,19 @@ int main(int argc, char **argv)
 	fr[1] = 8; fr[2] = 8; fr[6] = 0; scr_home(6, fr, "Northern Lights"); save("04_home_bluetooth");
 	fr[6] = 8; fr[8] = 0; scr_home(8, fr, "Northern Lights"); save("04b_home_ajustes");
 	ui_st.np_artist = 0;
-	struct list_view st = { "Ajustes", 5, 0, 0, lab, val, 0, LI_NONE, 0, 0, 0, -1 };
+	struct list_view st = { "Ajustes", 11, 0, 0, lab, val, 0, LI_NONE, 0, 0, 0, -1 };
 	cur = set_l; curv = set_v; scr_list(&st); save("04c_ajustes");
+	{ struct list_view dv = { "Pantalla", 9, 4, 0, lab, val, 0, LI_NONE, 0, 0, 0, -1 }; cur = disp_l; curv = disp_v; scr_list(&dv); save("04j_pantalla"); }
+	{ struct list_view pw = { "¿Apagar?", 2, 1, 0, lab, 0, 0, LI_NONE, 0, 0, 0, -1 }; cur = pw_l; scr_list(&pw); save("04k_apagar"); }
+	/* OPTION inside each menu (ctxopt.c builds the same rows as on the device) */
+	{ static const char *const kname[] = { "", "30_opciones_musica", "31_opciones_albumes", "32_opciones_audiolibros", "33_opciones_libros", "34_opciones_juegos" };
+	  struct opt_state os = { 1, 0, 1, 0, 0, 125, 30, 1, 0 };
+	  for (int k = OPT_MUSIC; k <= OPT_GAMES; k++) {
+		struct list_view ov = { "Opciones", 0, 0, 0, optl_label, 0, 0, LI_NONE, 0, 0, 0, -1 };
+		ov.n = opt_rows(k, &os, optl, opta);
+		scr_list(&ov); save(kname[k]);
+	  } }
+	{ struct list_view bl = { "Libros", 9, 0, 0, lab, val, 0, LI_NONE, 0, 0, 0, -1 }; cur = books_l; curv = books_v; scr_list(&bl); save("21a_libros"); }
 	struct list_view sn = { "Sonido", 9, 1, 0, lab, val, 0, LI_NONE, 0, 0, 0, -1 };
 	cur = snd_l; curv = snd_v; scr_list(&sn); save("04d_sonido");
 	struct list_view sq = { "Sonido", 9, 1, 0, lab, val, 0, LI_NONE, 0, 0, 0, -1 };

@@ -113,6 +113,7 @@ static void eq_adv_menu(void)
 	}
 }
 
+void voice_quick_menu(void);
 static void voice_menu(void)
 {
 	struct list_view v = { "Voz y podcasts", 4, 0, 0, it_label, it_value, 0, LI_NONE, 0, 0 };
@@ -226,6 +227,7 @@ static int sound_menu(int with_np)
 }
 
 int sound_quick_menu(int with_np) { return sound_menu(with_np); }
+void voice_quick_menu(void) { voice_menu(); }
 
 #ifndef HB_VERSION
 #define HB_VERSION "dev"	/* build.sh sets the version and the build date */
@@ -337,6 +339,7 @@ void settings_menu(void)
 {
 	struct list_view v = { "Ajustes", 11, 0, 0, it_label, it_value, 0, LI_NONE, 0, 0 };
 	for (;;) {
+		int id[11], n = 0;	/* row -> the rows below (the NW-A91x has no Bluetooth row) */
 		{ static const char *pn[6] = { "EQ no", "Heavy", "Pop", "Jazz", "Exclusivo", "Personaliz." };	/* the EQ: the path ("máx. batería") is inside */
 		  snprintf(items[0], 48, "Sonido"); snprintf(values[0], 24, "%s", pn[sony_eq < 0 || sony_eq > 5 ? 0 : sony_eq]); }
 		snprintf(items[1], 48, "Pantalla"); values[1][0] = 0;
@@ -349,8 +352,11 @@ void settings_menu(void)
 		snprintf(items[8], 48, "Apagar"); values[8][0] = 0;	/* 2026-11-13: moved here from the SNRGY home list */
 		snprintf(items[9], 48, "Restablecer todo"); values[9][0] = 0;
 		snprintf(items[10], 48, "Acerca de"); values[10][0] = 0;	/* Idioma removed 2026-11-13: English only */
+		for (int r = 0; r < 11; r++) if (!(hw_a91x && r == 2)) { if (n != r) { memcpy(items[n], items[r], sizeof items[0]); memcpy(values[n], values[r], sizeof values[0]); } id[n++] = r; }
+		v.n = n;
 		int s = list_run(&v);
 		if (s < 0) return;
+		s = id[s];
 		if (s == 0) sound_menu(0);
 		else if (s == 1) screen_menu();
 		else if (s == 2) bt_menu();	/* moved here from the SNRGY home list (Sony's grid keeps its icon) */

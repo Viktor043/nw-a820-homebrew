@@ -79,9 +79,11 @@ static const unsigned char dm5x5[][5] = {	/* ' ' .. 'Z', 5 rows of 5 dots (low b
 #define DM_ROWS 19	/* 3 rows of 5 dots, 2 dots apart */
 #define DM_R2 7		/* first dot row of the second and third text rows */
 #define DM_R3 14
-#define DM_ADV 7	/* a 5-dot glyph and 2 dots of space: the letters never touch */
+#define DM_ADV 6	/* a 5-dot glyph and 1 dot of space (1-px dots: 3 px of air between letters), 14 % narrower than 7 */
+#define DM_X0 2		/* 2 dots of margin left and right */
 static unsigned char dm_on[DM_ROWS][120];
-static void dm_dot(int x, int y) { if (x >= 0 && x < 120 && y >= 0 && y < DM_ROWS) dm_on[y][x] = 1; }
+#define DM_W (120 - 2 * DM_X0)	/* the text area: 116 dots between the side margins */
+static void dm_dot(int x, int y) { if (x >= 0 && x < DM_W && y >= 0 && y < DM_ROWS) dm_on[y][x + DM_X0] = 1; }	/* x: from the left margin */
 static int dm_ch(unsigned cp)	/* Latin-1 letters to their base capital, the rest to ' '..'Z' */
 {
 	static const char lat[] = "AAAAAAACEEEEIIIIDNOOOOOxOUUUUYPSaaaaaaaceeeeiiiidnooooo/ouuuuypy";
@@ -126,8 +128,8 @@ static int dm_status_row(const char *left)
 	char clk[8] = "";
 	time_t t = time(0); struct tm *tm = localtime(&t);
 	if (tm) snprintf(clk, sizeof clk, "%02d:%02d", tm->tm_hour, tm->tm_min);
-	int c = 120 - dm_w(clk);
-	dm_text(c, 0, clk, 120);
+	int c = DM_W - dm_w(clk);
+	dm_text(c, 0, clk, DM_W);
 	if (ui_st.batt >= 0) {	/* battery 12 x 7 with a nub and up to 4 bars */
 		int bx = c - 16;
 		for (int x = 0; x < 12; x++) { dm_dot(bx + x, 0); dm_dot(bx + x, 4); }
@@ -136,10 +138,10 @@ static int dm_status_row(const char *left)
 		int bars = ui_st.batt >= 85 ? 4 : ui_st.batt >= 60 ? 3 : ui_st.batt >= 35 ? 2 : ui_st.batt >= 10 ? 1 : 0;
 		for (int i = 0; i < bars; i++) { dm_dot(bx + 2 + i * 2, 2); dm_dot(bx + 3 + i * 2, 2); }	/* one dot row of charge inside the outline */
 		c = bx - 2;
-		if (ui_st.charging) c = dm_text(c - 6, 0, "+", 120) - 8;
+		if (ui_st.charging) c = dm_text(c - 6, 0, "+", DM_W) - 8;
 	}
-	if (ui_st.hold) c = dm_text(c - 6, 0, "H", 120) - 8;
-	if (ui_st.bt) c = dm_text(c - 12, 0, "BT", 120) - 14;
+	if (ui_st.hold) c = dm_text(c - 6, 0, "H", DM_W) - 8;
+	if (ui_st.bt) c = dm_text(c - 12, 0, "BT", DM_W) - 14;
 	int x = 0;
 	char cnt[16] = "";
 	if (!left && ui_st.rd_on && ui_st.rd_l1) left = ui_st.rd_l1;
@@ -206,7 +208,7 @@ static void strip_line(char *line, size_t n)
 int scr_strip_scrolls(void)
 {
 	char line[160]; strip_line(line, sizeof line);
-	return SNRGY && !ui_strip_calm && !ui_aod_now && dm_w(line) > 120;
+	return SNRGY && !ui_strip_calm && !ui_aod_now && dm_w(line) > DM_W;
 }
 /* a long title scrolls at 10 dots a second, resting 2 s at the start of each pass */
 int scr_strip_marquee(double t)
@@ -226,34 +228,37 @@ static void strip_draw(int vol, int volmax)
 	dm_status_row(0);
 	char line[160] = "";
 	strip_line(line, sizeof line);
-	if (strip_scroll && dm_w(line) > 120) {	/* the scrolling title, and its next pass coming in behind it */
+	if (strip_scroll && dm_w(line) > DM_W) {	/* the scrolling title, and its next pass coming in behind it */
 		int w = dm_w(line);
-		dm_text(-strip_scroll, DM_R2, line, 120 + 6);
-		dm_text(-strip_scroll + w + MQ_GAP, DM_R2, line, 120 + 6);
-	} else dm_text(0, DM_R2, line, 120);
+		dm_text(-strip_scroll, DM_R2, line, DM_W + 6);
+		dm_text(-strip_scroll + w + MQ_GAP, DM_R2, line, DM_W + 6);
+	} else dm_text(0, DM_R2, line, DM_W);
 	int x0 = 0, x1 = 119, fill = 0;
 	if (vol >= 0) {	/* VOL, one column per step, the level */
 		char b[8]; snprintf(b, sizeof b, "%02d", vol);
-		x0 = dm_text(0, DM_R3, "VOL", 120) + 3; x1 = 120 - dm_w(b) - 3;
-		dm_text(x1 + 3, DM_R3, b, 120);
+		x0 = dm_text(0, DM_R3, "VOL", DM_W) + 3; x1 = DM_W - dm_w(b) - 3;
+		dm_text(x1 + 3, DM_R3, b, DM_W);
 		int seg = volmax > 0 ? volmax : 30, span = x1 - x0;
-		for (int i = 0; i < seg && span > 0; i++) { int sx = x0 + i * span / seg; for (int y = DM_R3; y < DM_R3 + 5; y++) if (i < vol || y == DM_R3 + 4) dm_dot(sx, y); }
+		for (int i = 0; i < seg && span > 0; i++) {	/* one solid block per step (2 dots wide), a baseline dot for the rest */
+			int sx = x0 + i * span / seg, bw = span / seg > 2 ? span / seg - 1 : 1;
+			for (int y = DM_R3; y < DM_R3 + 5; y++) for (int dx = 0; dx < bw; dx++) if (i < vol || y == DM_R3 + 4) dm_dot(sx + dx, y);
+		}
 		dm_flush();
 		return;
 	}
 	if (ui_st.rd_on) {	/* reading: 37% ------ 4H 12M */
 		char a[8]; snprintf(a, sizeof a, "%d%%", ui_st.rd_pct);
 		const char *b = ui_st.rd_left ? ui_st.rd_left : "";
-		x0 = dm_text(0, DM_R3, a, 120) + 2; x1 = 120 - dm_w(b) - 3;
-		dm_text(x1 + 3, DM_R3, b, 120);
+		x0 = dm_text(0, DM_R3, a, DM_W) + 2; x1 = DM_W - dm_w(b) - 3;
+		dm_text(x1 + 3, DM_R3, b, DM_W);
 		fill = (x1 - x0 - 3) * ui_st.rd_pct / 100;
 	} else if (ui_st.np_total > 0) {	/* 1:12 [=====-----] -1:36 */
 		char a[16], b[16]; int s = ui_st.np_sec < 0 ? 0 : ui_st.np_sec, r = ui_st.np_total - s;
 		if (r < 0) r = 0;
 		if (ui_st.np_total >= 3600) { snprintf(a, sizeof a, "%d:%02d:%02d", s / 3600, s / 60 % 60, s % 60); snprintf(b, sizeof b, "-%d:%02d:%02d", r / 3600, r / 60 % 60, r % 60); }
 		else { snprintf(a, sizeof a, "%d:%02d", s / 60, s % 60); snprintf(b, sizeof b, "-%d:%02d", r / 60, r % 60); }
-		x0 = dm_text(0, DM_R3, a, 120) + 2; x1 = 120 - dm_w(b) - 3;
-		dm_text(x1 + 3, DM_R3, b, 120);
+		x0 = dm_text(0, DM_R3, a, DM_W) + 2; x1 = DM_W - dm_w(b) - 3;
+		dm_text(x1 + 3, DM_R3, b, DM_W);
 		fill = (x1 - x0 - 3) * (s > ui_st.np_total ? ui_st.np_total : s) / ui_st.np_total;
 	}
 	for (int x = x0 + 2; x < x0 + 2 + fill; x++) for (int y = DM_R3 + 1; y <= DM_R3 + 3; y++) dm_dot(x, y);	/* just the line filling up, no frame */
@@ -461,7 +466,7 @@ static void title_bar(const char *title)
 {
 	if (SNRGY) {	/* the E-PLAYER's tab header: the title on the left, ink on paper */
 		gfx_fill(0, 0, W, TITLE_H, th_paper);
-		if (title && *title) gfx_text_clip(12, 5, title, C_WHITE, W - 24);
+		if (title && *title) gfx_text_clip(12, 3, title, RGB(0xE2, 0x06, 0x13), W - 24);	/* menu titles in Leica red, like RESUME */
 		return;
 	}
 	gfx_vgrad(0, 0, W, TITLE_H - 1, RGB(132, 138, 148), RGB(200, 205, 212));
@@ -650,7 +655,7 @@ static void snrgy_home(int sel, const char *nowline)
 	{
 		int tx = 12, w = gfx_text_w("Reanudar", 1), focus = ui_home_tab != 0;
 		if (focus) rrect(tx - 7, 2, w + 14, 24, 6, C_WHITE, 1);
-		gfx_text(tx, 3, "Reanudar", focus ? RGB(255, 255, 255) : RGB(0xE2, 0x06, 0x13), 1);	/* Leica red; white on the pill (red on black didn't read), capitals centred in it */
+		gfx_text(tx, 3, "Reanudar", focus && ui_theme == 1 ? RGB(255, 255, 255) : RGB(0xE2, 0x06, 0x13), 1);	/* white on silver's black pill; red on black's grey pill */	/* Leica red; white on the pill (red on black didn't read), capitals centred in it */
 	}
 	for (int r = 0; r < home_order_n; r++) {
 		int i = home_order[r], y = TITLE_H + 1 + r * HOME_RH, on = !ui_home_tab && i == sel;
