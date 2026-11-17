@@ -45,7 +45,7 @@ static void screen(int phase, const char *what, int count)
 	gfx_text_center(W / 2, 120, what, 0xFFFF, 1);
 	snprintf(b, sizeof b, "%d", count);
 	gfx_text_center(W / 2, 170, b, RGB(255, 200, 0), 4);
-	gfx_text_center(W / 2, 270, "mirá si el número avanza", 0xFFFF, 1);
+	gfx_text_center(W / 2, 270, "check the number counts up", 0xFFFF, 1);
 	gfx_flip();
 }
 

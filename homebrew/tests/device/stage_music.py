@@ -3,9 +3,9 @@ dual boot, on a throwaway copy of the player's state (/tmp), with the USB cable 
 Walkman with RESET while it is connected, and H: comes back when the test is over (~3 minutes).
 Then: python check_music.py
   python stage_music.py [DRIVE]
-The script: waits at the home screen for the background passes (library, covers), then Música > Artistas and
+The script: waits at the home screen for the background passes (library, covers), then Music > Artists and
 songs picked from lists in the order MP3 -> FLAC -> FLAC (and quick skips, a pause) -> MP3, the album lists, all
-albums, Audiolibros and Podcasts; screenshots 300 ms after the picks show whether the screen and the cover are
+albums, Audiobooks and Podcasts; screenshots 300 ms after the picks show whether the screen and the cover are
 there. The key script assumes a library whose Artistas list has an MP3 artist at 0 and FLAC artists at 3 and 4
 (change the DOWN / UP counts in M for yours)."""
 import os, shutil, sys
@@ -53,7 +53,7 @@ rm -rf $O; mkdir -p $O
 echo "start $(date)" > $O/run.txt
 VM=0
 grep -q " /var " /proc/mounts || { mount -t ext2 /dev/mtdblock/3 /var && VM=1; }
-# a copy of the real state, without "last" (the home screen then starts on Música) and without crash leftovers
+# a copy of the real state, without "last" (the home screen then starts on Music) and without crash leftovers
 rm -rf /tmp/hbM; cp -r /var/hb /tmp/hbM
 rm -f /tmp/hbM/log.txt /tmp/hbM/log.1.txt /tmp/hbM/meter.txt /tmp/hbM/starting /tmp/hbM/resume.txt /tmp/hbM/boot_player
 grep -v '^last ' /tmp/hbM/pos.txt > /tmp/hbM/pos.new; mv /tmp/hbM/pos.new /tmp/hbM/pos.txt

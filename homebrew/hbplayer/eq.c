@@ -1,7 +1,7 @@
 /* eq.c: sound effects in integer math for the ARM926 (no FPU):
  *   - 5-band graphic EQ (60 Hz, 250 Hz, 1 kHz, 4 kHz, 12 kHz; peaking biquads, -6..+6 dB per band)
- *   - "Bajos" (bass boost: low shelf +0/3/6 dB below 120 Hz)
- *   - "Estéreo amplio" (stereo widening, the idea behind Sony's Clear Stereo / SRS WOW: the side signal is
+ *   - "Bass boost" (: low shelf +0/3/6 dB below 120 Hz)
+ *   - "Wide stereo" (stereo widening, the idea behind Sony's Clear Stereo / SRS WOW: the side signal is
  *     boosted and slightly delayed, the mid stays put, so the image opens up on headphones)
  * Biquads run in direct form I with Q28 coefficients and 64-bit accumulators; the coefficient design
  * (needs sin/cos/pow) runs only when a setting changes. A 6 dB headroom pre-gain avoids clipping. */
@@ -242,7 +242,7 @@ const struct eq_preset eq_presets[] = {
 const int eq_npresets = sizeof eq_presets / sizeof eq_presets[0];
 
 int sony_vpt = -1, sony_eq, sony_dn, sony_dsee;
-int sony_cb, sony_band[5], sony_cs;	/* Sony EQ Personalizado: Clear Bass 0..3, bands -3..+3; Clear Stereo 0..2 */	/* DSP effects: VPT -1 off / 0..5, EQ 0 off / 1..4 presets, normalizer */
+int sony_cb, sony_band[5], sony_cs;	/* Sony EQ Custom: Clear Bass 0..3, bands -3..+3; Clear Stereo 0..2 */	/* DSP effects: VPT -1 off / 0..5, EQ 0 off / 1..4 presets, normalizer */
 
 void eq_load(const char *statedir)
 {
@@ -263,7 +263,7 @@ void eq_load(const char *statedir)
 		if (fscanf(f, " %d", &ver) != 1) ver = 1;
 		if (ver < 2) dsp_direct = 1;	/* v2 (2026-09-29): "Max. battery" is the default, turned on once */
 	}
-	int ec, e1, e2, e3, e4, e5, ecs;	/* Sony EQ Personalizado and Clear Stereo */
+	int ec, e1, e2, e3, e4, e5, ecs;	/* Sony EQ Custom and Clear Stereo */
 	long pos = ftell(f);
 	if (fscanf(f, " seq %d %d %d %d %d %d %d", &ec, &e1, &e2, &e3, &e4, &e5, &ecs) == 7) {
 		sony_cb = ec < 0 ? 0 : ec > 3 ? 3 : ec; int b[5] = { e1, e2, e3, e4, e5 };

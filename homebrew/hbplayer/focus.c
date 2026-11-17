@@ -151,10 +151,12 @@ void focus_bells(void)
 static char fl[4][48], fv[4][24];
 static const char *f_label(int i) { return fl[i]; }
 static const char *f_value(int i) { return fv[i]; }
+static int focus_info(int i) { settings_info(fl[i]); return 0; }
 
 void focus_menu(void)
 {
 	struct list_view v = { "Focus", 4, 3, 0, f_label, f_value, 0, LI_NONE, 0, 0 };
+	v.option = focus_info;
 	for (;;) {
 		snprintf(fl[0], 48, "Length"); snprintf(fv[0], 24, "%d min", dur_opts[di]);
 		snprintf(fl[1], 48, "Bell every");

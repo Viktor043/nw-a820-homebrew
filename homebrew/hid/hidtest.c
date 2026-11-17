@@ -105,7 +105,7 @@ static void draw(void)
 	if (s == HID_LISTENING)
 		gfx_text_wrap(8, 170, "En el telefono: Bluetooth > buscar > \"Walkman NW-A829 Remote\". PIN 0000", RGB(170, 170, 220), W - 16, 4, 22);
 	gfx_text(8, 262, "OPTION: cambiar modo", RGB(150, 150, 150), 1);
-	gfx_text(8, 284, "BT 2 s: salir", RGB(150, 150, 150), 1);
+	gfx_text(8, 284, "BT 2 s: exit", RGB(150, 150, 150), 1);
 	gfx_flip();
 }
 
@@ -119,9 +119,9 @@ static struct act map_key(int code)
 {
 	struct act a = { A_NONE, 0, "" };
 	switch (code) {
-	case K_PLAY:  a = slides ? (struct act){ A_KEY, KB_ENTER, "Enter" } : (struct act){ A_CC, CC_PLAYPAUSE, "Play/Pausa" }; break;
-	case K_RIGHT: a = slides ? (struct act){ A_KEY, KB_RIGHT, "Derecha" } : (struct act){ A_CC, CC_NEXT, "Siguiente" }; break;
-	case K_LEFT:  a = slides ? (struct act){ A_KEY, KB_LEFT, "Izquierda" } : (struct act){ A_CC, CC_PREV, "Anterior" }; break;
+	case K_PLAY:  a = slides ? (struct act){ A_KEY, KB_ENTER, "Enter" } : (struct act){ A_CC, CC_PLAYPAUSE, "Play/Pause" }; break;
+	case K_RIGHT: a = slides ? (struct act){ A_KEY, KB_RIGHT, "Derecha" } : (struct act){ A_CC, CC_NEXT, "Next" }; break;
+	case K_LEFT:  a = slides ? (struct act){ A_KEY, KB_LEFT, "Izquierda" } : (struct act){ A_CC, CC_PREV, "Previous" }; break;
 	case K_UP:    a = slides ? (struct act){ A_KEY, KB_PGUP, "RePag" } : (struct act){ A_KEY, KB_UP, "Arriba" }; break;
 	case K_DOWN:  a = slides ? (struct act){ A_KEY, KB_PGDN, "AvPag" } : (struct act){ A_KEY, KB_DOWN, "Abajo" }; break;
 	case K_VOLUP: a = (struct act){ A_CC, CC_VOLUP, "Vol+" }; break;

@@ -195,10 +195,12 @@ static void edit_time(void)
 static char it[3][40], vl[3][24];
 static const char *lab(int i) { return it[i]; }
 static const char *val(int i) { return vl[i]; }
+static int alarm_info(int i) { settings_info(it[i]); return 0; }
 
 void alarm_menu(void)
 {
 	struct list_view v = { "Alarm", 3, 0, 0, lab, val, 0, LI_NONE, 0, 0 };
+	v.option = alarm_info;
 	for (;;) {
 		snprintf(it[0], 40, "Alarm"); snprintf(vl[0], 24, "%s", alarm_cfg.on ? "on" : "off");
 		snprintf(it[1], 40, "Time"); snprintf(vl[1], 24, "%02d:%02d", alarm_cfg.hour, alarm_cfg.min);

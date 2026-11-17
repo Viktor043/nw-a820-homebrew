@@ -61,10 +61,10 @@ static const char *artists[] = { "The Lanterns", "Paper Satellites", "June Harbo
 static const char *songs[] = { "Northern Lights", "Glass Rivers", "Ghost of the Harbor", "Slow Weather", "Paper Moon", "Static Bloom", "Long Way Home" };
 static const char *opts[] = { "Sleep timer: 30 min", "Shuffle: on", "Repeat: all" };
 static const char *games[] = { "Libbet and the Magic Floor", "Tobu Tobu Girl", "uCity" };
-static const char *set_l[] = { "Sound", "Display", "Bluetooth", "Alarm", "Date and time", "Beep", "Sony Walkman: power saving", "Switch to Sony's Walkman", "Power", "Reset everything", "About" };
-static const char *set_v[] = { "EQ off", "", "", "07:30", "21:14", "off", "off", "", "", "", "" };
-static const char *disp_l[] = { "Brightness", "Screen off after", "Big rows with covers", "Background", "Theme", "Always-on display", "Always-on brightness", "Status strip", "Book text size" };
-static const char *disp_v[] = { "80%", "30 s", "off", "Sony", "SNRGY silver", "on", "20%", "live", "medium" };
+static const char *set_l[] = { "Sound", "Display", "Bluetooth", "Date and time", "Beep", "Sony Walkman: power saving", "Switch to Sony's Walkman", "Power", "Reset everything", "About" };
+static const char *set_v[] = { "EQ off", "", "", "21:14", "off", "off", "", "", "", "" };
+static const char *disp_l[] = { "Brightness", "Screen off after", "Big rows with covers", "Theme", "Always-on display", "Always-on brightness", "Status strip", "Book text size" };
+static const char *disp_v[] = { "80%", "30 s", "off", "SNRGY silver", "on", "20%", "live", "medium" };
 static const char *books_l[] = { "Pride and Prejudice - Jane Austen", "Moby Dick - Herman Melville", "The Time Machine - H. G. Wells", "Dracula - Bram Stoker", "Middlemarch - George Eliot", "The Odyssey - Homer", "Walden - Henry David Thoreau", "Emma - Jane Austen", "Persuasion - Jane Austen" };
 static const char *books_v[] = { "37%", "", "100%", "12%", "", "", "4%", "", "" };
 static char optl[8][48];
@@ -122,9 +122,9 @@ int main(int argc, char **argv)
 	fr[1] = 8; fr[2] = 8; fr[6] = 0; scr_home(6, fr, "Northern Lights"); save("04_home_bluetooth");
 	fr[6] = 8; fr[8] = 0; scr_home(8, fr, "Northern Lights"); save("04b_home_ajustes");
 	ui_st.np_artist = 0;
-	struct list_view st = { "Settings", 11, 0, 0, lab, val, 0, LI_NONE, 0, 0, 0, -1 };
+	struct list_view st = { "Settings", 10, 0, 0, lab, val, 0, LI_NONE, 0, 0, 0, -1 };
 	cur = set_l; curv = set_v; scr_list(&st); save("04c_ajustes");
-	{ struct list_view dv = { "Display", 9, 4, 0, lab, val, 0, LI_NONE, 0, 0, 0, -1 }; cur = disp_l; curv = disp_v; scr_list(&dv); save("04j_pantalla"); }
+	{ struct list_view dv = { "Display", 8, 3, 0, lab, val, 0, LI_NONE, 0, 0, 0, -1 }; cur = disp_l; curv = disp_v; scr_list(&dv); save("04j_pantalla"); }
 	{ struct list_view pw = { "Power off?", 2, 1, 0, lab, 0, 0, LI_NONE, 0, 0, 0, -1 }; cur = pw_l; scr_list(&pw); save("04k_apagar"); }
 	/* OPTION inside each menu (ctxopt.c builds the same rows as on the device) */
 	{ static const char *const kname[] = { "", "30_opciones_musica", "31_opciones_albumes", "32_opciones_audiolibros", "33_opciones_libros", "34_opciones_juegos" };
@@ -177,6 +177,7 @@ int main(int argc, char **argv)
 	if (ui_theme) { for (int y = 0; y < PLAYER_ART_BIG; y++) for (int x = 0; x < PLAYER_ART_BIG; x++) { int d = (x - 150) * (x - 150) + (y - 90) * (y - 90); int t = d > 40000 ? 0 : 255 - d * 255 / 40000; big_art[y * PLAYER_ART_BIG + x] = RGB(40 + t * 3 / 4, 55 + t / 2, 72 + t / 6); }
 	  p.art.w = p.art.h = PLAYER_ART_BIG; p.art.px = big_art; }
 	scr_player(&p, 1); save("08_reproduciendo_musica");
+	{ struct img keep = p.art; p.art.w = 0; scr_player(&p, 1); save("08g_no_cover"); p.art = keep; }
 	p.browsing = 1; p.cursor = 4; p.shuffle = 0; p.repeat = 1;
 	scr_player(&p, 1); save("08c_reproduciendo_lista");
 	p.browsing = 0; p.repeat = 0;
@@ -280,7 +281,9 @@ int main(int argc, char **argv)
 		scr_downloads("Downloading 3 of 6", "131 kB/s · 22 min", 1, 0, many, 6, 1, 131);
 		save("34_descargas_scroll");
 	}
-	{ struct focus_view fv = { 1122, 1500, 0, "brown noise", "campana cada 5 min" }; fake_dl = 0; scr_focus(&fv); save("17_modo_foco"); }
+	{ struct focus_view fv = { 1122, 1500, 0, "brown noise", "bell every 5 min" }; fake_dl = 0; scr_focus(&fv); save("17_modo_foco"); }
+	{ struct calc_view cv = { "1234.5", "1200 + 34.5 =", 19 }; scr_calc(&cv); save("18_calculator"); }
+	scr_info("Always-on display", "When the screen times out, the status strip at the top stays lit: time, battery and what is playing."); save("19_info");
 	{	/* mosaic of albums and episode rows */
 		static uint16_t g[9][GRID_TH * GRID_TH], e[EP_THUMB * EP_THUMB];
 		for (int k = 0; k < 9; k++) for (int y = 0; y < GRID_TH; y++) for (int x = 0; x < GRID_TH; x++) g[k][y * GRID_TH + x] = RGB(30 + k * 25, 60 + y, 200 - k * 20);
@@ -328,10 +331,10 @@ int main(int argc, char **argv)
 		cur = pm;
 		struct list_view om = { .title = "Podcasts", .n = 2, .label = lab, .bar_y = -1 };
 		scr_list(&om); save("45_opciones_podcasts");
-		static const char *aj[] = { "Sound", "Display", "Alarm", "Beep", "Language", "Sony Walkman: power saving", "Reset everything", "About" };
-		static const char *ajv[] = { "max. battery", "", "07:30", "off", "English", "off", "", "" };
+		static const char *aj[] = { "Sound", "Display", "Date and time", "Beep", "Sony Walkman: power saving", "Switch to Sony's Walkman", "Power", "Reset everything", "About" };
+		static const char *ajv[] = { "max. battery", "", "21:14", "off", "off", "", "", "", "" };
 		cur = aj; curv = ajv;
-		struct list_view a = { .title = "Settings", .n = 8, .label = lab, .value = val, .bar_y = -1 };
+		struct list_view a = { .title = "Settings", .n = 9, .label = lab, .value = val, .bar_y = -1 };
 		scr_list(&a); save("46_ajustes");
 		scr_message("Welcome", "Settings > Switch to Sony's Walkman: to Sony's firmware.", "In Sony's Walkman, hold HOME and VOL- together for 2 s to come back.");
 		gfx_text_wrap(14, 220, "OPTION: more choices on almost every screen.", C_GREY, W - 28, 2, 22);

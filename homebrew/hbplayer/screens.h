@@ -5,7 +5,7 @@
 #define SCREENS_H
 #include "../common/gfx.h"
 
-/* look (Settings > Display > Theme): 0 Sony, 1 SNRGY plata, 2 SNRGY negro. The four theme colours are variables:
+/* look (Settings > Display > Theme): 0 Sony, 1 SNRGY silver, 2 SNRGY black. The four theme colours are variables:
  * "white" = text, "black" = text on the selection, grey = secondary, "orange" = accent */
 #define THEME_COUNT 3
 extern int ui_theme;
@@ -115,6 +115,7 @@ void scr_page(const char *title);	/* the reader's page: background (and Sony's t
 void scr_page_status(const char *text);
 uint16_t scr_paper(void);		/* the page colour */	/* the reader's status: the SNRGY strip with the reading lines, Sony's bar with text */
 #define HOME_BOOKS 9			/* SNRGY home: the Books row (not a Sony grid slot) */
+#define HOME_TOOLS 10			/* SNRGY home: Tools (Focus, Alarm, Calculator) */
 int scr_strip_marquee(double t);	/* SNRGY: advances the strip's scrolling title; 1 = it moved (redraw the band) */
 int scr_strip_scrolls(void);		/* SNRGY: the title is too long for the strip, so it scrolls */
 void scr_aod(void);			/* SNRGY always-on display: everything black but the strip */
@@ -126,6 +127,14 @@ extern const int home_order_n;
 void scr_volume(int vol, int volmax);
 void scr_hold(void);
 void scr_message(const char *title, const char *l1, const char *l2);
+/* Tools > Calculator (calc.c) */
+#define CALC_ROWS 5
+#define CALC_COLS 4
+extern const char *const calc_keys[CALC_ROWS * CALC_COLS];
+struct calc_view { const char *value, *expr; int sel; };
+void scr_calc(const struct calc_view *v);
+/* a setting's (i) window: the setting's name and what it does */
+void scr_info(const char *label, const char *text);
 void scr_progress(const char *title, int step, int nsteps, const char *text, int secs, int spin, const char *hint);
 void scr_splash(const char *line);
 void scr_poweroff(void);

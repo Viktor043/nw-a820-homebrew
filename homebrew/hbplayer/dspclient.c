@@ -273,14 +273,14 @@ static int wait_flags(uint32_t s, uint32_t mask, int ms)
 static const unsigned sony_eq_words[5] = { 0xfffffffe, 0x03224322, 0x04332233, 0x02343322, 0x01432311 };	/* off, Heavy, Pop, Jazz, Unique */
 unsigned sony_eq_word(void)
 {
-	if (sony_eq == 5) {	/* Personalizado: Clear Bass 0..3, bands -3..+3 */
+	if (sony_eq == 5) {	/* Custom: Clear Bass 0..3, bands -3..+3 */
 		unsigned b1 = 3 - sony_cb, w = b1 | b1 << 4;
 		for (int i = 0; i < 5; i++) w |= (unsigned)(3 - sony_band[i]) << (8 + 4 * i);
 		return w;
 	}
 	return sony_eq_words[sony_eq < 0 || sony_eq > 4 ? 0 : sony_eq];
 }
-/* the values of preset (1..4) in Personalizado terms: Clear Bass 0..3, bands -3..+3 */
+/* the values of preset (1..4) in Custom terms: Clear Bass 0..3, bands -3..+3 */
 void sony_eq_preset_values(int preset, int *cb, int *band)
 {
 	if (preset < 1 || preset > 4) { *cb = 0; for (int i = 0; i < 5; i++) band[i] = 0; return; }
@@ -289,7 +289,7 @@ void sony_eq_preset_values(int preset, int *cb, int *band)
 	if (*cb < 0) *cb = 0;
 	for (int i = 0; i < 5; i++) band[i] = 3 - (int)((w >> (8 + 4 * i)) & 15);
 }
-/* start editing from the current preset: Personalizado takes its values */
+/* start editing from the current preset: Custom takes its values */
 void sony_eq_to_custom(void) { sony_eq_preset_values(sony_eq, &sony_cb, sony_band); }
 
 void dsp_fx_update(void)

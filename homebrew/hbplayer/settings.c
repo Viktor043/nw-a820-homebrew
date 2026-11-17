@@ -24,23 +24,84 @@ static void changed(void)
 }
 
 /* ---------- Sound: one menu for everything audio (Settings > Sound and OPTION from any list / the player) ----------
- *   Ahora: ...              which path the audio takes (Max battery or processed); PLAY explains why
+ *   Now: ...               which path the audio takes (Max battery or processed); PLAY explains why
  *   Equalizer          >  on/off, preset, 5 bands, bass boost, stereo widening
  *   Headphones          >  crossfeed, loudness at low volume, AutoEq profile
- *   Voz (podcasts y libros) >  speed, silence trimming, voice boost
+ *   Voice (podcasts, books) >  speed, silence trimming, voice boost
  *   Even volume          ReplayGain off / track / album
  *   Sony effects      >  VPT, Sony EQ, normalizer, DSEE (on the DSP)
  *   Max battery          direct DSP playback
- *   Usar el DSP de Sony     DSP decoding at all */
+ *   Use Sony's DSP        DSP decoding at all */
+
+/* ---------- (i): OPTION on a setting explains it (2026-11-17). Rows that open a menu have no text: nothing happens. ---------- */
+static const struct { const char *label, *text; } info_texts[] = {
+	{ "Brightness", "How bright the screen is. The panel has five real levels, so it goes in 20% steps." },
+	{ "Screen off after", "How long the screen stays on after the last key press. Playback goes on with the screen off; any key wakes it." },
+	{ "Big rows with covers", "Albums and audiobooks as big rows with the cover and a second line, instead of compact rows." },
+	{ "Theme", "SNRGY silver (light) or SNRGY black (dark). Colours change at once, the music keeps playing." },
+	{ "Always-on display", "When the screen times out, the status strip at the top stays lit: time, battery and what is playing." },
+	{ "Always-on brightness", "How bright the strip stays when the always-on display is on. Lower lasts longer on battery." },
+	{ "Status strip", "Live: the strip scrolls long titles and refreshes every second. Calm: every 5 s and no scrolling, a bit kinder to the battery." },
+	{ "Book text size", "The reader's text size: small, medium, large or extra large. Also in OPTION while reading." },
+	{ "Beep", "A short click on every key press, like Sony's. Turning it on beeps once." },
+	{ "Sony Walkman: power saving", "Experimental: Sony's own firmware runs at half the processor clock. Menus are slower, the battery lasts longer. Applies the next time you switch to Sony." },
+	{ "Switch to Sony's Walkman", "Leaves this player and starts Sony's original firmware. To come back, hold HOME and VOL- together for 2 s." },
+	{ "Power", "Sleep (fast wake-up, uses a little battery) or power off completely." },
+	{ "Reset everything", "Forgets every setting, position and bookmark kept by the player. Your music, books and game saves stay." },
+	{ "Date and time", "Sets the clock used by the strip, the alarm and the podcasts' dates." },
+	{ "Now", "Which path the sound takes now. Max. battery: Sony's DSP plays the file directly. Processed: our effects are active, so the processor works more." },
+	{ "Maximum volume", "Raises the top of the volume range for hard-to-drive headphones. Careful with your ears: it warns you the first time." },
+	{ "Even volume", "ReplayGain: plays every song (per track) or every album (per album) at a similar loudness, when the files carry the tags." },
+	{ "Max. battery", "Lets Sony's DSP decode and play by itself whenever no effect of ours is needed. Longest battery life. From the next track." },
+	{ "Sony DSP", "Uses Sony's sound chip for decoding at all. Off: everything is decoded by the processor (more battery, needed only for testing). From the next track." },
+	{ "Crossfeed", "Mixes a little of each channel into the other, like speakers in a room: hard-panned old recordings tire the ears less." },
+	{ "Bass at low volume", "Loudness: at low volume the ear hears less bass and treble, so they are raised a little as the volume goes down." },
+	{ "Headphone profile", "Corrects the frequency response of your headphone model (AutoEq profile), towards a neutral sound." },
+	{ "Speed", "Playback speed for audiobooks and podcasts, without changing the pitch of the voice." },
+	{ "Trim silences", "Shortens the pauses in speech. Audiobooks and podcasts finish sooner without sounding faster." },
+	{ "Voice boost", "Lifts the voice frequencies and cuts rumble, so speech stays clear in noisy places." },
+	{ "Time saved (this session)", "How much time speed and silence trimming have saved you since the player started." },
+	{ "VPT (surround)", "Sony's virtual surround on the DSP, six room modes. Works with Max. battery." },
+	{ "Normalizer", "Sony's dynamic normalizer: quiet passages louder, loud ones softer." },
+	{ "DSEE (MP3 enhancer)", "Sony's DSEE restores the high frequencies that MP3 and AAC compression cut." },
+	{ "Equalizer", "Turns the five-band equalizer on or off. Preset loads a ready-made curve; the bands below fine-tune it." },
+	{ "Preset", "A ready-made equalizer curve. Changing any band afterwards makes it custom." },
+	{ "Bass boost", "Raises the frequencies below 120 Hz by 3 or 6 dB." },
+	{ "Wide stereo", "Opens the stereo image on headphones by lifting the difference between the channels." },
+	{ "Alarm", "Turns the alarm on or off. It rings through the headphones: the Walkman has no speaker." },
+	{ "Time", "When the alarm rings. Up and down change the value, left and right move between hours and minutes." },
+	{ "Ring with", "Last played: the alarm resumes what you were listening to. Bells: a chime. Either way the volume rises over a minute." },
+	{ "Length", "How long a focus session lasts." },
+	{ "Bell every", "A soft bell during the session at this interval, or only at the start and at the end." },
+	{ "Background", "A steady sound under the session to mask distractions: white, pink or brown noise, or none." },
+};
+
+void settings_info(const char *label)
+{
+	while (*label == ' ') label++;
+	const char *text = 0;
+	for (size_t i = 0; i < sizeof info_texts / sizeof info_texts[0]; i++) if (!strcmp(info_texts[i].label, label)) text = info_texts[i].text;
+	if (!text && strstr(label, "Hz")) text = "One band of the equalizer: raises or lowers the frequencies around it, from -6 to +6 dB.";
+	if (!text) return;
+	for (int redraw = 1;;) {
+		if (redraw && backlight_on) { scr_info(label, text); flip(); redraw = 0; }
+		idle_tick(0);
+		int k = poll_key(500);
+		if (k == K_REDRAW) { redraw = 1; continue; }
+		if (k == K_VOLUP || k == K_VOLDN) { volume_key(k); continue; }
+		if (k >= 0) return;
+	}
+}
+static int info_opt(int i) { settings_info(items[i]); return 0; }
 
 /* Settings > Sound > Equalizer: Sony's own (the DSP's: works with Max battery), like the Sony UI:
  * preset, Clear Bass 0..+3, 400 Hz .. 16 kHz -3..+3 (2 dB a step). Touching a value with a preset on switches to
- * Personalizado starting from that preset. Our 5-band EQ is "Equalizer avanzado" (the ARM does it). */
+ * Custom starting from that preset. Our 5-band EQ is "Advanced equalizer" (the ARM does it). */
 static void eq_adv_menu(void);
 
 /* the Sony-style EQ screen: UP/DOWN walk the presets (the panel previews each curve), PLAY chooses (heard at once);
- * PLAY on Personalizado enters editing: LEFT/RIGHT pick Clear Bass or a band (orange knob), UP/DOWN change it
- * (heard at once, starting from the preset in use), PLAY/BACK leave editing. Last row: our "EQ avanzado". */
+ * PLAY on Custom enters editing: LEFT/RIGHT pick Clear Bass or a band (orange knob), UP/DOWN change it
+ * (heard at once, starting from the preset in use), PLAY/BACK leave editing. Last row: our "Advanced equalizer". */
 static void eq_menu(void)
 {
 	static const char *names[7] = { "Effects off", "Heavy", "Pop", "Jazz", "Unique", "Custom", "Advanced EQ (processor)" };
@@ -64,7 +125,7 @@ static void eq_menu(void)
 		if (k < 0) continue;
 		redraw = 1;
 		if (ui_volume_key(k)) continue;
-		if (edit >= 0) {	/* editing Personalizado */
+		if (edit >= 0) {	/* editing Custom */
 			if (k == K_LEFT) edit = edit > 0 ? edit - 1 : 5;
 			else if (k == K_RIGHT) edit = edit < 5 ? edit + 1 : 0;
 			else if (k == K_UP || k == K_DOWN) {
@@ -95,6 +156,7 @@ static void eq_menu(void)
 static void eq_adv_menu(void)
 {
 	struct list_view v = { "Advanced equalizer", 9, 0, 0, it_label, it_value, 0, LI_NONE, 0, 0 };
+	v.option = info_opt;
 	for (;;) {
 		int p = preset_index();
 		snprintf(items[0], 48, "Equalizer"); snprintf(values[0], 24, "%s", eq.on ? "on" : "off");
@@ -117,6 +179,7 @@ void voice_quick_menu(void);
 static void voice_menu(void)
 {
 	struct list_view v = { "Voice and podcasts", 4, 0, 0, it_label, it_value, 0, LI_NONE, 0, 0 };
+	v.option = info_opt;
 	for (;;) {
 		snprintf(items[0], 48, "Speed"); snprintf(values[0], 24, "%d.%02dx", eng_speed / 100, eng_speed % 100);
 		snprintf(items[1], 48, "Trim silences"); snprintf(values[1], 24, "%s", voice_trim_on ? "on" : "off");
@@ -135,6 +198,7 @@ static void voice_menu(void)
 static void headphones_menu(void)
 {
 	struct list_view v = { "Headphones", 3, 0, 0, it_label, it_value, 0, LI_NONE, 0, 0 };
+	v.option = info_opt;
 	for (;;) {
 		snprintf(items[0], 48, "Crossfeed"); snprintf(values[0], 24, "%s", hp_xfeed ? "on" : "off");
 		snprintf(items[1], 48, "Bass at low volume"); snprintf(values[1], 24, "%s", hp_loud ? "on" : "off");
@@ -157,6 +221,7 @@ static void sony_fx_menu(void)
 	static const char *vpt_names[7] = { "off", "Mode 1", "Mode 2", "Mode 3", "Mode 4", "Mode 5", "Mode 6" };
 	static const char *seq_names[5] = { "off", "Heavy", "Pop", "Jazz", "Unique" };
 	struct list_view v = { "Sony effects", 3, 0, 0, it_label, it_value, 0, LI_NONE, 0, 0 };
+	v.option = info_opt;
 	sony_cs = 0;	/* Clear Stereo: no audible effect on this unit (tested 2026-09-29), no longer offered */
 	for (;;) {
 		snprintf(items[0], 48, "VPT (surround)"); snprintf(values[0], 24, "%s", vpt_names[sony_vpt + 1]);
@@ -181,6 +246,7 @@ static int sound_menu(int with_np)
 	quick_open = 1;
 	int r = 0;
 	struct list_view v = { "Sound", 0, 0, 0, it_label, it_value, 0, LI_NONE, 0, 0 };
+	v.option = info_opt;
 	for (;;) {
 		struct eng_info e; eng_info(&e);
 		int book = eng_active() ? e.mode == ENG_BOOK : 0;
@@ -253,17 +319,16 @@ static void about_screen(void)
 	char vl[80]; snprintf(vl, sizeof vl, "Version %s", ver);
 	free_space("/contents", c, sizeof c); free_space(statedir, v, sizeof v);
 	snprintf(fr, sizeof fr, "Free: %s", c); snprintf(st, sizeof st, "Settings: %s", v);
-	scr_screen("About");
-	gfx_text_center(W / 2, 50, gfx_anim_intl() ? "NWZ-A820 homebrew" : "NW-A820 homebrew", C_WHITE, 1);
-	gfx_text_center(W / 2, 80, vl, C_WHITE, 1);
-	if (*date) gfx_text_center(W / 2, 102, date, C_GREY, 1);
-	gfx_text_center(W / 2, 130, fr, C_GREY, 1);
-	gfx_text_center(W / 2, 152, st, C_GREY, 1);
-	gfx_text_center(W / 2, 180, "License: GPL-2.0", C_GREY, 1);
-	gfx_text_center(W / 2, 202, "libmad · FAAD2 · lwIP", C_DARK, 1);
-	gfx_text_center(W / 2, 222, "gnuboy · Sonic", C_DARK, 1);
-	gfx_text_center(W / 2, 242, "Mbed TLS · TJpgDec", C_DARK, 1);
-	gfx_text_center(W / 2, 266, "HOME 3 s: to Sony", C_ORANGE, 1);
+	scr_screen("About");	/* everything between the title and the strip (28..278), 20 px a line */
+	int y = 34;
+	gfx_text_center(W / 2, y, hw_a91x ? "NW-A91x homebrew" : gfx_anim_intl() ? "NWZ-A820 homebrew" : "NW-A820 homebrew", C_WHITE, 1); y += 22;
+	gfx_text_center(W / 2, y, vl, C_WHITE, 1); y += 20;
+	if (*date) { gfx_text_center(W / 2, y, date, C_GREY, 1); y += 20; }
+	gfx_text_center(W / 2, y, fr, C_GREY, 1); y += 20;
+	gfx_text_center(W / 2, y, st, C_GREY, 1); y += 24;
+	gfx_text_center(W / 2, y, "License: GPL-2.0", C_GREY, 1); y += 20;
+	gfx_text_center(W / 2, y, "libmad · FAAD2 · lwIP · Sonic", C_GREY, 1); y += 20;
+	gfx_text_center(W / 2, y, "gnuboy · Mbed TLS · TJpgDec", C_GREY, 1);
 	gfx_flip();
 	while (getkey(500) != K_BACK) idle_tick(0);
 }
@@ -297,7 +362,9 @@ static void reset_menu(void)
 static void screen_menu(void)
 {
 	struct list_view v = { "Display", 9, 0, 0, it_label, it_value, 0, LI_NONE, 0, 0 };
+	v.option = info_opt;
 	for (;;) {
+		int id[9], n = 0;	/* row -> the rows below (the Background row is gone) */
 		snprintf(items[0], 48, "Brightness"); snprintf(values[0], 24, "%d%%", ui_brightness);
 		snprintf(items[1], 48, "Screen off after"); snprintf(values[1], 24, "%d s", ui_dim_secs);
 		snprintf(items[2], 48, "Big rows with covers"); snprintf(values[2], 24, "%s", ui_big_rows ? "on" : "off");
@@ -308,17 +375,20 @@ static void screen_menu(void)
 		snprintf(items[7], 48, "Status strip"); snprintf(values[7], 24, "%s", ui_strip_calm ? "calm" : "live");
 		{ static const char *const sz[4] = { "small", "medium", "large", "extra large" };
 		  snprintf(items[8], 48, "Book text size"); snprintf(values[8], 24, "%s", sz[ui_book_size < 0 ? 0 : ui_book_size > 3 ? 3 : ui_book_size]); }
+		for (int r = 0; r < 9; r++) if (r != 3) { if (n != r) { memcpy(items[n], items[r], sizeof items[0]); memcpy(values[n], values[r], sizeof values[0]); } id[n++] = r; }
+		v.n = n;
 		int s = list_run(&v);
 		if (s < 0) return;
+		s = id[s];
 		if (s == 0) { ui_brightness = ui_brightness >= 100 ? 20 : ui_brightness + 20; gfx_backlight(ui_brightness); }	/* the LCD has 5 real levels */
 		else if (s == 1) ui_dim_secs = ui_dim_secs >= 120 ? 15 : ui_dim_secs * 2;
-		else if (s == 2) ui_big_rows = !ui_big_rows;	/* álbumes, podcasts y audiolibros: from the next time the list opens */
+		else if (s == 2) ui_big_rows = !ui_big_rows;	/* albums and audiobooks: from the next time the list opens */
 		else if (s == 3) { ui_wall = (ui_wall + 1) % WALL_COUNT; scr_wall_changed(); }
-		else if (s == 4) { ui_theme_set(ui_theme == 1 ? 2 : 1); scr_wall_changed(); }	/* SNRGY plata <-> SNRGY negro */
+		else if (s == 4) { ui_theme_set(ui_theme == 1 ? 2 : 1); scr_wall_changed(); }	/* SNRGY silver <-> SNRGY black */
 		else if (s == 5) ui_aod = !ui_aod;	/* the strip stays on when the screen times out (SNRGY looks) */
 		else if (s == 6) ui_aod_level = ui_aod_level >= 100 ? 20 : ui_aod_level + 20;
 		else if (s == 7) ui_strip_calm = !ui_strip_calm;
-		else if (s == 8) ui_book_size = (ui_book_size + 1) % (gfx_book_sizes() < 4 ? gfx_book_sizes() : 4);	/* the reader's text: 13, 15, 18, 22 px */	/* tranquila: refreshed every 5 s, long titles don't scroll */
+		else if (s == 8) ui_book_size = (ui_book_size + 1) % (gfx_book_sizes() < 4 ? gfx_book_sizes() : 4);	/* the reader's text: 13, 15, 18, 22 px */
 		settings_save();
 	}
 }
@@ -338,6 +408,7 @@ static void switch_menu(void)
 void settings_menu(void)
 {
 	struct list_view v = { "Settings", 11, 0, 0, it_label, it_value, 0, LI_NONE, 0, 0 };
+	v.option = info_opt;
 	for (;;) {
 		int id[11], n = 0;	/* row -> the rows below (the NW-A91x has no Bluetooth row) */
 		{ static const char *pn[6] = { "EQ off", "Heavy", "Pop", "Jazz", "Unique", "Custom" };	/* the EQ: the path ("max. battery") is inside */
@@ -352,7 +423,7 @@ void settings_menu(void)
 		snprintf(items[8], 48, "Power"); values[8][0] = 0;	/* 2026-11-13: moved here from the SNRGY home list */
 		snprintf(items[9], 48, "Reset everything"); values[9][0] = 0;
 		snprintf(items[10], 48, "About"); values[10][0] = 0;	/* Idioma removed 2026-11-13: English only */
-		for (int r = 0; r < 11; r++) if (!(hw_a91x && r == 2)) { if (n != r) { memcpy(items[n], items[r], sizeof items[0]); memcpy(values[n], values[r], sizeof values[0]); } id[n++] = r; }
+		for (int r = 0; r < 11; r++) if (!(hw_a91x && r == 2) && r != 3) {	/* no Bluetooth on the A91x; the alarm lives in Tools */ if (n != r) { memcpy(items[n], items[r], sizeof items[0]); memcpy(values[n], values[r], sizeof values[0]); } id[n++] = r; }
 		v.n = n;
 		int s = list_run(&v);
 		if (s < 0) return;

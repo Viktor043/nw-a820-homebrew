@@ -35,6 +35,7 @@ extern int quick_open;
 int sound_quick_menu(int with_np);	/* OPTION: quick sound settings (settings.c); 1 = open the player */
 int ui_volume_key(int k);	/* VOL+/VOL- -> volume change + popup; 1 if it was one */
 void msg_wait(double secs);	/* message on screen for up to secs, any key dismisses; audio keeps playing */
+int poll_key(int ms);		/* getkey that also feeds the playing engine and headset keys */
 void flip(void);			/* gfx_flip, or the pending slide transition */
 void nowplaying_run(void);
 /* ctxopt.c: OPTION inside a menu (what fits that menu) */
@@ -46,7 +47,9 @@ int opt_run(int kind, int sel);
 int opt_music(int i), opt_albums(int i), opt_audiobooks(int i), opt_books(int i), opt_games(int i);
 void voice_quick_menu(void);		/* settings.c: speed, silence trimming, voice boost */
 void reader_restart(int i);		/* reader.c: forget where book i of the list was */
-void game_controls(int i);		/* hbplayer.c: the keys of game i */
+void game_controls(int i);
+void calc_run(void);			/* calc.c: the calculator (Tools) */
+void settings_info(const char *label);	/* settings.c: the (i) window of a setting */		/* hbplayer.c: the keys of game i */
 extern int hw_a91x;			/* hbplayer.c: an NW-A91x (no Bluetooth; an LED) rather than an NW-A82x */
 extern int eng_resume_music;	/* engine.c: resume the next song opened at its saved position (only "Now playing") */		/* the "now playing" screen for whatever the engine plays */
 extern int backlight_on;
@@ -171,7 +174,7 @@ void pod_menu_option(void);		/* OPTION on "Buscar nuevos" / "Agregar podcast": p
 /* kbd.c: on-screen keyboard. 1 = accepted (text in buf), 0 = cancelled */
 int kbd_input(const char *title, const char *hint, char *buf, size_t max);
 /* i18n.c: the interface in English (every drawn text passes through gfx_tr) */
-extern int ui_lang;		/* 0 español, 1 English */
+extern int ui_lang;		/* always 1 (English) */
 void ui_lang_set(int lang);
 const char *ui_tr(const char *s);
 void factory_reset(void);
@@ -326,7 +329,7 @@ void focus_bells(void);			/* focus.c: ring bells until a key (alarm) */
 
 /* settings.c: the "Settings" screen */
 void settings_menu(void);
-void power_menu(void);	/* Suspender / Power del todo (Settings; Sony grid keeps its icon) */
+void power_menu(void);	/* Sleep / Power off (Settings; Sony grid keeps its icon) */
 
 /* music.c / focus.c */
 void music_menu(void);

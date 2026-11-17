@@ -181,7 +181,7 @@ struct ui_status ui_st = { -1, 0, 0, 0, 0, 0, 0 };
 #define T_POWEROFF 17, 7	/* 240x320 POWER OFF */
 #define T_RING 17, 17		/* 240x260 blue ring */
 
-const char *const home_labels[HOME_SLOTS] = { "Focus", "Audiobooks", "Podcasts", "Now playing", "Music", "Games", "Bluetooth", "Power", "Settings" };	/* Music in the centre, like Sony */
+const char *const home_labels[HOME_SLOTS] = { "Focus", "Audiobooks & Pods", "Podcasts", "Now playing", "Music", "Games", "Bluetooth", "Power", "Settings" };	/* Music in the centre, like Sony */
 /* icon per slot: >= 100 -> Sony's own animation (first frame index - 100), else our ICON_*, -1 empty */
 static int home_src[HOME_SLOTS] = { ICON_LOTUS, ICON_BOOK, 100 + 45, 100 + 27, 100 + 54, ICON_GAMEPAD, 100 + 72, ICON_POWER, 100 + 9 };
 static const int home_src_intl[HOME_SLOTS] = { ICON_LOTUS, ICON_BOOK, ICON_MIC, ICON_PLAY, 100 + 55, ICON_GAMEPAD, 100 + 37, ICON_POWER, 100 + 18 };
@@ -645,9 +645,9 @@ static void snrgy_icon_draw(int k, int x, int y, uint16_t c)
 	}
 }
 int ui_home_tab;	/* 0 the list, 2 RESUME (the header) */
-const int home_order[] = { 4, 1, HOME_BOOKS, 2, 5, 0, 8 };	/* Music, Audiobooks, Books, Podcasts, Games, Focus, Settings (Bluetooth and Power: Settings) */
-const int home_order_n = 7;
-#define HOME_RH 35	/* seven rows between the tabs and the strip (was 8 x 31 with Power) */
+const int home_order[] = { 4, HOME_BOOKS, 1, 5, HOME_TOOLS, 8 };	/* Music, Books, Audiobooks & Pods, Games, Tools, Settings (2026-11-17) */
+const int home_order_n = 6;
+#define HOME_RH 41	/* six rows between the header and the strip */
 static void snrgy_home(int sel, const char *nowline)
 {
 	bg_fill(0, 0, W, BOTTOM_Y, 0);
@@ -663,8 +663,8 @@ static void snrgy_home(int sel, const char *nowline)
 		uint16_t fg = on ? C_BLACK : C_WHITE;
 		if (on) rrect(4, y, W - 8, HOME_RH - 1, 6, C_WHITE, 1);
 		else if (!next_on && r < home_order_n - 1) gfx_fill(10, y + HOME_RH - 1, W - 20, 1, th_rule);
-		snrgy_icon_draw(i == HOME_BOOKS ? SNRGY_ICON_BOOKS : i, 12, y + (HOME_RH - 1 - SNRGY_ICON) / 2, fg);
-		gfx_text_clip(42, y + (HOME_RH - 1 - LINE_H) / 2 + 1, i == HOME_BOOKS ? "Books" : home_labels[i], fg, W - 80);
+		snrgy_icon_draw(i == HOME_BOOKS ? SNRGY_ICON_BOOKS : i == HOME_TOOLS ? SNRGY_ICON_TOOLS : i, 12, y + (HOME_RH - 1 - SNRGY_ICON) / 2, fg);
+		gfx_text_clip(42, y + (HOME_RH - 1 - LINE_H) / 2 + 1, i == HOME_BOOKS ? "Books" : i == HOME_TOOLS ? "Tools" : home_labels[i], fg, W - 62);
 		if (i == 2 && ui_pod_new > 0) { char n[8]; snprintf(n, sizeof n, "%d", ui_pod_new); gfx_text(W - 26 - gfx_text_w(n, 1), y + (HOME_RH - 1 - LINE_H) / 2 + 1, n, on ? C_BLACK : C_GREY, 1); }
 		chevron(W - 18, y + HOME_RH / 2 - 1, fg);
 	}
@@ -981,26 +981,33 @@ static void snrgy_player(const struct player_view *v)
 				memcpy(fb + y * W + cx, v->art.px + j * cs, cs * 2);
 			}
 		} else {
-			rrect(cx, cy, cs, cs, 6, th_surf, 1);
-			icon_x4(4, W / 2, cy + cs / 2 - 14, C_GREY);
-			if (v->track) gfx_text_clip(cx + 12, cy + cs - 34, v->track, C_GREY, cs - 24);
+			gfx_fill(cx, cy < 0 ? 0 : cy, cs, cy < 0 ? cs + cy : cs, 0);	/* no cover: black, a big red note */
+			int nx = W / 2 - SNRGY_NOTE_BIG / 2, ny = cy + cs / 2 - SNRGY_NOTE_BIG / 2;
+			for (int j = 0; j < SNRGY_NOTE_BIG; j++) {
+				int yy = ny + j;
+				if (yy < 0 || yy >= BOTTOM_Y) continue;
+				for (int i = 0; i < SNRGY_NOTE_BIG; i++) {
+					int a = snrgy_note_big[j * SNRGY_NOTE_BIG + i];
+					if (a) fb[yy * W + nx + i] = RGB(0xE2 * a / 15, 0x06 * a / 15, 0x13 * a / 15);
+				}
+			}
 		}
 	}
 	int iy = SP_INFO - off;
 	if (iy > -24 && iy < BOTTOM_Y) {
 		char b[32]; snprintf(b, sizeof b, "%d / %d", v->idx + 1, n);
 		int x = gfx_text(8, iy, b, C_WHITE, 1) + 12;
+		int mode_x = x;	/* the play mode icon(s) go here, the timer / speed / output after them */
+		if (!v->meta) x += SNRGY_ICON + 8 + (v->shuffle && v->repeat ? SNRGY_ICON + 4 : 0);
 		if (v->sleep_left > 0) { snprintf(b, sizeof b, "%d'", v->sleep_left); x = gfx_text(x, iy, b, C_GREY, 1) + 10; }
 		if (v->speed && v->speed != 100) { snprintf(b, sizeof b, "%d.%02dx", v->speed / 100, v->speed % 100); x = gfx_text(x, iy, b, C_GREY, 1) + 10; }
 		if (v->out && *v->out) gfx_text(x, iy, v->out, C_GREY, 1);
-		if (!v->meta) {	/* music: in order / shuffle / repeat all / repeat one, an icon and its name */
-			static const char *const names[4] = { "In order", "Shuffle", "Repeat all", "Repeat one" };
+		if (!v->meta) {	/* music: the play mode as an icon after the counter (in order / shuffle / repeat all / one) */
 			int m = v->shuffle ? 1 : v->repeat == 1 ? 2 : v->repeat == 2 ? 3 : 0;
-			int w = gfx_text_w(names[m], 1), rx = W - 8 - w;
-			gfx_text(rx, iy, names[m], C_GREY, 1);
-			snrgy_icon_draw(SNRGY_ICON_MODE + m, rx - SNRGY_ICON - 6, iy + 1, C_WHITE);
-			if (v->shuffle && v->repeat) snrgy_icon_draw(SNRGY_ICON_MODE + 1 + v->repeat, rx - 2 * SNRGY_ICON - 10, iy + 1, C_WHITE);
+			snrgy_icon_draw(SNRGY_ICON_MODE + m, mode_x - 4, iy + 1, C_WHITE);
+			if (v->shuffle && v->repeat) snrgy_icon_draw(SNRGY_ICON_MODE + 1 + v->repeat, mode_x + SNRGY_ICON, iy + 1, C_WHITE);
 		}
+		if (n > 1 && v->qtitle) snrgy_icon_draw(SNRGY_ICON_LISTDOWN, W - 8 - SNRGY_ICON, iy + 1, RGB(0xE2, 0x06, 0x13));	/* the queue is below */
 	}
 	for (int i = 0; i < n && v->qtitle; i++) {
 		int y = SP_LIST + i * rh - off;
@@ -1101,6 +1108,51 @@ void scr_message(const char *title, const char *l1, const char *l2)
 	scr_screen(title);
 	int n = gfx_text_wrap(14, 96, l1 ? l1 : "", C_WHITE, W - 28, 3, 24);
 	if (l2 && *l2) gfx_text_wrap(14, 104 + n * 24, l2, C_ORANGE, W - 28, 3, 24);
+}
+
+const char *const calc_keys[CALC_ROWS * CALC_COLS] = {
+	"C", "+/-", "%", "/",
+	"7", "8", "9", "x",
+	"4", "5", "6", "-",
+	"1", "2", "3", "+",
+	"0", ".", "DEL", "=",
+};
+
+/* Calculator: the expression and the number on top (right-aligned, the number at twice the size when it fits),
+ * then the keys as rounded cells; operators in red, the cursor a filled white cell */
+void scr_calc(const struct calc_view *v)
+{
+	scr_screen("Calculator");
+	const uint16_t red = SNRGY ? RGB(0xE2, 0x06, 0x13) : C_ORANGE;
+	gfx_text(W - 10 - gfx_text_w(v->expr, 1), 34, v->expr, C_GREY, 1);
+	int sc = gfx_text_w(v->value, 2) <= W - 20 ? 2 : 1;
+	gfx_text(W - 10 - gfx_text_w(v->value, sc), sc == 2 ? 56 : 66, v->value, C_WHITE, sc);
+	int gy = 106, gh = BOTTOM_Y - 4 - gy, ch = gh / CALC_ROWS, cw = (W - 8) / CALC_COLS;
+	for (int i = 0; i < CALC_ROWS * CALC_COLS; i++) {
+		int x = 4 + (i % CALC_COLS) * cw, y = gy + (i / CALC_COLS) * ch;
+		const char *k = calc_keys[i];
+		int is_op = i % CALC_COLS == CALC_COLS - 1 || i < CALC_COLS;
+		if (i == v->sel) rrect(x + 2, y + 2, cw - 4, ch - 4, 6, C_WHITE, 1);
+		else rrect(x + 2, y + 2, cw - 4, ch - 4, 6, SNRGY ? th_surf : C_SURF, 1);
+		uint16_t c = i == v->sel ? C_BLACK : is_op ? red : C_WHITE;
+		gfx_text_center(x + cw / 2, y + (ch - LINE_H) / 2 + 1, k, c, 1);
+	}
+}
+
+/* (i): the setting's name in the title, an "i" in a red circle and what it does */
+void scr_info(const char *label, const char *text)
+{
+	scr_screen("Info");
+	const uint16_t red = SNRGY ? RGB(0xE2, 0x06, 0x13) : C_ORANGE;
+	int cx = 24, cy = 50;
+	for (int j = -11; j <= 11; j++) for (int i = -11; i <= 11; i++) {
+		int d = i * i + j * j;
+		if (d <= 121) gfx_fill(cx + i, cy + j, 1, 1, red);
+	}
+	gfx_text_center(cx, cy - LINE_H / 2 + 1, "i", RGB(255, 255, 255), 1);
+	gfx_text_wrap(44, cy - LINE_H / 2 + 1, label, C_WHITE, W - 54, 2, 22);
+	gfx_fill(12, 76, W - 24, 1, SNRGY ? th_rule : C_DARK);
+	gfx_text_wrap(14, 86, text, C_GREY, W - 28, (BOTTOM_Y - 92) / 22, 22);
 }
 
 void scr_progress(const char *title, int step, int nsteps, const char *text, int secs, int spin, const char *hint)
@@ -1233,8 +1285,8 @@ void scr_focus(const struct focus_view *v)
 {
 	background();
 	struct img ring = gfx_tex(T_RING);
-	int cy = 128;
-	if (SNRGY) for (int t = 0; t < 1440; t++) { double q = t * 3.14159265 / 720; for (int r = 98; r <= 99; r++) gfx_fill(W / 2 + (int)lround(r * cos(q)), cy + (int)lround(r * sin(q)), 1, 1, C_WHITE); }
+	int cy = SNRGY ? 124 : 128;	/* SNRGY: a 92 px ring, so the two lines below clear it and the bottom edge */
+	if (SNRGY) for (int t = 0; t < 1440; t++) { double q = t * 3.14159265 / 720; for (int r = 91; r <= 92; r++) gfx_fill(W / 2 + (int)lround(r * cos(q)), cy + (int)lround(r * sin(q)), 1, 1, C_WHITE); }
 	else if (ring.w) blit_max(ring, 0, cy - ring.h / 2);
 	scr_status("Focus");
 	char b[16];
@@ -1242,8 +1294,8 @@ void scr_focus(const struct focus_view *v)
 	snprintf(b, sizeof b, "%02d:%02d", l / 60, l % 60);
 	big_digits(W / 2, cy - 18, b);
 	if (v->paused) gfx_text_center(W / 2, cy + 26, "PAUSED", C_ORANGE, 1);
-	if (v->l1) gfx_text_center(W / 2, 238, v->l1, C_GREY, 1);
-	if (v->l2) gfx_text_center(W / 2, 262, v->l2, C_GREY, 1);
+	if (v->l1) gfx_text_center(W / 2, BOTTOM_Y - 52, v->l1, C_GREY, 1);	/* below the ring (bottom 216), 8 px above the edge */
+	if (v->l2) gfx_text_center(W / 2, BOTTOM_Y - 30, v->l2, C_GREY, 1);
 }
 
 /* ---------- on-screen keyboard ---------- */

@@ -116,7 +116,7 @@ int main(void)
 		snprintf(b, sizeof b, "UPDATE_SCRN -> %d (errno %d)", rc, rc ? errno : 0); lg(b);
 		note("3d QFB_UPDATE_SCRN", ask("PASO 3d", "Y ahora, se mueve?"), 0);
 	}
-	draw("LISTO", "Gracias. Sigue el arranque", "normal del Walkman.", -1); gfx_flip();
+	draw("DONE", "Thanks. The Walkman goes on", "booting as usual.", -1); gfx_flip();
 	sleep(2);
 	lg("end");
 	return 0;

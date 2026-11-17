@@ -138,7 +138,7 @@ static void inicio(void)
 	save("m1_inicio");
 }
 
-/* ---------------- Álbumes ---------------- */
+/* ---------------- Albums ---------------- */
 static const int ab[7] = { C_BLACKBIRD, C_AB35, C_FORTRESS, C_PAWNS, C_HERO, C_SKY, C_AB35 };
 static const char *ab_n[7] = { "Blackbird", "AB III.5", "Fortress", "Pawns & Kings", "The Last Hero", "Walk the Sky", "Live at Wembley" };
 
@@ -153,7 +153,7 @@ static void albumes_a(void)
 	gfx_blit(cover_at(ab[1], 140, 2), 50, 38);
 	gfx_text_center(W / 2, 188, ab_n[1], C_WHITE, 1);
 	gfx_text_center(W / 2, 210, "Alter Bridge", C_GREY, 1);
-	gfx_text_center(W / 2, 232, "2011 · 14 canciones", C_GREY, 1);
+	gfx_text_center(W / 2, 232, "2011 · 14 songs", C_GREY, 1);
 	for (int i = 0; i < 7; i++) rbox(W / 2 - 45 + i * 13, 264, 8, 8, i == 1 ? C_ORANGE : TRACK);	/* position dots */
 	bottom_now();
 	save("a1_albumes_carrusel");
@@ -169,7 +169,7 @@ static void albumes_b(void)
 		if (sel) rbox(x - 3, y - 3, 78, 78, C_ORANGE);
 		gfx_blit(cover_at(ab[i % 7], 72, 0), x, y);
 	}
-	gfx_text_center(W / 2, 264, "2011 · 14 canciones", C_GREY, 1);
+	gfx_text_center(W / 2, 264, "2011 · 14 songs", C_GREY, 1);
 	bottom_now();
 	save("a2_albumes_mosaico");
 }

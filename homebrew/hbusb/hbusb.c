@@ -29,7 +29,6 @@
 #define USB_ALLOW 0x40046702
 
 static const char *statedir = "/var/hb";
-static int en;
 
 static void lg(const char *fmt, ...)
 {
@@ -55,14 +54,13 @@ static int lang_en(void)
 }
 
 /* the WALKMAN splash (as hbwatch) with a title and up to two grey lines ("a\nb") in the band below it */
-static void screen(const char *t_es, const char *t_en, const char *s_es, const char *s_en)
+static void screen(const char *t, const char *sub)
 {
 	static int ok = -1;
 	if (ok < 0) { ok = !gfx_open(); if (ok) gfx_load_res(RESDIR); }
 	if (!ok) return;
 	gfx_walkman_logo(118);	/* 2026-11-13: black, logo alone */
-	gfx_text_center(W / 2, 246, en ? t_en : t_es, 0xFFFF, 1);
-	const char *sub = en ? s_en : s_es;
+	gfx_text_center(W / 2, 246, t, 0xFFFF, 1);
 	for (int y = 274; sub && *sub && y < 320; y += LINE_H) {
 		char l[96]; size_t n = strcspn(sub, "\n"); if (n >= sizeof l) n = sizeof l - 1;
 		memcpy(l, sub, n); l[n] = 0;
@@ -138,7 +136,7 @@ static void mount_back(const char *opts)
 
 static void firmware_update(void)
 {
-	screen("Actualizando firmware...", "Updating firmware...", "No lo desconectes", "Keep it connected");
+	screen("Updating firmware...", "Keep it connected");
 	lg("firmware update requested: flag, reboot");
 	int f = open("/dev/icx1087_nvp/9", O_RDWR);
 	unsigned v = 0x70555766;
@@ -153,7 +151,6 @@ static void firmware_update(void)
 int main(int argc, char **argv)
 {
 	if (argc > 1) statedir = argv[1];
-	en = 1;	/* 2026-11-13: English only */
 	(void)lang_en;
 	int fd = open("/dev/usbconn", O_RDWR);
 	if (fd < 0) { lg("no /dev/usbconn"); return 1; }
@@ -162,7 +159,7 @@ int main(int argc, char **argv)
 	if (st == 2) firmware_update();
 	if (st != 1) { close(fd); return 0; }
 	gfx_lcd(1); gfx_backlight(80);
-	screen("Connecting over USB...", "Connecting over USB...", 0, 0);
+	screen("Connecting over USB...", 0);
 	char opts[256]; contents_opts(opts, sizeof opts);
 	sync();
 	int ok = 0;
@@ -171,14 +168,14 @@ int main(int argc, char **argv)
 		lg("umount /contents failed (%d)", errno);
 		log_holders();
 		close(open("/tmp/hb_usb_off", O_WRONLY | O_CREAT, 0644));	/* the player ignores the cable until it is unplugged */
-		screen("USB no disponible", "USB unavailable", "Unplug the cable", "Unplug the cable");
+		screen("USB unavailable", "Unplug the cable");
 		sleep(3);
 		return 2;
 	}
 	sleep(1);	/* apl_conn -s 1 */
 	if (ioctl(fd, USB_ALLOW, 0) < 0) lg("allow ioctl failed (%d)", errno);
 	lg("contents handed to the computer");
-	screen("Connected over USB", "Connected over USB", "Eject it on the computer\nbefore unplugging", "Eject it on the PC\nbefore unplugging");
+	screen("Connected over USB", "Eject it on the PC\nbefore unplugging");
 	int keys = open("/dev/input/event0", O_RDONLY | O_NONBLOCK);
 	time_t lit = time(0); int light = 1;
 	for (;;) {
@@ -197,7 +194,7 @@ int main(int argc, char **argv)
 	}
 	lg("disconnected (status %d)", st);
 	if (!light) gfx_backlight(80);
-	screen("Volviendo...", "Returning...", 0, 0);
+	screen("Returning...", 0);
 	sync();
 	mount_back(opts);
 	if (keys >= 0) close(keys);

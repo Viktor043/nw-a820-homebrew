@@ -27,8 +27,8 @@ int main(int argc, char **argv)
 		int left = (int)(end - time(0));
 		gfx_fill(0, 0, W, H, RGB(10, 10, 40));
 		gfx_text(8, 6, "PRUEBA DE BOTONES", RGB(255, 200, 0), 2);
-		gfx_text(8, 42, "Apretá cada botón", RGB(255, 255, 255), 1);
-		gfx_text(8, 58, "(también HOLD)", RGB(255, 255, 255), 1);
+		gfx_text(8, 42, "Press every button", RGB(255, 255, 255), 1);
+		gfx_text(8, 58, "(HOLD too)", RGB(255, 255, 255), 1);
 		char buf[40];
 		snprintf(buf, sizeof buf, "quedan %2d s   HOLD=%d", left, hold);
 		gfx_text(8, 80, buf, RGB(150, 255, 150), 1);

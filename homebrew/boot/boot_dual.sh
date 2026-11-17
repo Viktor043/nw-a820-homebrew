@@ -3,7 +3,7 @@
 #  - Boots into the UI used last: /var/hb/mode = player | sony (written by the player), no prompt. The old 3 s prompt
 #    ("HOME: Audiobooks") only appears while there is no mode file yet.
 #  - Sony UI -> player: HOME held 3 s (hbwatch writes /var/hb/boot_player and reboots).
-#  - Player -> Sony UI: "Volver al Walkman" exits the player with 0 and this script goes on into the Sony UI (no reboot).
+#  - Player -> Sony UI: "Switch to Sony's Walkman" exits the player with 0 and this script goes on into the Sony UI (no reboot).
 #  - A player crash after more than a minute of use: started once more (it resumes where it was); a crash right away
 #    goes to the Sony UI and makes it the next boot's choice too.
 #  - Our programs run straight from /contents/HB/bin (FAT, fmask 0022 = executable): copies in /tmp (ramfs) could never

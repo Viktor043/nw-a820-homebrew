@@ -526,7 +526,7 @@ int getkey(int timeout_ms)
 }
 
 /* keys for the current loop: waits up to ms, but never while audio is playing (the engine paces the loop) */
-static int poll_key(int ms)
+int poll_key(int ms)
 {
 	if (eng_playing()) { eng_step(); int p = audio_period(); if (ms > p) ms = p; }	/* the engine paces the loop */
 	int a = bt_avrcp_key();	/* headset buttons act on the engine only, never as UI navigation */
@@ -949,7 +949,7 @@ static int list_dir(const char *root, int dirs, const char *ext, int desc)
 	closedir(d);
 	sort_desc = desc;
 	qsort(items, n, sizeof items[0], cmp_item);
-	if (over) { lg("list_dir: %s has more than %d entries, %d not shown", root, MAXITEMS, over); eng_note("Carpeta muy grande: se muestran 1000"); }
+	if (over) { lg("list_dir: %s has more than %d entries, %d not shown", root, MAXITEMS, over); eng_note("Folder too big: showing 1000"); }
 	return n;
 }
 
@@ -1499,6 +1499,15 @@ static void browse(const char *root, const char *title, int podcasts)
 reload:;
 	if (podcasts) mkdir(root, 0755);
 	int nf = list_dir(root, 1, 0, 0), extra = 0;
+	if (!podcasts && !strcmp(root, "/contents/Audiobooks")) {	/* Audiobooks & Pods: podcasts copied to Podcasts show here too */
+		int na = nf;	/* folders[] (filled from items below anyway) holds the audiobooks meanwhile */
+		memcpy(folders, items, sizeof folders[0] * na);
+		int np = list_dir("/contents/Podcasts", 1, 0, 0);
+		if (na + np > MAXITEMS) np = MAXITEMS - na;
+		memmove(items + na, items, sizeof items[0] * np);
+		memcpy(items, folders, sizeof items[0] * na);
+		nf = na + np;
+	}
 	if (podcasts && nf + 2 <= MAXITEMS) {	/* first rows: new episodes over the phone's Bluetooth tethering, a new show */
 		memmove(items + 2, items, sizeof items[0] * nf);
 		snprintf(items[0].name, sizeof items[0].name, "Check for new episodes");
@@ -1611,6 +1620,22 @@ void game_controls(int i)
 		: "PLAY = A · OPTION = B · BACK = Start (2 s: quit)";
 	message(title, games[i].name, keys);
 	msg_wait(6);
+}
+
+/* Tools: the small apps */
+static const char *const tools_l[3] = { "Focus", "Alarm", "Calculator" };
+static const char *tools_label(int i) { return tools_l[i]; }
+static void tools_menu(void)
+{
+	struct list_view v = { "Tools", 3, 0, 0, tools_label, 0, 0, LI_NONE, 0, 0 };
+	for (;;) {
+		int s = list_run(&v);
+		if (s < 0) return;
+		v.sel = s;
+		if (s == 0) focus_menu();
+		else if (s == 1) alarm_menu();
+		else calc_run();
+	}
 }
 
 static void games_menu(void)
@@ -1876,7 +1901,7 @@ static void home(void)
 			pending_slide = 1;
 			switch (ui_theme && ui_home_tab == 2 ? 3 : sel) {	/* the RESUME tab = "Now playing" */
 			case 0: focus_menu(); break;
-			case 1: browse("/contents/Audiobooks", "Audiobooks", 0); break;
+			case 1: browse("/contents/Audiobooks", "Audiobooks & Pods", 0); break;
 			case 2: browse("/contents/Podcasts", "Podcasts", 1); break;
 			case 3: if (eng_active() || resume_last()) nowplaying_run(); else { pending_slide = 0; eng_note("Nothing is playing"); } break;
 			case 4: music_menu(); break;
@@ -1885,6 +1910,7 @@ static void home(void)
 			case 7: power_menu(); break;
 			case 8: settings_menu(); break;
 			case HOME_BOOKS: books_menu(); break;	/* SNRGY home only */
+			case HOME_TOOLS: tools_menu(); break;
 			}
 			pos_save();
 			ui_pod_new = dl_pending();

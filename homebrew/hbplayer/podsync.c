@@ -4,7 +4,7 @@
  * added or removed from the menus (podui.c) and still editable on the PC. A sync reads each feed, compares it with the
  * files in /contents/Podcasts/<Name>/ and downloads the missing ones among the newest N (same file names as the PC
  * script podsync.py, so both can be used). The phone's address is in /contents/Podcasts/telefono.txt (chosen from
- * the menu: OPTION in Podcasts > Teléfono).
+ * the menu: OPTION in Podcasts > Phone).
  * One phone link serves everyone: pod_net_up / pod_net_down count its users (a sync, the search screens), and a
  * foreground transfer (pod_fetch: a search, a feed to browse) pauses the background queue meanwhile (the transfer it
  * interrupts resumes from its .part).
@@ -609,7 +609,7 @@ const char *pod_phone_name(void)
 	return name[0] ? name : addr;
 }
 
-/* the menu's "Teléfono para internet": a Bluetooth search (bt.c), the choice saved in telefono.txt (the PIN line
+/* the menu's "Phone for internet": a Bluetooth search (bt.c), the choice saved in telefono.txt (the PIN line
  * is kept). The pairing itself happens on the first connection (pan_up asks the phone with the PIN). 0 = saved */
 int pod_choose_phone(void)
 {

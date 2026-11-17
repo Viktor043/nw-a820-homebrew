@@ -8,7 +8,7 @@
 
 struct ev { long sec, usec; unsigned short type, code; int value; };
 static const char *names[] = { "VOLUMEN +", "VOLUMEN -", "ARRIBA", "ABAJO", "IZQUIERDA", "DERECHA",
-	"CENTRO (play)", "OPTION", "BACK / HOME", "BLUETOOTH", "HOLD (mover)", "HOLD (volver)" };
+	"CENTRO (play)", "OPTION", "BACK / HOME", "BLUETOOTH", "HOLD (mover)", "HOLD (back)" };
 #define N (int)(sizeof names / sizeof names[0])
 
 static void screen(int i, const char *msg, int left)
@@ -18,7 +18,7 @@ static void screen(int i, const char *msg, int left)
 	gfx_text(8, 8, "MAPA DE BOTONES", RGB(255, 200, 0), 2);
 	snprintf(b, sizeof b, "paso %d de %d", i + 1, N);
 	gfx_text(8, 50, b, RGB(200, 200, 200), 1);
-	gfx_text(8, 90, "Apretá:", RGB(255, 255, 255), 2);
+	gfx_text(8, 90, "Press:", RGB(255, 255, 255), 2);
 	gfx_text(8, 130, names[i], RGB(120, 255, 120), 2);
 	snprintf(b, sizeof b, "(salta en %2d s)", left);
 	gfx_text(8, 180, b, RGB(160, 160, 160), 1);
@@ -48,7 +48,7 @@ int main(int argc, char **argv)
 				if (read(fd, &e, sizeof e) == sizeof e) {
 					fprintf(log, " [type=%u code=%u value=%d]", e.type, e.code, e.value); fflush(log);
 					got++;
-					snprintf(msg, sizeof msg, "OK: código %u", e.code);
+					snprintf(msg, sizeof msg, "OK: code %u", e.code);
 					if (got >= 2) { end = time(0) + 1; }
 				}
 			}
@@ -57,7 +57,7 @@ int main(int argc, char **argv)
 		if (!got) snprintf(msg, sizeof msg, "(salteado)");
 	}
 	gfx_fill(0, 0, W, H, 0);
-	gfx_text(8, 150, "¡Listo! arranca Sony", RGB(255, 255, 255), 1);
+	gfx_text(8, 150, "Done! starting Sony", RGB(255, 255, 255), 1);
 	fclose(log);
 	return 0;
 }

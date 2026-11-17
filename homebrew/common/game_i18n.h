@@ -30,7 +30,7 @@ static void game_menu_draw(const char *const *items, int n, int sel, const char 
 	int face = gfx_face, caps = gfx_caps;
 	gfx_face = 1; gfx_caps = 1;
 	gfx_fill(0, 0, W, H, GM_PAPER);
-	gfx_text(12, 10, "Juego en pausa", GM_GREY, 1);
+	gfx_text(12, 10, "Game paused", GM_GREY, 1);
 	gfx_fill(10, 38, W - 20, 1, GM_RULE);
 	for (int i = 0; i < n; i++) {
 		int y = 46 + i * 34;
