@@ -5,7 +5,7 @@
  * finds it in RAM (a minor fault instead of a flash read). The child also moves the cover cache's flat files from
  * before 2026-10-14 into the per-byte subfolders cover.c uses now (they were orphaned: every cover decoded again),
  * and reads the tags of new music files into the library cache. Once the player has loaded that cache, a second
- * child makes every album's cover at every size (warm_covers_start): the first visit of Música and of the album
+ * child makes every album's cover at every size (warm_covers_start): the first visit of Music and of the album
  * lists then finds everything ready.
  * It never logs (the player's stdio buffers would be flushed twice): a summary goes to /tmp/hb_warm.txt. */
 #include "hb.h"

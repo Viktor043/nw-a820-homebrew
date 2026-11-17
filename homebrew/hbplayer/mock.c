@@ -97,13 +97,13 @@ static void icon_box(struct img im, int *x0, int *y0, int *x1, int *y1)
 	}
 }
 
-/* ---------------- Inicio (chosen, corrected) ---------------- */
+/* ---------------- Home (chosen, corrected) ---------------- */
 static void inicio(void)
 {
 	int fr[HOME_SLOTS];
 	for (int i = 0; i < HOME_SLOTS; i++) fr[i] = 8;
 	bg_fill(0, TITLE_H, W, BOTTOM_Y - TITLE_H, 1);
-	title_bar("Música");
+	title_bar("Music");
 	rbox(HOME_CELL_X(4) + 2, HOME_CELL_Y(4) + 1, HOME_CELL_W - 4, HOME_CELL_H - 2, SURF_HI);
 	gfx_fill(HOME_CELL_X(4) + 20, HOME_CELL_Y(4) + HOME_CELL_H - 5, HOME_CELL_W - 40, 3, C_ORANGE);
 	fr[4] = 0;
@@ -146,7 +146,7 @@ static const char *ab_n[7] = { "Blackbird", "AB III.5", "Fortress", "Pawns & Kin
 static void albumes_a(void)
 {
 	bg_fill(0, 0, W, H, 0);
-	title_bar("Álbumes");
+	title_bar("Albums");
 	blit_dim(cover_at(ab[0], 104, 0), -66, 52, 3);
 	blit_dim(cover_at(ab[2], 104, 1), 202, 52, 3);
 	rbox(46, 34, 148, 148, C_ORANGE);
@@ -174,13 +174,13 @@ static void albumes_b(void)
 	save("a2_albumes_mosaico");
 }
 
-/* ---------------- Reproduciendo ---------------- */
+/* ---------------- Now playing ---------------- */
 /* A: Sony's layout, modernised: cover left, big Sony digits for the time on the right, then the info lines
  * with Sony's own icons at full width and Sony's progress bar */
 static void repro_a(void)
 {
 	bg_fill(0, 0, W, H, 0);
-	title_bar("Canciones");
+	title_bar("Songs");
 	gfx_blit(cover_at(C_AB35, 112, 0), 6, 34);
 	big_digits(180, 40, "1:11");
 	gfx_text_center(180, 94, "3 / 14", C_GREY, 1);
@@ -211,7 +211,7 @@ static void repro_b(void)
 
 /* ---------------- Episodios ---------------- */
 static const char *ep_t[5] = { "EP#249 We're going to Break a Guinness World Record", "EP#248 Jordan Allen's First Week", "EP#247 YouTuber Movies Are KILLING it", "EP#246 We Made a SPLASH at NAB", "EP#245 The VFX of Dune" };
-static const char *ep_m[5] = { "25 jun · 1 h 12 min", "12 jun · 58 min", "quedan 22 min", "escuchado", "escuchado" };
+static const char *ep_m[5] = { "25 jun · 1 h 12 min", "12 jun · 58 min", "quedan 22 min", "played", "played" };
 
 /* A: rows with the episode's cover (48 px); "new" is a badge on the cover, like the home icon */
 static void episodios_a(void)
@@ -255,12 +255,12 @@ static void episodios_b(void)
 	gfx_text_wrap(10, 178, ep_t[0], C_WHITE, 220, 2, 22);
 	gfx_text(10, 224, "25 jun · 1 h 12 min", C_GREY, 1);
 	blit_mask(gfx_tex(T_CHAP), 10, 253, C_ORANGE);
-	gfx_text(32, 250, "12 capítulos", C_ORANGE, 1);
+	gfx_text(32, 250, "12 chapters", C_ORANGE, 1);
 	bottom_now();
 	save("e2_episodios_lista");
 }
 
-/* ---------------- Ecualizador ---------------- */
+/* ---------------- Equalizer ---------------- */
 static const char *eq_l[6] = { "Clear Bass", "400 Hz", "1 kHz", "2,5 kHz", "6,3 kHz", "16 kHz" };
 static const int eq_v[6] = { 2, 1, 0, -1, 1, 2 };
 
@@ -268,14 +268,14 @@ static void preset_line(int y)
 {
 	rbox(4, y, 232, 26, SURF);
 	tri(10, y + 7, -1, C_GREY); tri(W - 16, y + 7, 1, C_GREY);
-	gfx_text_center(W / 2, y + 2, "Personalizado", C_ORANGE, 1);
+	gfx_text_center(W / 2, y + 2, "Custom", C_ORANGE, 1);
 }
 
 /* A: one band per row, like a Sony list: the name, a horizontal bar that fills from the centre, the value */
 static void eq_a(void)
 {
 	bg_fill(0, 0, W, H, 0);
-	title_bar("Ecualizador");
+	title_bar("Equalizer");
 	preset_line(31);
 	for (int b = 0; b < 6; b++) {
 		int y = 62 + b * 37, sel = b == 3, cx = 150, step = 18, v = eq_v[b];
@@ -290,7 +290,7 @@ static void eq_a(void)
 		char s[8]; snprintf(s, sizeof s, v > 0 ? "+%d" : "%d", v);
 		gfx_text(W - 8 - gfx_text_w(s, 1), y + 6, s, sel ? C_BLACK : v ? C_ORANGE : C_GREY, 1);
 	}
-	bottom_bar(BB_TEXT, "PLAY: guardar", C_WHITE);
+	bottom_bar(BB_TEXT, "PLAY: save", C_WHITE);
 	save("q1_eq_filas");
 }
 
@@ -299,7 +299,7 @@ static void eq_a(void)
 static void eq_b(void)
 {
 	bg_fill(0, 0, W, H, 0);
-	title_bar("Ecualizador");
+	title_bar("Equalizer");
 	preset_line(31);
 	int py = 64;
 	struct img panel = gfx_tex(16, 6);
@@ -316,7 +316,7 @@ static void eq_b(void)
 	gfx_text_center(W / 2, 208, "-1", C_ORANGE, 2);
 	tri(40, 222, -1, C_GREY); tri(W - 46, 222, 1, C_GREY);
 	gfx_text_center(W / 2, 258, "arriba/abajo: nivel", C_GREY, 1);
-	bottom_bar(BB_TEXT, "PLAY: guardar", C_WHITE);
+	bottom_bar(BB_TEXT, "PLAY: save", C_WHITE);
 	save("q2_eq_panel_sony");
 }
 
@@ -324,14 +324,14 @@ static void eq_b(void)
 static void descargas(void)
 {
 	bg_fill(0, 0, W, H, 0);
-	title_bar("Descargas");
+	title_bar("Downloads");
 	rbox(4, 31, 232, 92, SURF);
 	gfx_text(12, 30, "45%", C_ORANGE, 2);
-	gfx_text(W - 12 - gfx_text_w("1 de 3", 1), 34, "1 de 3", C_GREY, 1);
+	gfx_text(W - 12 - gfx_text_w("1 of 3", 1), 34, "1 of 3", C_GREY, 1);
 	gfx_text(W - 12 - gfx_text_w("28/63 MB", 1), 56, "28/63 MB", C_WHITE, 1);
 	gfx_text_clip(12, 78, "EP#249 We're going to Break a Guinness World Record", C_WHITE, 216);
 	pbar(12, 108, 216, 45, C_ORANGE);
-	gfx_text(8, 128, "En cola", C_GREY, 1);
+	gfx_text(8, 128, "Queued", C_GREY, 1);
 	static const char *q[2] = { "The Odyssey (2026) Bronze Age Collapse", "EP#250 Behind the Scenes" };
 	static const char *qs[2] = { "Reel History · 76 MB", "Corridor Cast · 58 MB" };
 	for (int i = 0; i < 2; i++) {
@@ -343,7 +343,7 @@ static void descargas(void)
 	}
 	gfx_fill(10, 266, 3, 9, C_GREEN); gfx_fill(13, 272, 3, 3, C_GREEN);
 	for (int j = 0; j < 7; j++) gfx_fill(16 + j, 271 - j, 2, 2, C_GREEN);
-	gfx_text_clip(30, 260, "Capítulos de EP#249 listos", C_GREY, 200);
+	gfx_text_clip(30, 260, "Chapters of EP#249 ready", C_GREY, 200);
 	dl_on = 1; bottom_bar(BB_TEXT, "131 kB/s · 4 min", C_WHITE); dl_on = 0;
 	save("m6_descargas");
 }

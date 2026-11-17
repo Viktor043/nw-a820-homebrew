@@ -1,7 +1,7 @@
 /* hbplayer: music / audiobook / podcast player for the Sony NW-A829 (homebrew mode, runs instead of the Sony UI).
  *
  *   hbplayer ask SECONDS       boot prompt: exit 0 if HOME is pressed within SECONDS, else 1
- *   hbplayer run STATEDIR      the player (library in /contents/Music, /contents/Audiolibros, /contents/Podcasts)
+ *   hbplayer run STATEDIR      the player (library in /contents/Music, /contents/Audiobooks, /contents/Books, /contents/Games)
  *   hbplayer watch STATEDIR    background helper next to the Sony UI: HOME + VOL- held 2 s reboots into the player
  *
  * UI: Sony's own textures, font and home animation (screens.c), double buffered, slide transitions.
@@ -33,9 +33,9 @@
 #define RESDIR "/usr/local/share/gemini/res"
 #define MAXITEMS 1000	/* per folder; the arrays are static, only the entries used take RAM */
 int ui_brightness = 80, ui_dim_secs = 30;
-int ui_big_rows;	/* Ajustes > Pantalla > Filas grandes con portada */
+int ui_big_rows;	/* Settings > Display > Big rows with covers */
 int ui_album_grid;	/* album lists as a mosaic (OPTION in the album list) */
-int ui_beep;		/* Ajustes > Pitido */
+int ui_beep;		/* Settings > Pitido */
 
 /* Sony's key beep: the codec's beep generator (/dev/sound/beep, icx1087_beep.h) with the patterns Sony's own
  * player uses (mptapp's table: 2 kHz; one 100 ms beep, two or three of 50 ms, a long one of 300 ms).
@@ -406,7 +406,7 @@ static void drain_keys(void)
 static void back_to_sony(void);
 static void usb_check(void);
 /* back_since (above): BACK/HOME held down since (0 = up). Holding it no longer leaves the player (it happened by
- * accident, in games too): Ajustes > Cambiar al Walkman de Sony does that */
+ * accident, in games too): Settings > Switch to Sony's Walkman does that */
 
 #ifdef HB_DEV
 /* on-device UI tests (hbtest build): HB_KEYS=file plays keys from a script, one command per line: a key name (PLAY UP
@@ -622,7 +622,7 @@ void idle_tick(int playing)
 	}
 	battery_update();
 	usb_check();
-	{ int w = warm_poll(); if (w) { music_preload(w == 2); warm_covers_start(); } }	/* the first visit of Música then opens at once, its covers ready */
+	{ int w = warm_poll(); if (w) { music_preload(w == 2); warm_covers_start(); } }	/* the first visit of Music then opens at once, its covers ready */
 	bt_poll();
 	eng_tick();
 	cpu_governor();
@@ -639,7 +639,7 @@ void idle_tick(int playing)
 	int idle = (int)(time(0) - last_key);
 	playing |= eng_playing();
 	if (backlight_on && !ui_keep_awake && idle > (playing ? ui_dim_secs : (ui_dim_secs > DIM_IDLE ? ui_dim_secs : DIM_IDLE))) display_off();
-	if (batt_low >= 3) power_off_full("Batería agotada");
+	if (batt_low >= 3) power_off_full("Battery empty");
 	if (!playing && !dl_active() && !ui_keep_awake && idle > (backlight_on ? AUTO_SUSPEND : AUTO_SUSPEND_DARK)) suspend_now();
 	static time_t last_alarm;
 	if (alarm_due() && time(0) - last_alarm > 300) { last_alarm = time(0); alarm_ring(); }
@@ -957,7 +957,7 @@ static int list_dir(const char *root, int dirs, const char *ext, int desc)
 
 static char opt_items[5][40];
 static const char *opt_label(int i) { return opt_items[i]; }
-static const char *repeat_names[] = { "no", "todo", "una" };
+static const char *repeat_names[] = { "off", "all", "one" };
 
 static const char *chap_label(int i) { return chap_title(i); }
 static const char *chap_value(int i)
@@ -970,25 +970,25 @@ static const char *chap_value(int i)
 static void chapters_menu(void)
 {
 	struct eng_info e; eng_info(&e);
-	struct list_view v = { "Capítulos", chap_count(), chap_index(e.sec) < 0 ? 0 : chap_index(e.sec), 0, chap_label, chap_value, 0, LI_NONE, 0, 0 };
+	struct list_view v = { "Chapters", chap_count(), chap_index(e.sec) < 0 ? 0 : chap_index(e.sec), 0, chap_label, chap_value, 0, LI_NONE, 0, 0 };
 	int s = list_run(&v);
 	if (s >= 0) eng_seek_to(chap_start(s));
 }
 
 static void play_options(int music)
 {
-	struct list_view v = { "Opciones", 0, 0, 0, opt_label, 0, 0, LI_NONE, 0, 0 };
+	struct list_view v = { "Options", 0, 0, 0, opt_label, 0, 0, LI_NONE, 0, 0 };
 	for (;;) {
 		int snd = music ? 3 : 2 + (chap_count() > 0);	/* the last row: the quick sound menu */
 		v.n = snd + 1;
-		snprintf(opt_items[snd], 40, "Sonido");
+		snprintf(opt_items[snd], 40, "Sound");
 		int m = eng_sleep_left();
-		if (m) snprintf(opt_items[0], 40, "Temporizador: %d min", m); else snprintf(opt_items[0], 40, "Temporizador: no");
+		if (m) snprintf(opt_items[0], 40, "Sleep timer: %d min", m); else snprintf(opt_items[0], 40, "Sleep timer: off");
 		if (music) {
-			snprintf(opt_items[1], 40, "Aleatorio: %s", eng_shuffle ? "sí" : "no");
-			snprintf(opt_items[2], 40, "Repetir: %s", repeat_names[eng_repeat]);
-		} else snprintf(opt_items[1], 40, "Velocidad: %d.%02dx", eng_speed / 100, eng_speed % 100);
-		if (!music && chap_count()) snprintf(opt_items[2], 40, "Capítulos (%d)", chap_count());
+			snprintf(opt_items[1], 40, "Shuffle: %s", eng_shuffle ? "on" : "off");
+			snprintf(opt_items[2], 40, "Repeat: %s", repeat_names[eng_repeat]);
+		} else snprintf(opt_items[1], 40, "Speed: %d.%02dx", eng_speed / 100, eng_speed % 100);
+		if (!music && chap_count()) snprintf(opt_items[2], 40, "Chapters (%d)", chap_count());
 		int s = list_run(&v);
 		if (s < 0) return;
 		pending_slide = 0;
@@ -1042,7 +1042,7 @@ void nowplaying_run(void)
 		if (backlight_on && !popup_active() && (full || e.sec != lastsec || scrub)) {
 			memset(&pv, 0, sizeof pv);
 			pv.book = e.context; pv.track = e.title; pv.sub = e.sub; pv.genre = e.genre; pv.year = e.year;
-			if (e.mode == ENG_BOOK && e.path) {	/* the kind in the title bar (like "Canciones"), the show on the first line */
+			if (e.mode == ENG_BOOK && e.path) {	/* the kind in the title bar (like "Songs"), the show on the first line */
 				static char date[24];
 				static const char *mes[12] = { "ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic" };
 				const char *base = strrchr(e.path, '/');
@@ -1050,7 +1050,7 @@ void nowplaying_run(void)
 				int yy, mm, dd;
 				date[0] = 0;
 				if (sscanf(base, "%4d-%2d-%2d", &yy, &mm, &dd) == 3 && mm >= 1 && mm <= 12) snprintf(date, sizeof date, "%d %s %d", dd, mes[mm - 1], yy);
-				pv.book = !strncmp(e.path, "/contents/Podcasts/", 19) ? "Podcasts" : "Audiolibros";
+				pv.book = !strncmp(e.path, "/contents/Podcasts/", 19) ? "Podcasts" : "Audiobooks";
 				pv.meta = 1; pv.date = date;
 			}
 			if (cidx >= 0) { snprintf(chapline, sizeof chapline, "%d/%d · %s", cidx + 1, chap_count(), chap_title(cidx)); pv.chap = chapline; }
@@ -1234,8 +1234,8 @@ static void leave_player(const char *splash, int rc)
 }
 
 /* back to the Sony UI without a reboot, several seconds sooner than a reboot */
-static void back_to_sony(void) { leave_player("Volviendo al Walkman...", 0); }
-void switch_to_sony(void) { back_to_sony(); }	/* Ajustes > Cambiar al Walkman de Sony: the next boot is Sony's too */
+static void back_to_sony(void) { leave_player("Back to the Walkman...", 0); }
+void switch_to_sony(void) { back_to_sony(); }	/* Settings > Switch to Sony's Walkman: the next boot is Sony's too */
 
 /* a computer has enumerated the Walkman as a disk: status 1 from Sony's usbconn driver (the one Sony's apl_conn
  * waits on; a charger never gets past "connecting"). Checked once a second. /tmp/hb_usb_off = the last hand-over
@@ -1265,10 +1265,10 @@ static struct item folders[MAXITEMS];
 static struct track queue[MAXITEMS];
 static const char *tr_label(int i) { return tracks[i].name; }
 static int tr_mark(int i) { return !strcmp(lastfile, tracks[i].path); }
-static int fo_extra;	/* rows before the folders: podcasts have "Buscar episodios nuevos" and "Agregar podcast" */
+static int fo_extra;	/* rows before the folders: podcasts have "Check for new episodes" and "Add podcast" */
 static const char *fo_label(int i)
 {
-	if (i < fo_extra) return i == 0 ? (dl_active() ? "Descargas" : "Buscar nuevos") : "Agregar podcast";
+	if (i < fo_extra) return i == 0 ? (dl_active() ? "Downloads" : "Check for new") : "Add podcast";
 	return folders[i].name;
 }
 static const char *fo_value(int i) { return i < fo_extra ? (i == 0 ? dl_row_value() : 0) : 0; }
@@ -1279,20 +1279,20 @@ static char ep_items[3][48];
 static const char *ep_label(int i) { return ep_items[i]; }
 static int episode_option(int i)
 {
-	snprintf(ep_items[0], 48, "Borrar episodio");
-	snprintf(ep_items[1], 48, "Sonido");
-	snprintf(ep_items[2], 48, "Cancelar");
-	struct list_view m = { "Episodio", 3, 2, 0, ep_label, 0, 0, LI_NONE, 0, 0, 0, -1, 0 };
+	snprintf(ep_items[0], 48, "Delete episode");
+	snprintf(ep_items[1], 48, "Sound");
+	snprintf(ep_items[2], 48, "Cancel");
+	struct list_view m = { "Episode", 3, 2, 0, ep_label, 0, 0, LI_NONE, 0, 0, 0, -1, 0 };
 	int r0 = list_run(&m);
 	if (r0 == 1) { if (sound_quick_menu(eng_active())) nowplaying_run(); return 0; }
 	if (r0 != 0) return 0;
-	snprintf(ep_items[0], 48, "Sí, borrarlo");
+	snprintf(ep_items[0], 48, "Yes, delete it");
 	snprintf(ep_items[1], 48, "No");
 	struct list_view c = { tracks[i].name, 2, 1, 0, ep_label, 0, 0, LI_NONE, 0, 0, 0, -1, 0 };
 	if (list_run(&c) != 0) return 0;
 	struct eng_info e; eng_info(&e);
 	if (eng_active() && e.path && !strcmp(e.path, tracks[i].path)) eng_stop();	/* it's playing: stop first */
-	if (podcast_forget(tracks[i].path)) { message("Podcasts", "No pude borrar el episodio.", ""); msg_wait(2); return 0; }
+	if (podcast_forget(tracks[i].path)) { message("Podcasts", "Could not delete the episode.", ""); msg_wait(2); return 0; }
 	return 1;
 }
 
@@ -1365,7 +1365,7 @@ static int ep_progress(int i)
 	int p = s * 100 / (mn * 60);
 	return p > 100 ? 100 : p;
 }
-/* second line: "25 jun · 1 h 12 min", "quedan 22 min" or "escuchado" */
+/* second line: "25 Jun · 1 h 12 min", "22 min left" or "played" */
 static const char *ep_value(int i)
 {
 	static char b[64];
@@ -1378,9 +1378,9 @@ static const char *ep_value(int i)
 	int s = pos_peek(tracks[i].path), mn = ep_min ? ep_min[i] : -1;
 	if (mn >= 60) snprintf(len, sizeof len, "%d h %d min", mn / 60, mn % 60);
 	else if (mn > 0) snprintf(len, sizeof len, "%d min", mn);
-	if (s == 0) snprintf(b, sizeof b, "escuchado");
-	else if (s > 0 && mn > 0) snprintf(b, sizeof b, "quedan %d min", mn - s / 60 > 0 ? mn - s / 60 : 1);
-	else if (s > 0) snprintf(b, sizeof b, "en %d:%02d", s / 60, s % 60);
+	if (s == 0) snprintf(b, sizeof b, "played");
+	else if (s > 0 && mn > 0) snprintf(b, sizeof b, "%d min left", mn - s / 60 > 0 ? mn - s / 60 : 1);
+	else if (s > 0) snprintf(b, sizeof b, "at %d:%02d", s / 60, s % 60);
 	else snprintf(b, sizeof b, "%s%s%s", d, d[0] && len[0] ? " · " : "", len);
 	return b;
 }
@@ -1443,13 +1443,13 @@ static struct img fo_thumb(int i)
 static const char *fo_value_big(int i)
 {
 	if (i < fo_extra) {
-		if (i == 1) return "buscar por nombre";
+		if (i == 1) return "search by name";
 		const char *d = dl_row_value();
-		return d && *d ? d : "desde el teléfono";
+		return d && *d ? d : "from the phone";
 	}
 	if (i >= MAXSHOWS || fo_count[i] <= 0) return 0;
-	if (!fo_books && fo_new[i] > 0) snprintf(fo_val, sizeof fo_val, "%d nuevo%s de %d", fo_new[i], fo_new[i] == 1 ? "" : "s", fo_count[i]);
-	else snprintf(fo_val, sizeof fo_val, "%d %s", fo_count[i], fo_books ? (fo_count[i] == 1 ? "archivo" : "archivos") : (fo_count[i] == 1 ? "episodio" : "episodios"));
+	if (!fo_books && fo_new[i] > 0) snprintf(fo_val, sizeof fo_val, "%d new of %d", fo_new[i], fo_count[i]);
+	else snprintf(fo_val, sizeof fo_val, "%d %s", fo_count[i], fo_books ? (fo_count[i] == 1 ? "file" : "files") : (fo_count[i] == 1 ? "episode" : "episodes"));
 	return fo_val;
 }
 static int fo_thumbs_pending(void)
@@ -1501,21 +1501,21 @@ reload:;
 	int nf = list_dir(root, 1, 0, 0), extra = 0;
 	if (podcasts && nf + 2 <= MAXITEMS) {	/* first rows: new episodes over the phone's Bluetooth tethering, a new show */
 		memmove(items + 2, items, sizeof items[0] * nf);
-		snprintf(items[0].name, sizeof items[0].name, "Buscar episodios nuevos");
-		snprintf(items[1].name, sizeof items[1].name, "Agregar podcast");
+		snprintf(items[0].name, sizeof items[0].name, "Check for new episodes");
+		snprintf(items[1].name, sizeof items[1].name, "Add podcast");
 		items[0].path[0] = items[1].path[0] = 0;
 		nf += 2; extra = 2;
 	}
 	memcpy(folders, items, sizeof folders[0] * nf);
 	fo_extra = extra;
-	struct list_view v = { title, nf, 0, 0, fo_label, fo_value, fo_mark, LI_FOLDER, podcasts ? "Copiá carpetas a H:\\Podcasts" : "Copiá carpetas a H:\\Audiolibros", 0 };
+	struct list_view v = { title, nf, 0, 0, fo_label, fo_value, fo_mark, LI_FOLDER, podcasts ? "Copy folders to H:\\Podcasts" : "Copy folders to H:\\Audiobooks", 0 };
 	for (int i = extra; i < nf; i++) if (fo_mark(i)) v.sel = i;
 	if (keep_sel >= 0 && keep_sel < nf) v.sel = keep_sel;
 	/* covers for podcasts and audiobooks (big rows: 60 px and a file count as the second line) */
 	fo_n = nf < MAXSHOWS ? nf : MAXSHOWS; memset(fo_tstate, 0, sizeof fo_tstate); memset(fo_count, 0, sizeof fo_count); memset(fo_new, 0, sizeof fo_new);
 	fo_px = podcasts ? EP_THUMB : ui_big_rows ? BIG_THUMB : 28; fo_books = !podcasts;
 	v.thumb = fo_thumb; v.bar_y = -1;
-	if (podcasts) { v.ep = 1; v.value = fo_value_big; v.option = fo_option; }	/* shows like their episodes: cover, name, "12 episodios · 2 sin escuchar" */
+	if (podcasts) { v.ep = 1; v.value = fo_value_big; v.option = fo_option; }	/* shows like their episodes: cover, name, "12 episodes · 2 unplayed" */
 	else { v.big = ui_big_rows; if (ui_big_rows) v.value = fo_value_big; v.option = opt_audiobooks; }
 	for (;;) {
 		list_idle_hook = fo_thumbs_pending;
@@ -1528,7 +1528,7 @@ reload:;
 	tracks_reload:;
 		ntracks = list_dir(folders[b].path, 0, ".mp3", podcasts);
 		memcpy(tracks, items, sizeof tracks[0] * ntracks);
-		struct list_view t = { folders[b].name, ntracks, 0, 0, tr_label, 0, tr_mark, LI_TRACK, "No hay archivos MP3", 0, 0, -1, podcasts ? episode_option : opt_audiobooks };
+		struct list_view t = { folders[b].name, ntracks, 0, 0, tr_label, 0, tr_mark, LI_TRACK, "No audio files", 0, 0, -1, podcasts ? episode_option : opt_audiobooks };
 		if (podcasts) { ep_setup(ntracks); t.ep = 1; t.thumb = ep_thumb; t.value = ep_value; t.state = ep_state; t.progress = ep_progress; }
 		for (int i = 0; i < ntracks; i++) if (tr_mark(i)) t.sel = i;
 		for (;;) {
@@ -1569,7 +1569,7 @@ static int add_games(int n, const char *dir, const char *ext, char kind)
 void remote_mode(void)
 {
 	if (access(HB_BIN "/hidtest", X_OK)) { message("Mando", "Falta hidtest en H:/HB/bin", ""); msg_wait(3); return; }
-	message("Mando Bluetooth", "Encendiendo Bluetooth...", "");
+	message("Bluetooth remote", "Turning Bluetooth on...", "");
 	char logfn[PATHLEN + 16]; snprintf(logfn, sizeof logfn, "%s/hid.log", statedir);
 	lg("remote: start");
 	pid_t p = fork();
@@ -1605,24 +1605,24 @@ void game_controls(int i)
 {
 	char kind = game_kind[i];
 	const char *title = kind == 'n' ? "NES" : kind == 'd' ? "Doom" : kind == 'a' ? "Game Boy Advance" : "Game Boy";
-	const char *keys = kind == 'd' ? "PLAY dispara · OPTION usa · VOL: lateral · BACK: menú, 2 s: salir"
-		: kind == 'n' ? "PLAY = A · OPTION = B · BACK = Start (2 s: salir)"
-		: kind == 'a' ? "PLAY = A · OPTION = B · VOL = L/R · BACK = Start (2 s: salir)"
-		: "PLAY = A · OPTION = B · BACK = Start (2 s: salir)";
+	const char *keys = kind == 'd' ? "PLAY fires · OPTION uses · VOL: strafe · BACK: menu, 2 s: quit"
+		: kind == 'n' ? "PLAY = A · OPTION = B · BACK = Start (2 s: quit)"
+		: kind == 'a' ? "PLAY = A · OPTION = B · VOL = L/R · BACK = Start (2 s: quit)"
+		: "PLAY = A · OPTION = B · BACK = Start (2 s: quit)";
 	message(title, games[i].name, keys);
 	msg_wait(6);
 }
 
 static void games_menu(void)
 {
-	if (dl_active()) { message("Juegos", "Hay podcasts bajándose.", "Esperá o cancelá en Podcasts > Descargas"); msg_wait(3); return; }
+	if (dl_active()) { message("Games", "Podcasts are downloading.", "Wait or cancel in Podcasts > Downloads"); msg_wait(3); return; }
 	int n = 0;
-	n = add_games(n, "/contents/Juegos", ".gbc", 'g');
-	n = add_games(n, "/contents/Juegos", ".gb", 'g');
-	n = add_games(n, "/contents/Juegos/GBA", ".gba", 'a');
-	n = add_games(n, "/contents/Juegos/NES", ".nes", 'n');
-	n = add_games(n, "/contents/Juegos/Doom", ".wad", 'd');
-	struct list_view v = { "Juegos", n, 0, 0, ga_label, ga_value, 0, LI_NONE, "Copiá juegos a H:\\Juegos (GB), Juegos\\GBA, Juegos\\NES, Juegos\\Doom", 0 };
+	n = add_games(n, "/contents/Games", ".gbc", 'g');
+	n = add_games(n, "/contents/Games", ".gb", 'g');
+	n = add_games(n, "/contents/Games/GBA", ".gba", 'a');
+	n = add_games(n, "/contents/Games/NES", ".nes", 'n');
+	n = add_games(n, "/contents/Games/Doom", ".wad", 'd');
+	struct list_view v = { "Games", n, 0, 0, ga_label, ga_value, 0, LI_NONE, "Copy games to H:\\Games (GB), Games\\GBA, Games\\NES, Games\\Doom", 0 };
 	v.option = opt_games;
 	for (;;) {
 		int s = list_run(&v);
@@ -1632,10 +1632,10 @@ static void games_menu(void)
 		const char *title = kind == 'n' ? "NES" : kind == 'd' ? "Doom" : kind == 'a' ? "Game Boy Advance" : "Game Boy";
 		if (access(bin, X_OK)) { message(title, "Falta el emulador en H:/HB/bin", ""); msg_wait(3); continue; }
 		int with_music = eng_playing();
-		const char *hint = kind == 'd' ? "PLAY dispara · OPTION usa · BT corre · VOL: lateral · BACK: menú, 2 s: salir"
-			: kind == 'n' ? "PLAY = A · OPTION = B · BACK = Start (2 s: salir) · BT = Select"
-			: kind == 'a' ? "PLAY = A · OPTION = B · VOL = L/R · BACK = Start (2 s: salir) · BT 2 s: menú"
-			: with_music ? "Con tu música de fondo. BACK 2 s: salir. BT 2 s: menú." : "BACK 2 s: salir. BT 2 s: menú del juego.";
+		const char *hint = kind == 'd' ? "PLAY fires · OPTION uses · BT runs · VOL: strafe · BACK: menu, 2 s: quit"
+			: kind == 'n' ? "PLAY = A · OPTION = B · BACK = Start (2 s: quit) · BT = Select"
+			: kind == 'a' ? "PLAY = A · OPTION = B · VOL = L/R · BACK = Start (2 s: quit) · BT 2 s: menu"
+			: with_music ? "With your music on. BACK 2 s: quit. BT 2 s: menu." : "BACK 2 s: quit. BT 2 s: game menu.";
 		message(title, games[s].name, hint);
 		if (kind == 'd' || kind == 'a') with_music = 0;	/* Doom and the GBA need the whole CPU */
 		if (kind == 'd' || kind == 'a') eng_pause(1);
@@ -1655,7 +1655,7 @@ static void games_menu(void)
 			if (chdir(savedir)) _exit(126);
 			setenv("HB_SAVEDIR", savedir, 1);
 			setenv("HB_VOL", volb, 1);
-			setenv("HB_LANG", ui_lang ? "en" : "es", 1);
+			setenv("HB_LANG", "en", 1);
 			if (with_music) setenv("HB_SOUND", "0", 1);
 			else if (bt_connected()) setenv("HB_DSP", "/dev/sound/adsp", 1);
 			char logfn[PATHLEN + 16]; snprintf(logfn, sizeof logfn, "%s/gnuboy.log", statedir);
@@ -1703,17 +1703,17 @@ static const char *pw_label(int i) { return pw_items[i]; }
 
 void power_menu(void)
 {
-	snprintf(pw_items[0], 40, "Suspender");
-	snprintf(pw_items[1], 40, "Apagar del todo");
-	struct list_view v = { "Apagar", 2, 0, 0, pw_label, 0, 0, LI_NONE, 0, 0 };	/* to Sony's Walkman: Ajustes */
+	snprintf(pw_items[0], 40, "Sleep");
+	snprintf(pw_items[1], 40, "Turn off completely");
+	struct list_view v = { "Power", 2, 0, 0, pw_label, 0, 0, LI_NONE, 0, 0 };	/* to Sony's Walkman: Settings */
 	int s = list_run(&v);
 	if (s == 0) suspend_now();
 	else if (s == 1) {
 		if (alarm_cfg.on) {	/* the RTC can wake the unit from suspend, not from a full power-off */
-			message("Apagar del todo", "El despertador no suena con el equipo apagado del todo.", "Usá Suspender para que suene.");
+			message("Turn off completely", "The alarm can't ring when the unit is fully off.", "Use Sleep so it rings.");
 			msg_wait(4);
-			snprintf(pw_items[0], 40, "Apagar del todo"); snprintf(pw_items[1], 40, "Suspender");
-			struct list_view c = { "Apagar", 2, 1, 0, pw_label, 0, 0, LI_NONE, 0, 0 };
+			snprintf(pw_items[0], 40, "Turn off completely"); snprintf(pw_items[1], 40, "Sleep");
+			struct list_view c = { "Power", 2, 1, 0, pw_label, 0, 0, LI_NONE, 0, 0 };
 			int r = list_run(&c);
 			if (r == 1) suspend_now();
 			if (r != 0) return;
@@ -1731,8 +1731,8 @@ static void power_prompt(void)
 	if (open || in_game) return;
 	open = 1;
 	wake();
-	snprintf(pw_items[0], 40, "Apagar ahora"); snprintf(pw_items[1], 40, "Cancelar");
-	struct list_view v = { alarm_cfg.on ? "¿Apagar? (sin despertador)" : "¿Apagar?", 2, 1, 0, pw_label, 0, 0, LI_NONE, 0, 0 };
+	snprintf(pw_items[0], 40, "Power off"); snprintf(pw_items[1], 40, "Cancel");
+	struct list_view v = { alarm_cfg.on ? "Power off? (no alarm)" : "Power off?", 2, 1, 0, pw_label, 0, 0, LI_NONE, 0, 0 };
 	int s = list_run(&v);
 	open = 0;
 	if (s == 0) power_off_full("OPTION held");
@@ -1755,7 +1755,7 @@ void alarm_ring(void)
 			int v = 4 + step; if (v > target) v = target;
 			if (v != volume) { volume = v; aout_set_volume(); }
 			struct eng_info e; eng_info(&e);
-			scr_message("Despertador", e.title ? e.title : "", "cualquier tecla: seguir");
+			scr_message("Alarm", e.title ? e.title : "", "any key: continue");
 			char b[16]; time_t t = time(0); struct tm tm = *localtime(&t); snprintf(b, sizeof b, "%02d:%02d", tm.tm_hour, tm.tm_min);
 			gfx_text_center(W / 2, 60, b, C_ORANGE, 2); gfx_flip();
 			int k = poll_key(300);
@@ -1764,7 +1764,7 @@ void alarm_ring(void)
 		}
 		volume = target; aout_set_volume(); pos_dirty = 1;
 	} else {
-		scr_message("Despertador", "", "cualquier tecla: apagar"); gfx_flip();
+		scr_message("Alarm", "", "any key: stop"); gfx_flip();
 		focus_bells();
 	}
 	force_redraw = 1;
@@ -1830,9 +1830,9 @@ static int home_valid(int i) { return i >= 0 && i < HOME_SLOTS && home_labels[i]
 
 static void home(void)
 {
-	int sel = 4, redraw = 1;	/* Música, in the centre */
+	int sel = 4, redraw = 1;	/* Music, in the centre */
 	for (int i = 0; i < HOME_SLOTS; i++) home_frame[i] = 8;
-	if (lastfile[0] || eng_active()) sel = 3;	/* "Reproduciendo": one press resumes where it was */
+	if (lastfile[0] || eng_active()) sel = 3;	/* "Now playing": one press resumes where it was */
 	if (ui_theme) { ui_home_tab = sel == 3 ? 2 : 0; if (sel == 3) sel = 4; }	/* SNRGY: that is the RESUME tab */
 	home_frame[sel] = 0;
 	ui_pod_new = dl_pending();
@@ -1874,11 +1874,11 @@ static void home(void)
 		else if (k == K_DOWN) { ns = (sel + 3) % HOME_SLOTS; if (!home_valid(ns)) ns = sel; }
 		else if (k == K_PLAY) {
 			pending_slide = 1;
-			switch (ui_theme && ui_home_tab == 2 ? 3 : sel) {	/* the RESUME tab = "Reproduciendo" */
+			switch (ui_theme && ui_home_tab == 2 ? 3 : sel) {	/* the RESUME tab = "Now playing" */
 			case 0: focus_menu(); break;
-			case 1: browse("/contents/Audiolibros", "Audiolibros", 0); break;
+			case 1: browse("/contents/Audiobooks", "Audiobooks", 0); break;
 			case 2: browse("/contents/Podcasts", "Podcasts", 1); break;
-			case 3: if (eng_active() || resume_last()) nowplaying_run(); else { pending_slide = 0; eng_note("No hay nada sonando"); } break;
+			case 3: if (eng_active() || resume_last()) nowplaying_run(); else { pending_slide = 0; eng_note("Nothing is playing"); } break;
 			case 4: music_menu(); break;
 			case 5: games_menu(); break;
 			case 6: bt_menu(); break;
@@ -1920,13 +1920,13 @@ static int crash_resume(void)
 	return playing;
 }
 
-/* Ajustes > Restablecer todo: the player's files on /var go (positions, settings, EQ, Bluetooth pairings, boot mode,
+/* Settings > Reset everything: the player's files on /var go (positions, settings, EQ, Bluetooth pairings, boot mode,
  * podcast badge); the music, the podcasts, the games and their saves stay. Then a restart, like a first boot. */
 void factory_reset(void)
 {
 	static const char *const files[] = { "pos.txt", "eq.txt", "bt.txt", "bt_auto", "mode", "resume.txt", "boot_player",
 		"bt/sc_db.db", "bt/hid_host", "log.1.txt", 0 };
-	message("Restablecer todo", "Reiniciando...", "");
+	message("Reset everything", "Restarting...", "");
 	eng_stop();
 	for (int i = 0; files[i]; i++) { char p[PATHLEN + 32]; snprintf(p, sizeof p, "%s/%s", statedir, files[i]); unlink(p); }
 	unlink("/contents/HB/pendientes.txt");
@@ -1937,30 +1937,30 @@ void factory_reset(void)
 	sleep(30);
 }
 
-/* the first start (no pos.txt yet): the language, then how to get around */
+/* the first start (no pos.txt yet): how to get around */
 static void first_run(void)
 {
-	static const char *const langs[2] = { "Español", "English" };
-	static char l[2][16];
-	for (int i = 0; i < 2; i++) snprintf(l[i], sizeof l[i], "%s", langs[i]);
-	struct list_view v = { .title = "Idioma / Language", .n = 2, .label = 0, .bar_y = -1 };
-	v.label = pw_label;
-	snprintf(pw_items[0], 40, "%s", l[0]); snprintf(pw_items[1], 40, "%s", l[1]);
-	int s = 1;	/* 2026-11-13: English only, no language picker */
-	(void)v;
-	ui_lang_set(s == 1);
 	settings_save();
-	scr_message("Bienvenido", "Ajustes > Cambiar al Walkman de Sony: al firmware de Sony.", "En el Walkman de Sony, HOME y VOL- juntos 2 s: volver acá.");
-	gfx_text_wrap(14, 220, "OPTION: más opciones en casi todas las pantallas.", C_GREY, W - 28, 2, 22);
+	scr_message("Welcome", "Settings > Switch to Sony's Walkman: to Sony's firmware.", "In Sony's Walkman, hold HOME and VOL- together for 2 s to come back.");
+	gfx_text_wrap(14, 220, "OPTION: more choices on almost every screen.", C_GREY, W - 28, 2, 22);
 	gfx_flip();
 	int k;
 	do { idle_tick(0); k = getkey(1000); } while (k != K_PLAY && k != K_BACK);
 }
 
+/* the content folders used to have Spanish names: moved once to the English ones (only when the new one is absent) */
+static void migrate_folders(void)
+{
+	static const char *const m[][2] = { { "/contents/Audiolibros", "/contents/Audiobooks" }, { "/contents/Juegos", "/contents/Games" }, { "/contents/Libros", "/contents/Books" } };
+	for (unsigned i = 0; i < sizeof m / sizeof *m; i++)
+		if (!access(m[i][0], F_OK) && access(m[i][1], F_OK)) { if (rename(m[i][0], m[i][1])) lg("folders: %s not moved", m[i][0]); else lg("folders: %s -> %s", m[i][0], m[i][1]); }
+	mkdir("/contents/Audiobooks", 0755); mkdir("/contents/Books", 0755); mkdir("/contents/Games", 0755);
+}
+
 static int run(void)
 {
 	cover_tick = tick_audio;
-	scr_splash("Abriendo..."); gfx_flip();
+	scr_splash("Opening..."); gfx_flip();
 	int first = 0;
 	{ char p[PATHLEN + 16]; snprintf(p, sizeof p, "%s/pos.txt", statedir); first = access(p, F_OK) != 0; }
 	pos_load();
@@ -1974,6 +1974,7 @@ static int run(void)
 	srand((unsigned)time(0));
 	wd_arm();
 	if (first) first_run();
+	migrate_folders();
 	bt_auto_start();
 	if (was_playing) resume_last();	/* after a crash: music goes on from where it was */
 	home();
@@ -1987,7 +1988,7 @@ static int ask(int secs)
 	while (now() < end) {
 		struct ev e;
 		if (raw_event(&e, 200) && e.type == 1 && (e.code & 0x7f) == K_BACK && KEY_PRESSED(e.value)) {
-			scr_splash("Abriendo..."); gfx_flip();
+			scr_splash("Opening..."); gfx_flip();
 			return 0;
 		}
 	}
@@ -2051,7 +2052,7 @@ static int selftest(const char *file, int secs)
 	eq_load(statedir);
 	if (getenv("HB_MHZ")) set_cpu(atoi(getenv("HB_MHZ")));
 	if (getenv("HB_NODSP")) dsp_enabled = 0;
-	if (getenv("HB_NODIRECT")) dsp_direct = 0;	/* "Máxima batería" is on by default now */
+	if (getenv("HB_NODIRECT")) dsp_direct = 0;	/* "Max. battery" is on by default now */
 	/* tanda 4 effects: HB_TRIM / HB_BOOST (voice, with HB_BOOK), HB_SPEED=150, HB_XFEED / HB_LOUD (headphones) */
 	voice_trim_on = getenv("HB_TRIM") != 0; voice_boost_on = getenv("HB_BOOST") != 0;
 	hp_xfeed = getenv("HB_XFEED") != 0; hp_loud = getenv("HB_LOUD") != 0;
@@ -2127,29 +2128,29 @@ static int selftest(const char *file, int secs)
 double sin(double);	/* (math.h would clash with our log file variable logf) */
 static double cpu_now(void) { struct rusage u; getrusage(RUSAGE_SELF, &u); return u.ru_utime.tv_sec + u.ru_stime.tv_sec + (u.ru_utime.tv_usec + u.ru_stime.tv_usec) / 1e6; }	/* (clock_gettime needs librt: not on the device) */
 /* UI cost per operation (ms), averaged over many repeats (getrusage has 10 ms resolution) */
-static const char *bl_names[9] = { "Aleatorio (todas)", "Canciones", "Artistas", "Álbumes", "Alter Bridge - Blackbird", "Fortress", "The Last Hero", "Pawns & Kings", "Walk the Sky 2.0" };
+static const char *bl_names[9] = { "Shuffle all", "Songs", "Artists", "Albums", "Alter Bridge - Blackbird", "Fortress", "The Last Hero", "Pawns & Kings", "Walk the Sky 2.0" };
 static const char *bl_label(int i) { return bl_names[i]; }
-static const char *bl_value(int i) { static const char *v[9] = { "", "1.25x", "", "", "12", "", "sí", "", "" }; return v[i]; }
+static const char *bl_value(int i) { static const char *v[9] = { "", "1.25x", "", "", "12", "", "on", "", "" }; return v[i]; }
 static void bench_ui(void)
 {
 	double t0; int R;
 	#define UI(name, reps, code) do { R = reps; t0 = cpu_now(); for (int _r = 0; _r < R; _r++) { code; } lg("bench ui: %-26s %7.2f ms (%d MHz)", name, (cpu_now() - t0) * 1000 / R, cpu_mhz); } while (0)
-	struct list_view v = { "Música", 9, 2, 0, bl_label, bl_value, 0, LI_FOLDER, 0, 0, 0, -1 };
+	struct list_view v = { "Music", 9, 2, 0, bl_label, bl_value, 0, LI_FOLDER, 0, 0, 0, -1 };
 	UI("scr_list 9 rows", 100, scr_list(&v));
 	UI("gfx_flip all rows changed", 100, { gfx_invalidate(); gfx_flip(); });
 	UI("gfx_flip nothing changed", 200, gfx_flip());
 	{ static uint16_t tmp[W * H]; UI("memcpy frame (glibc)", 200, memcpy(tmp, fb, W * H * 2)); UI("gfx_copy32 frame", 200, gfx_copy32(tmp, fb, W * H * 2)); }
-	UI("scr_status (title+bottom)", 200, scr_status("Canciones"));
+	UI("scr_status (title+bottom)", 200, scr_status("Songs"));
 	UI("gfx_text 26 chars", 1000, gfx_text(10, 100, "Ghost of Days Gone By (Liv", 0xFFFF, 1));
 	struct player_view pv; memset(&pv, 0, sizeof pv);
-	pv.book = "Canciones"; pv.track = "Ghost of Days Gone By"; pv.sub = "Alter Bridge - AB III.5"; pv.genre = "Alternative";
+	pv.book = "Songs"; pv.track = "Ghost of Days Gone By"; pv.sub = "Alter Bridge - AB III.5"; pv.genre = "Alternative";
 	pv.idx = 2; pv.ntr = 14; pv.sec = 71; pv.total = 233; pv.vol = 14; pv.volmax = VOLMAX;
 	UI("scr_player full", 100, scr_player(&pv, 1));
 	UI("scr_player seconds tick", 200, scr_player(&pv, 0));
 	int fr[HOME_SLOTS]; for (int i = 0; i < HOME_SLOTS; i++) fr[i] = 8; fr[4] = 0;
 	UI("scr_home", 100, scr_home(4, fr, "Slip to the Void"));
 	UI("scr_home_icon (anim frame)", 400, scr_home_icon(4, 3));
-	static const char *nm[7] = { "Efecto de son. des.", "Heavy", "Pop", "Jazz", "Exclusivo", "Personalizado", "EQ avanzado" };
+	static const char *nm[7] = { "Effects off", "Heavy", "Pop", "Jazz", "Unique", "Custom", "Advanced EQ" };
 	int z[5] = { 1, 0, -1, 1, 2 };
 	UI("scr_sony_eq", 100, scr_sony_eq(nm, 7, 1, 0, 1, 2, z, -1, 0));
 	#undef UI

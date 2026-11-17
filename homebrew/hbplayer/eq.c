@@ -28,7 +28,7 @@ static int wide_on, wide_gain;	/* Q12 side gain */
 static int side_hist[64];
 static int side_pos;
 
-/* headphone effects (Ajustes > Auriculares):
+/* headphone effects (Settings > Headphones):
  *  - crossfeed: each ear also gets the other channel, low-passed (700 Hz) and 0.3 ms late at -9 dB, the way it
  *    reaches the far ear from speakers (after Bauer / bs2b): hard-panned old stereo stops feeling "inside the head"
  *  - graves a volumen bajo: loudness compensation (equal-loudness contours): the lower the volume, the more bass
@@ -157,17 +157,17 @@ void eq_apply(int rate)
 
 /* estimated CPU of the active filters, % at a true 124 MHz (measured on the device 2026-09-29: one stereo biquad
  * ~4.6 %, crossfeed ~8.6 %, loudness (2 biquads + redesign) ~14 %) */
-/* the active effects by name, for the sound menu's "why not Máxima batería" */
+/* the active effects by name, for the sound menu's "why not Max battery" */
 void eq_effects_desc(char *out, int max)
 {
 	out[0] = 0;
 	#define ADD(cond, name) if (cond) { int l = (int)strlen(out); snprintf(out + l, max - l, "%s%s", l ? ", " : "", name); }
-	ADD(eq.on, "ecualizador")
-	ADD(eq.bass, "realce de bajos")
-	ADD(eq.wide, "estéreo amplio")
+	ADD(eq.on, "equalizer")
+	ADD(eq.bass, "bass boost")
+	ADD(eq.wide, "wide stereo")
 	ADD(hp_xfeed, "crossfeed")
-	ADD(hp_loud, "graves a volumen bajo")
-	ADD(hp_autoeq && naq, "perfil de auriculares")
+	ADD(hp_loud, "bass at low volume")
+	ADD(hp_autoeq && naq, "headphone profile")
 	#undef ADD
 }
 
@@ -231,13 +231,13 @@ void eq_process(short *pcm, int frames, int rate)
 
 /* presets: 60, 250, 1k, 4k, 12k */
 const struct eq_preset eq_presets[] = {
-	{ "Plano", { 0, 0, 0, 0, 0 } },
+	{ "Flat", { 0, 0, 0, 0, 0 } },
 	{ "Rock", { 4, 2, -1, 2, 4 } },
 	{ "Pop", { -1, 2, 4, 2, -1 } },
 	{ "Jazz", { 3, 1, 0, 1, 3 } },
-	{ "Voz / podcast", { -3, 0, 3, 4, 1 } },
-	{ "Bajos", { 6, 3, 0, 0, 0 } },
-	{ "Agudos", { 0, 0, 1, 3, 6 } },
+	{ "Voice / podcast", { -3, 0, 3, 4, 1 } },
+	{ "Bass", { 6, 3, 0, 0, 0 } },
+	{ "Treble", { 0, 0, 1, 3, 6 } },
 };
 const int eq_npresets = sizeof eq_presets / sizeof eq_presets[0];
 
@@ -261,7 +261,7 @@ void eq_load(const char *statedir)
 		int dd, ver = 1;
 		if (fscanf(f, " %d", &dd) == 1) dsp_direct = !!dd;
 		if (fscanf(f, " %d", &ver) != 1) ver = 1;
-		if (ver < 2) dsp_direct = 1;	/* v2 (2026-09-29): "Máxima batería" is the default, turned on once */
+		if (ver < 2) dsp_direct = 1;	/* v2 (2026-09-29): "Max. battery" is the default, turned on once */
 	}
 	int ec, e1, e2, e3, e4, e5, ecs;	/* Sony EQ Personalizado and Clear Stereo */
 	long pos = ftell(f);

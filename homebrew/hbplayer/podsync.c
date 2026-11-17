@@ -1,5 +1,5 @@
 /* podsync.c: podcasts over the phone's Bluetooth tethering (PAN): the subscriptions, the shared phone link and the
- * background downloads ("Buscar episodios nuevos").
+ * background downloads ("Check for new episodes").
  * The subscriptions are /contents/Podcasts/feeds.txt ("Name | RSS URL | N"), written by the player when a show is
  * added or removed from the menus (podui.c) and still editable on the PC. A sync reads each feed, compares it with the
  * files in /contents/Podcasts/<Name>/ and downloads the missing ones among the newest N (same file names as the PC
@@ -114,7 +114,7 @@ static int save_feeds(void)
 {
 	FILE *f = fopen(FEEDS ".tmp", "w");
 	if (!f) { lg("podcasts: can't write " FEEDS ".tmp"); return -1; }
-	fprintf(f, "# Podcasts que sigue el Walkman: Nombre | URL del RSS | cuántos de los últimos episodios bajar\n");
+	fprintf(f, "# Podcasts the Walkman follows: Name | RSS URL | how many of the latest episodes to download\n");
 	for (int i = 0; i < nfeeds; i++) fprintf(f, "%s | %s | %d\n", feeds[i].name, feeds[i].url, feeds[i].keep);
 	int bad = ferror(f);
 	if (fclose(f) || bad || rename(FEEDS ".tmp", FEEDS)) { unlink(FEEDS ".tmp"); lg("podcasts: saving feeds.txt failed"); return -1; }
@@ -477,9 +477,9 @@ static void finish(void)
 	unlink(TMPXML);
 	save_pending();
 	pod_net_down();
-	if (newcount) snprintf(endmsg, sizeof endmsg, "%d episodio%s nuevo%s", newcount, newcount == 1 ? "" : "s", newcount == 1 ? "" : "s");
-	else if (errors) snprintf(endmsg, sizeof endmsg, "Hubo errores");
-	else snprintf(endmsg, sizeof endmsg, "No hay episodios nuevos");
+	if (newcount) snprintf(endmsg, sizeof endmsg, "%d new episode%s", newcount, newcount == 1 ? "" : "s");
+	else if (errors) snprintf(endmsg, sizeof endmsg, "There were errors");
+	else snprintf(endmsg, sizeof endmsg, "No new episodes");
 	lg("podsync: end, %d new, %d errors", newcount, errors);
 }
 
@@ -494,7 +494,7 @@ void dl_tick(void)
 		for (int i = 0; i < nq; i++) if (q[i].st == Q_WAIT) q[i].st = Q_FAIL;
 		errors++;
 		finish();
-		snprintf(endmsg, sizeof endmsg, "Se cortó la conexión");
+		snprintf(endmsg, sizeof endmsg, "Connection lost");
 		return;
 	}
 	long got = 0, total = 0;
@@ -559,7 +559,7 @@ void dl_cancel(void)
 	net_download_abort();
 	for (int i = 0; i < nq; i++) if (q[i].st == Q_WAIT || q[i].st == Q_RUN) q[i].st = Q_CANCEL;
 	finish();
-	snprintf(endmsg, sizeof endmsg, newcount ? "Cancelado (%d nuevo%s)" : "Cancelado", newcount, newcount == 1 ? "" : "s");
+	snprintf(endmsg, sizeof endmsg, newcount ? "Cancelled (%d new)" : "Cancelled", newcount);
 }
 
 /* ---------- the phone link (modal connect, shared by the sync and the search screens) ---------- */
@@ -576,7 +576,7 @@ static void pan_status(const char *what)
 	int step = 1;
 	if (what[0] >= '1' && what[0] <= '9' && what[1] == '/') { step = what[0] - '0'; what += 4; }	/* "n/4 text" */
 	scr_progress(net_title, step, 4, what, (int)(now() - status_t0), spin++,
-		step == 2 ? "El teléfono tiene que tener activado el anclaje por Bluetooth" : "");
+		step == 2 ? "Bluetooth tethering must be on on the phone" : "");
 	flip();
 }
 
@@ -613,17 +613,17 @@ const char *pod_phone_name(void)
  * is kept). The pairing itself happens on the first connection (pan_up asks the phone with the PIN). 0 = saved */
 int pod_choose_phone(void)
 {
-	if (dl_active() || net_refs) { message("Teléfono", "Ocupado con los podcasts.", "Esperá a que terminen las descargas."); msg_wait(3); return -1; }
+	if (dl_active() || net_refs) { message("Phone", "Busy with podcasts.", "Wait for the downloads to finish."); msg_wait(3); return -1; }
 	char addr[64], name[64], oaddr[64], pin[16];
 	read_phone(oaddr, sizeof oaddr, pin, sizeof pin, 0, 0);
-	if (bt_pick_device("Elegí el teléfono", "En el teléfono: Bluetooth visible", addr, sizeof addr, name, sizeof name)) return -1;
+	if (bt_pick_device("Choose the phone", "On the phone: Bluetooth visible", addr, sizeof addr, name, sizeof name)) return -1;
 	FILE *f = fopen(PHONEFILE ".tmp", "w");
 	if (!f) return -1;
-	fprintf(f, "# Teléfono que comparte internet por Bluetooth (anclaje): dirección, nombre y PIN para emparejar\n%s\nname=%s\npin=%s\n", addr, name, pin);
+	fprintf(f, "# Phone that shares internet over Bluetooth (tethering): address, name and PIN for pairing\n%s\nname=%s\npin=%s\n", addr, name, pin);
 	if (fclose(f) || rename(PHONEFILE ".tmp", PHONEFILE)) { unlink(PHONEFILE ".tmp"); return -1; }
 	sync();
 	lg("podcasts: phone %s (%s)", addr, name);
-	message("Teléfono", name[0] ? name : addr, "Activá el anclaje por Bluetooth en el teléfono"); msg_wait(3);
+	message("Phone", name[0] ? name : addr, "Turn on Bluetooth tethering on the phone"); msg_wait(3);
 	return 0;
 }
 
@@ -635,20 +635,20 @@ int pod_net_up(const char *title)
 	if (net_refs > 0) { lg("podcasts: link gone, connecting again"); pan_down(); }	/* the others keep their count */
 	char addr[64], pin[16];
 	if (read_phone(addr, sizeof addr, pin, sizeof pin, 0, 0)) {
-		message(title, "Primero elegí el teléfono", "que comparte internet por Bluetooth"); msg_wait(3);
+		message(title, "First choose the phone", "that shares its internet over Bluetooth"); msg_wait(3);
 		if (pod_choose_phone() || read_phone(addr, sizeof addr, pin, sizeof pin, 0, 0)) return -1;
 	}
 	if (!net_refs) { had_bt = bt_is_on(); if (had_bt) bt_shutdown(); }
 	net_title = title;
 	{	/* without the CA bundle HTTPS still works, unverified: say so once */
 		static int told;
-		if (!told && access("/contents/HB/cacert.pem", R_OK)) { told = 1; message(title, "Sin cacert.pem: HTTPS sin verificar certificados", ""); msg_wait(3); }
+		if (!told && access("/contents/HB/cacert.pem", R_OK)) { told = 1; message(title, "No cacert.pem: HTTPS without certificate checks", ""); msg_wait(3); }
 	}
 	last_status = 0; status_t0 = now();
 	int r = pan_up(addr, pin, pan_status);
 	if (r) {
-		static const char *why[] = { "", "Dirección inválida", "No se pudo abrir el Bluetooth", "El teléfono no responde", "El teléfono rechazó la conexión", "No hubo dirección IP", "El teléfono cortó la conexión" };
-		message(title, why[-r < 7 ? -r : 0], r == -6 ? "Activá el anclaje por Bluetooth en el teléfono" : "¿Está activo el anclaje Bluetooth?");
+		static const char *why[] = { "", "Invalid address", "Could not open Bluetooth", "The phone does not answer", "The phone refused the connection", "No IP address", "The phone hung up" };
+		message(title, why[-r < 7 ? -r : 0], r == -6 ? "Turn on Bluetooth tethering on the phone" : "Is Bluetooth tethering on?");
 		lg("podcasts: pan_up failed %d", r);
 		wait_ui(4);
 		if (!net_refs) { if (had_bt && !no_bt_restart) bt_auto_start(); had_bt = 0; }
@@ -758,9 +758,9 @@ static void new_session(void)
 /* starts a sync of every show (only = -1) or of one; returns 1 if the background download is running */
 static int dl_start(int only)
 {
-	if (!load_feeds()) { message("Podcasts", "Todavía no seguís ningún podcast.", "Agregá uno con \"Agregar podcast\"."); msg_wait(3); return 0; }
+	if (!load_feeds()) { message("Podcasts", "You don't follow any podcast yet.", "Add one with \"Add podcast\"."); msg_wait(3); return 0; }
 	if (only >= nfeeds) return 0;
-	if (pod_net_up("Buscar episodios")) return 0;
+	if (pod_net_up("New episodes")) return 0;
 	new_session();
 	sync_only = only;
 	if (only >= 0) fi = only;
@@ -786,7 +786,7 @@ int dl_add_episode(int fidx, const struct rss_item *item)
 	if (!access(dest, F_OK)) return 1;
 	if (dl_active()) for (int i = 0; i < nq; i++) if (!strcmp(q[i].dest, dest) && q[i].st != Q_FAIL && q[i].st != Q_CANCEL) return 1;
 	int fresh = !dl_active();
-	if (fresh) { if (pod_net_up("Bajar episodio")) return -1; new_session(); }
+	if (fresh) { if (pod_net_up("Download episode")) return -1; new_session(); }
 	if (nq >= MAXQ) { if (fresh) pod_net_down(); return -1; }
 	struct qitem *it = &q[nq++];
 	memset(it, 0, sizeof *it);
@@ -818,16 +818,16 @@ int dl_percent(void)
 	return -1;
 }
 
-/* the value shown next to "Buscar episodios nuevos" in the podcast list */
+/* the value shown next to "Check for new episodes" in the podcast list */
 const char *dl_row_value(void)
 {
 	static char s[40];
-	if (phase == P_FEED) { if (sync_only >= 0) snprintf(s, sizeof s, "leyendo"); else snprintf(s, sizeof s, "leyendo %d/%d", fi + 1, nfeeds); }
-	else if (phase == P_COVER) snprintf(s, sizeof s, "imágenes");
+	if (phase == P_FEED) { if (sync_only >= 0) snprintf(s, sizeof s, "reading"); else snprintf(s, sizeof s, "reading %d/%d", fi + 1, nfeeds); }
+	else if (phase == P_COVER) snprintf(s, sizeof s, "artwork");
 	else if (phase == P_EPIS) {
 		int p = dl_percent();
 		if (p >= 0) snprintf(s, sizeof s, "%d/%d · %d%%", qi + 1, nq, p); else snprintf(s, sizeof s, "%d/%d", qi + 1, nq);
-	} else if (phase == P_END && endmsg[0]) snprintf(s, sizeof s, "%s", newcount ? "listo" : "");
+	} else if (phase == P_END && endmsg[0]) snprintf(s, sizeof s, "%s", newcount ? "done" : "");
 	else s[0] = 0;
 	return s;
 }
@@ -865,14 +865,14 @@ static int draw(int top)
 	static int spin;
 	static const char *sp[4] = { "", ".", "..", "..." };
 	if (phase == P_FEED) {
-		if (sync_only >= 0) snprintf(h1, sizeof h1, "Leyendo %s", feeds[fi].name);
-		else snprintf(h1, sizeof h1, "Leyendo %s (%d/%d)", feeds[fi].name, fi + 1, nfeeds);
+		if (sync_only >= 0) snprintf(h1, sizeof h1, "Reading %s", feeds[fi].name);
+		else snprintf(h1, sizeof h1, "Reading %s (%d/%d)", feeds[fi].name, fi + 1, nfeeds);
 		double el = now() - feed_t0;
-		snprintf(sub, sizeof sub, "%ld KB · %.0f KB/s · %d episodios%s", feed_got >> 10, el > 0.5 ? feed_got / 1024.0 / el : 0.0, feed_items, sp[spin++ & 3]);
+		snprintf(sub, sizeof sub, "%ld KB · %.0f KB/s · %d episodes%s", feed_got >> 10, el > 0.5 ? feed_got / 1024.0 / el : 0.0, feed_items, sp[spin++ & 3]);
 	}
-	else if (phase == P_COVER) snprintf(h1, sizeof h1, "Bajando imágenes (%d/%d)", ci + 1, ncovers);
+	else if (phase == P_COVER) snprintf(h1, sizeof h1, "Downloading artwork (%d/%d)", ci + 1, ncovers);
 	else if (phase == P_EPIS) {
-		snprintf(h1, sizeof h1, "Bajando %d de %d", qi + 1, nq);
+		snprintf(h1, sizeof h1, "Downloading %d of %d", qi + 1, nq);
 		long left = 0;	/* bytes still to fetch in the whole queue -> time left at the current speed */
 		for (int i = qi; i < nq; i++) if (q[i].st <= 1 && q[i].total > 0) left += q[i].total - q[i].got;
 		if (rate > 1 && left > 0) {
@@ -881,7 +881,7 @@ static int draw(int top)
 			else snprintf(sub, sizeof sub, "%.0f kB/s · %d min", rate, m);
 		} else if (rate > 1) snprintf(sub, sizeof sub, "%.0f kB/s", rate);
 	}
-	else snprintf(h1, sizeof h1, "%s", endmsg[0] ? endmsg : "Sin descargas");
+	else snprintf(h1, sizeof h1, "%s", endmsg[0] ? endmsg : "No downloads");
 	static struct dl_row rows[MAXQ];
 	for (int i = 0; i < nq; i++) { rows[i].title = q[i].title; rows[i].feed = q[i].feed; rows[i].got = q[i].got; rows[i].total = q[i].total; rows[i].st = q[i].st; rows[i].cover = feed_cover(&q[i]); }
 	return scr_downloads(h1, sub, dl_active(), phase == P_FEED, rows, nq, top, rate);
@@ -910,7 +910,7 @@ void dl_screen(void)
 	}
 }
 
-/* "Buscar episodios nuevos" row (only = -1) or a show's "Buscar episodios nuevos" (its index): start (or show)
+/* "Check for new episodes" row (only = -1) or a show's "Check for new episodes" (its index): start (or show)
  * the downloads */
 void podsync_update(int only)
 {

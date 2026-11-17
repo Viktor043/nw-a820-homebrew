@@ -81,7 +81,7 @@ if os.path.isdir(res):
                     print('   untranslated:', l)
                 step('screens in English (%d), all translated' % n, rc == 0 and n > 0 and not left, '%d strings left' % len(left))
             else:
-                step('screens in Spanish (%d)' % n, rc == 0 and n > 0)
+                step('screens rendered (%d)' % n, rc == 0 and n > 0)
             try:
                 from PIL import Image
                 pngs = []
@@ -108,7 +108,7 @@ else:
 sys.path.insert(0, HERE)
 import trcover
 ok, msg = trcover.check(HB, ZIG, OUT, cc)
-step('every Spanish text has an English entry', ok, msg)
+step('no Spanish text left in the interface', ok, msg)
 
 # 5. the installer's firmware chain (repository layout: ../../firmware): Sony's updater -> official firmware -> hook
 # firmware and Bluetooth helper, each against its known MD5 (downloads the 12 MB updater once into ~/.walkman-hb)

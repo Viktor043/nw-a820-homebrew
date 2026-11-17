@@ -73,7 +73,7 @@ static void stack_up(void)
 	double t0 = now();
 	if (access("/contents/HB/cacert.pem", R_OK) == 0) net_set_ca("/contents/HB/cacert.pem");
 	double left = 3 - (now() - t0);
-	if (left > 0) wait_s(left, "1/4 Encendiendo el Bluetooth");
+	if (left > 0) wait_s(left, "1/4 Turning Bluetooth on");
 	set_low_latency();
 }
 
@@ -81,7 +81,7 @@ static void stack_down(void)
 {
 	if (pid_bca > 0) {	/* never block: the watchdog resets the device after 15 s */
 		kill(pid_bca, SIGTERM);
-		for (int i = 0; i < 20 && waitpid(pid_bca, 0, WNOHANG) == 0; i++) { if (tick) tick("Apagando Bluetooth..."); usleep(100000); }
+		for (int i = 0; i < 20 && waitpid(pid_bca, 0, WNOHANG) == 0; i++) { if (tick) tick("Turning Bluetooth off..."); usleep(100000); }
 		if (waitpid(pid_bca, 0, WNOHANG) == 0) { kill(pid_bca, SIGKILL); waitpid(pid_bca, 0, 0); }
 		pid_bca = -1;
 	}
@@ -118,14 +118,14 @@ int pan_up(const char *phone_addr, const char *pin, void (*status)(const char *)
 	while (now() - t0 < 2) if (btcm_poll(100) == 0x8017) break;	/* CM_L2CA_REGISTER_CFM: arrives at once */
 	int tries = 0, reloaded = 0;
 	for (;;) {
-		if (tick) tick("2/4 Conectando con el teléfono");
+		if (tick) tick("2/4 Connecting to the phone");
 		btcm_connect(&phone, 1691);
 		t0 = now();
-		while (!btcm_connected() && !btcm_connect_failed() && now() - t0 < 25) { btcm_poll(100); if (tick) tick("2/4 Conectando con el teléfono"); }
+		while (!btcm_connected() && !btcm_connect_failed() && now() - t0 < 25) { btcm_poll(100); if (tick) tick("2/4 Connecting to the phone"); }
 		if (btcm_connected()) break;
 		if (!btcm_connect_failed() && !reloaded) {	/* no answer at all from the stack: wedged, reload it once */
 			reloaded = 1;
-			if (tick) tick("2/4 Reiniciando el Bluetooth");
+			if (tick) tick("2/4 Restarting Bluetooth");
 			btcm_close();
 			if (pid_bca > 0) { kill(pid_bca, SIGKILL); waitpid(pid_bca, 0, 0); pid_bca = -1; }
 			bt_reload_stack();
@@ -138,22 +138,22 @@ int pan_up(const char *phone_addr, const char *pin, void (*status)(const char *)
 			continue;
 		}
 		if (++tries >= 2) { lg("pan: L2CAP connect failed"); btcm_close(); stack_down(); return -3; }
-		if (tick) tick("2/4 Emparejando con el teléfono");
+		if (tick) tick("2/4 Pairing with the phone");
 		btcm_bond(&phone, pin ? pin : "0000");
 		t0 = now();
-		while (now() - t0 < 30) { int t = btcm_poll(200); if (tick) tick("2/4 Emparejando con el teléfono"); if (t == -2) break; }
+		while (now() - t0 < 30) { int t = btcm_poll(200); if (tick) tick("2/4 Pairing with the phone"); if (t == -2) break; }
 	}
 	bnep_init(lmac, rmac, l2_send, eth_recv);
 	bnep_setup();
 	t0 = now();
-	while (bnep_state() == 1 && now() - t0 < 10 && btcm_connected()) { btcm_poll(100); if (tick) tick("3/4 Abriendo la conexión a internet"); }
+	while (bnep_state() == 1 && now() - t0 < 10 && btcm_connected()) { btcm_poll(100); if (tick) tick("3/4 Opening the internet connection"); }
 	if (bnep_state() != 2) { lg("pan: BNEP setup failed (%d)", bnep_state()); pan_down(); return -4; }
 	up = 1;
 	net_start(lmac, eth_send);
 	t0 = now();
 	int kicks = 0;
 	while (!net_ready() && now() - t0 < 30) {
-		pan_pump(20); if (tick) tick("4/4 Pidiendo dirección de internet");
+		pan_pump(20); if (tick) tick("4/4 Asking for an internet address");
 		/* Android accepts the BNEP setup and hangs up at once when its Bluetooth tethering is off: say so now
 		 * instead of asking for an address for 30 s over a dead link */
 		if (!btcm_connected()) { lg("pan: the phone hung up after the setup (tethering off?)"); pan_down(); return -6; }
@@ -171,7 +171,7 @@ void pan_down(void)
 	up = 0;
 	btcm_disconnect();
 	double t0 = now();
-	while (now() - t0 < 1) { btcm_poll(100); if (tick) tick("Desconectando..."); }
+	while (now() - t0 < 1) { btcm_poll(100); if (tick) tick("Disconnecting..."); }
 	btcm_close();
 	stack_down();
 	lg("pan: down");

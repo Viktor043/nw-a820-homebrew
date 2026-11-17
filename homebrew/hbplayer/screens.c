@@ -19,7 +19,7 @@ int dl_percent(void);
  * as a strip on top. The screens keep Sony's geometry: the status bar (288..320) is drawn as that strip and gfx_rot
  * shows it on top of the LCD, the title and content 32 px lower. */
 int ui_theme;
-const char *const theme_names[THEME_COUNT] = { "Sony", "SNRGY plata", "SNRGY negro" };
+const char *const theme_names[THEME_COUNT] = { "Sony", "SNRGY silver", "SNRGY black" };
 uint16_t ui_pal[4] = { RGB(255, 255, 255), 0, RGB(170, 170, 170), RGB(255, 150, 0) };
 static uint16_t th_paper, th_rule, th_surf, th_track, th_dot, th_dotoff, th_strip;
 #define SNRGY (ui_theme != 0)
@@ -181,7 +181,7 @@ struct ui_status ui_st = { -1, 0, 0, 0, 0, 0, 0 };
 #define T_POWEROFF 17, 7	/* 240x320 POWER OFF */
 #define T_RING 17, 17		/* 240x260 blue ring */
 
-const char *const home_labels[HOME_SLOTS] = { "Modo foco", "Audiolibros", "Podcasts", "Reproduciendo", "Música", "Juegos", "Bluetooth", "Apagar", "Ajustes" };	/* Música in the centre, like Sony */
+const char *const home_labels[HOME_SLOTS] = { "Focus", "Audiobooks", "Podcasts", "Now playing", "Music", "Games", "Bluetooth", "Power", "Settings" };	/* Music in the centre, like Sony */
 /* icon per slot: >= 100 -> Sony's own animation (first frame index - 100), else our ICON_*, -1 empty */
 static int home_src[HOME_SLOTS] = { ICON_LOTUS, ICON_BOOK, 100 + 45, 100 + 27, 100 + 54, ICON_GAMEPAD, 100 + 72, ICON_POWER, 100 + 9 };
 static const int home_src_intl[HOME_SLOTS] = { ICON_LOTUS, ICON_BOOK, ICON_MIC, ICON_PLAY, 100 + 55, ICON_GAMEPAD, 100 + 37, ICON_POWER, 100 + 18 };
@@ -285,7 +285,7 @@ static uint16_t mix(int r0, int g0, int b0, int r1, int g1, int b1, int t, int n
  * black), and on home the deep blue band of Sony's backgrounds (the "POWER OFF"/splash textures: black down to ~y 213,
  * then pure blue with a touch of red, ~(8,0,41) at y 244 and ~(16,0,100) near the status bar). */
 int ui_wall;
-const char *const wall_names[WALL_COUNT] = { "Sony (negro)", "Azul noche", "Verde", "Violeta", "Vino", "Gris" };
+const char *const wall_names[WALL_COUNT] = { "Sony", "Navy", "Green", "Violet", "Wine", "Grey" };
 static const unsigned char wall_rgb[WALL_COUNT][3] = { { 0, 0, 0 }, { 0, 20, 90 }, { 0, 70, 30 }, { 70, 0, 90 }, { 90, 0, 20 }, { 55, 55, 60 } };
 static int bg_made_for = -1;
 /* the wallpaper gradients are dark and long: in RGB565 plain rows make bands ~24 px tall, tinted green/purple where
@@ -645,17 +645,17 @@ static void snrgy_icon_draw(int k, int x, int y, uint16_t c)
 	}
 }
 int ui_home_tab;	/* 0 the list, 2 RESUME (the header) */
-const int home_order[] = { 4, 1, HOME_BOOKS, 2, 5, 0, 8 };	/* Música, Audiolibros, Libros, Podcasts, Juegos, Modo foco, Ajustes (Bluetooth and Apagar: Ajustes) */
+const int home_order[] = { 4, 1, HOME_BOOKS, 2, 5, 0, 8 };	/* Music, Audiobooks, Books, Podcasts, Games, Focus, Settings (Bluetooth and Power: Settings) */
 const int home_order_n = 7;
-#define HOME_RH 35	/* seven rows between the tabs and the strip (was 8 x 31 with Apagar) */
+#define HOME_RH 35	/* seven rows between the tabs and the strip (was 8 x 31 with Power) */
 static void snrgy_home(int sel, const char *nowline)
 {
 	bg_fill(0, 0, W, BOTTOM_Y, 0);
 	/* the header: RESUME (what played last), reached with UP from the first row */
 	{
-		int tx = 12, w = gfx_text_w("Reanudar", 1), focus = ui_home_tab != 0;
+		int tx = 12, w = gfx_text_w("Resume", 1), focus = ui_home_tab != 0;
 		if (focus) rrect(tx - 7, 2, w + 14, 24, 6, C_WHITE, 1);
-		gfx_text(tx, 3, "Reanudar", focus && ui_theme == 1 ? RGB(255, 255, 255) : RGB(0xE2, 0x06, 0x13), 1);	/* white on silver's black pill; red on black's grey pill */	/* Leica red; white on the pill (red on black didn't read), capitals centred in it */
+		gfx_text(tx, 3, "Resume", focus && ui_theme == 1 ? RGB(255, 255, 255) : RGB(0xE2, 0x06, 0x13), 1);	/* white on silver's black pill; red on black's grey pill */	/* Leica red; white on the pill (red on black didn't read), capitals centred in it */
 	}
 	for (int r = 0; r < home_order_n; r++) {
 		int i = home_order[r], y = TITLE_H + 1 + r * HOME_RH, on = !ui_home_tab && i == sel;
@@ -664,7 +664,7 @@ static void snrgy_home(int sel, const char *nowline)
 		if (on) rrect(4, y, W - 8, HOME_RH - 1, 6, C_WHITE, 1);
 		else if (!next_on && r < home_order_n - 1) gfx_fill(10, y + HOME_RH - 1, W - 20, 1, th_rule);
 		snrgy_icon_draw(i == HOME_BOOKS ? SNRGY_ICON_BOOKS : i, 12, y + (HOME_RH - 1 - SNRGY_ICON) / 2, fg);
-		gfx_text_clip(42, y + (HOME_RH - 1 - LINE_H) / 2 + 1, i == HOME_BOOKS ? "Libros" : home_labels[i], fg, W - 80);
+		gfx_text_clip(42, y + (HOME_RH - 1 - LINE_H) / 2 + 1, i == HOME_BOOKS ? "Books" : home_labels[i], fg, W - 80);
 		if (i == 2 && ui_pod_new > 0) { char n[8]; snprintf(n, sizeof n, "%d", ui_pod_new); gfx_text(W - 26 - gfx_text_w(n, 1), y + (HOME_RH - 1 - LINE_H) / 2 + 1, n, on ? C_BLACK : C_GREY, 1); }
 		chevron(W - 18, y + HOME_RH / 2 - 1, fg);
 	}
@@ -675,7 +675,7 @@ void scr_home(int sel, const int *frame, const char *nowline)
 {
 	if (SNRGY) { snrgy_home(sel, nowline); return; }
 	bg_fill(0, TITLE_H, W, BOTTOM_Y - TITLE_H, 1);
-	title_bar("Inicio");
+	title_bar("Home");
 	for (int i = 0; i < HOME_SLOTS; i++) if (home_src[i] >= 0) { home_cell(i, frame[i]); home_badge(i); }
 	if (sel >= 0 && sel < HOME_SLOTS && home_labels[sel][0]) {
 		const char *l = home_labels[sel];
@@ -783,7 +783,7 @@ static void scr_grid(const struct list_view *v)
 {
 	background();
 	scr_status(v->n ? v->label(v->sel) : v->title);
-	if (!v->n) { gfx_text_wrap(16, 120, v->empty ? v->empty : "(vacío)", C_GREY, W - 32, 4, 22); return; }
+	if (!v->n) { gfx_text_wrap(16, 120, v->empty ? v->empty : "(empty)", C_GREY, W - 32, 4, 22); return; }
 	for (int r = 0; r < GRID_N; r++) {
 		int i = v->top + r;
 		if (i >= v->n) break;
@@ -808,7 +808,7 @@ void scr_list(const struct list_view *v)
 	if (v->grid) { scr_grid(v); return; }
 	background();
 	scr_status(v->title);
-	if (!v->n) { gfx_text_wrap(16, 120, v->empty ? v->empty : "(vacío)", C_GREY, W - 32, 4, 22); return; }
+	if (!v->n) { gfx_text_wrap(16, 120, v->empty ? v->empty : "(empty)", C_GREY, W - 32, 4, 22); return; }
 	int rows = lv_rows(v), rh = lv_rowh(v), sb = v->n > rows;
 	for (int r = 0; r < rows; r++) {
 		int i = v->top + r;
@@ -890,7 +890,7 @@ void scr_list(const struct list_view *v)
 void scr_sony_eq(const char *const *names, int n, int sel, int top, int active, int cb, const int *bands, int edit, int grey)
 {
 	background();
-	scr_status("Ecualizador");
+	scr_status("Equalizer");
 	int sb = n > EQ_ROWS;
 	for (int r = 0; r < EQ_ROWS && top + r < n; r++) {
 		int i = top + r, y = LIST_Y0 + r * LIST_ROW_H, on = i == sel && edit < 0;
@@ -994,7 +994,7 @@ static void snrgy_player(const struct player_view *v)
 		if (v->speed && v->speed != 100) { snprintf(b, sizeof b, "%d.%02dx", v->speed / 100, v->speed % 100); x = gfx_text(x, iy, b, C_GREY, 1) + 10; }
 		if (v->out && *v->out) gfx_text(x, iy, v->out, C_GREY, 1);
 		if (!v->meta) {	/* music: in order / shuffle / repeat all / repeat one, an icon and its name */
-			static const char *const names[4] = { "En orden", "Aleatorio", "Repetir todo", "Repetir una" };
+			static const char *const names[4] = { "In order", "Shuffle", "Repeat all", "Repeat one" };
 			int m = v->shuffle ? 1 : v->repeat == 1 ? 2 : v->repeat == 2 ? 3 : 0;
 			int w = gfx_text_w(names[m], 1), rx = W - 8 - w;
 			gfx_text(rx, iy, names[m], C_GREY, 1);
@@ -1107,7 +1107,7 @@ void scr_progress(const char *title, int step, int nsteps, const char *text, int
 {
 	scr_screen(title);
 	char b[48];
-	snprintf(b, sizeof b, "Paso %d de %d", step, nsteps);
+	snprintf(b, sizeof b, "Step %d of %d", step, nsteps);
 	gfx_text(14, 44, b, C_GREY, 1);
 	gfx_text_wrap(14, 72, text, C_WHITE, W - 28, 2, 24);
 	/* one segment per step: done = orange, current = pulsing, pending = dark */
@@ -1130,11 +1130,11 @@ int scr_downloads(const char *header, const char *sub, int active, int reading, 
 {
 	(void)rate;
 	background();
-	title_bar("Descargas");
+	title_bar("Downloads");
 	int cur = -1;
 	for (int i = 0; i < n; i++) if (rows[i].st == 1) { cur = i; break; }
 	bb_no_dl = 1;
-	bottom_bar(BB_TEXT, cur >= 0 && sub && *sub ? sub : active ? "OPTION: cancelar" : "BACK: volver", C_WHITE);
+	bottom_bar(BB_TEXT, cur >= 0 && sub && *sub ? sub : active ? "OPTION: cancel" : "BACK: back", C_WHITE);
 	bb_no_dl = 0;
 	rbox(4, 31, W - 8, 92, C_SURF);
 	if (cur >= 0) {
@@ -1142,7 +1142,7 @@ int scr_downloads(const char *header, const char *sub, int active, int reading, 
 		int pct = it->total > 0 ? (int)((long long)it->got * 100 / it->total) : 0;
 		char b[32]; snprintf(b, sizeof b, "%d%%", pct);
 		gfx_text(12, 30, b, C_ORANGE, 2);
-		snprintf(b, sizeof b, "%d de %d", cur + 1, n);
+		snprintf(b, sizeof b, "%d of %d", cur + 1, n);
 		gfx_text(W - 12 - gfx_text_w(b, 1), 34, b, C_GREY, 1);
 		if (it->total > 0) snprintf(b, sizeof b, "%ld/%ld MB", it->got >> 20, it->total >> 20); else snprintf(b, sizeof b, "%ld MB", it->got >> 20);
 		gfx_text(W - 12 - gfx_text_w(b, 1), 56, b, C_WHITE, 1);
@@ -1152,7 +1152,7 @@ int scr_downloads(const char *header, const char *sub, int active, int reading, 
 		gfx_text_clip(12, 36, header, active ? C_ORANGE : C_WHITE, W - 24);
 		if (sub && *sub) gfx_text_clip(12, 60, sub, C_GREY, W - 24);
 	}
-	if (!n) { gfx_text_wrap(8, 140, reading ? "Buscando episodios nuevos en tus podcasts..." : "No había episodios para bajar.", C_GREY, W - 16, 3, 22); return 0; }
+	if (!n) { gfx_text_wrap(8, 140, reading ? "Looking for new episodes..." : "There were no episodes to get.", C_GREY, W - 16, 3, 22); return 0; }
 	/* the others: queued first, then finished / failed; 3 rows of 44 px */
 	static int order[512];
 	int m = 0;
@@ -1161,7 +1161,7 @@ int scr_downloads(const char *header, const char *sub, int active, int reading, 
 	if (top > m - DL_ROWS) top = m - DL_ROWS;
 	if (top < 0) top = 0;
 	int sb = m > DL_ROWS, rw = W - 8 - (sb ? 6 : 0), y = 150;
-	if (m) gfx_text(8, 126, rows[order[top]].st == 0 ? "En cola" : "Terminados", C_GREY, 1);
+	if (m) gfx_text(8, 126, rows[order[top]].st == 0 ? "Queued" : "Finished", C_GREY, 1);
 	for (int j = top; j < m && j < top + DL_ROWS; j++, y += 46) {
 		const struct dl_row *it = &rows[order[j]];
 		rbox(4, y, rw - 4, 44, C_SURF);
@@ -1171,10 +1171,10 @@ int scr_downloads(const char *header, const char *sub, int active, int reading, 
 		mbytes(a, sizeof a, it->total > 0 ? it->total : it->got);
 		uint16_t sc = C_GREY;
 		switch (it->st) {
-		case 0: snprintf(st, sizeof st, "%s · %s", it->feed, it->total > 0 ? a : "en cola"); break;
-		case 2: snprintf(st, sizeof st, "listo · %s", it->feed); sc = C_GREEN; break;
-		case 3: snprintf(st, sizeof st, "error, se retoma · %s", it->feed); sc = C_RED; break;
-		default: snprintf(st, sizeof st, "cancelado · %s", it->feed);
+		case 0: snprintf(st, sizeof st, "%s · %s", it->feed, it->total > 0 ? a : "queued"); break;
+		case 2: snprintf(st, sizeof st, "done · %s", it->feed); sc = C_GREEN; break;
+		case 3: snprintf(st, sizeof st, "error, will resume · %s", it->feed); sc = C_RED; break;
+		default: snprintf(st, sizeof st, "cancelled · %s", it->feed);
 		}
 		gfx_text_clip(52, y, it->title, it->st == 2 ? C_GREY : C_WHITE, rw - 56);
 		gfx_text_clip(52, y + 21, st, sc, rw - 56);
@@ -1211,8 +1211,8 @@ void scr_ask(void)
 	scr_splash(0);
 	gfx_fill(0, 262, W, 58, RGB(10, 10, 14));
 	gfx_fill(0, 262, W, 1, RGB(80, 80, 90));
-	gfx_text_center(W / 2, 270, "HOME: Audiolibros", C_ORANGE, 1);
-	gfx_text_center(W / 2, 294, "esperá: Walkman", C_GREY, 1);
+	gfx_text_center(W / 2, 270, "HOME: player", C_ORANGE, 1);
+	gfx_text_center(W / 2, 294, "wait: Walkman", C_GREY, 1);
 }
 
 /* ---------- focus mode ---------- */
@@ -1236,12 +1236,12 @@ void scr_focus(const struct focus_view *v)
 	int cy = 128;
 	if (SNRGY) for (int t = 0; t < 1440; t++) { double q = t * 3.14159265 / 720; for (int r = 98; r <= 99; r++) gfx_fill(W / 2 + (int)lround(r * cos(q)), cy + (int)lround(r * sin(q)), 1, 1, C_WHITE); }
 	else if (ring.w) blit_max(ring, 0, cy - ring.h / 2);
-	scr_status("Modo foco");
+	scr_status("Focus");
 	char b[16];
 	int l = v->left < 0 ? 0 : v->left;
 	snprintf(b, sizeof b, "%02d:%02d", l / 60, l % 60);
 	big_digits(W / 2, cy - 18, b);
-	if (v->paused) gfx_text_center(W / 2, cy + 26, "PAUSA", C_ORANGE, 1);
+	if (v->paused) gfx_text_center(W / 2, cy + 26, "PAUSED", C_ORANGE, 1);
 	if (v->l1) gfx_text_center(W / 2, 238, v->l1, C_GREY, 1);
 	if (v->l2) gfx_text_center(W / 2, 262, v->l2, C_GREY, 1);
 }
@@ -1289,7 +1289,7 @@ void scr_keyboard(const char *title, const char *text, const char *placeholder, 
 {
 	background();
 	title_bar(title);
-	bottom_bar(BB_TEXT, *text ? "BACK: borrar" : "BACK: volver", C_WHITE);
+	bottom_bar(BB_TEXT, *text ? "BACK: delete" : "BACK: back", C_WHITE);
 	/* the text field: the end of the text is what matters while typing (a long one scrolls left) */
 	rbox(6, 35, W - 12, 30, SNRGY ? C_WHITE : RGB(150, 156, 168));
 	rbox(7, 36, W - 14, 28, SNRGY ? th_paper : RGB(22, 24, 30));
@@ -1310,8 +1310,8 @@ void scr_keyboard(const char *title, const char *text, const char *placeholder, 
 			switch (k[i].kind) {
 			case KB_SHIFT: lb = upper ? "abc" : "ABC"; fg = upper ? C_ORANGE : C_GREY; break;
 			case KB_MODE: lb = mode ? "abc" : "123"; fg = C_GREY; break;
-			case KB_SPACE: lb = "espacio"; fg = C_GREY; break;
-			case KB_DEL: lb = "Borrar"; fg = C_GREY; break;
+			case KB_SPACE: lb = "space"; fg = C_GREY; break;
+			case KB_DEL: lb = "Delete"; fg = C_GREY; break;
 			case KB_OK: lb = ok_label ? ok_label : "OK"; fg = C_ORANGE; break;
 			}
 			if (on && SNRGY) { rrect(x, y, w, h, 5, C_WHITE, 1); fg = C_BLACK; }

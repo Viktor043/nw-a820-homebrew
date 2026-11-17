@@ -64,7 +64,7 @@ static void clock_set(struct tm *tm)
 	lg("clock: set by hand to %04d-%02d-%02d %02d:%02d", g.tm_year + 1900, g.tm_mon + 1, g.tm_mday, g.tm_hour, g.tm_min);
 }
 
-/* Ajustes > Fecha y hora: LEFT/RIGHT choose day, month, year, hours, minutes; UP/DOWN change; PLAY set; BACK leave */
+/* Settings > Date and time: LEFT/RIGHT choose day, month, year, hours, minutes; UP/DOWN change; PLAY set; BACK leave */
 void clock_menu(void)
 {
 	time_t now_t = time(0);
@@ -76,7 +76,7 @@ void clock_menu(void)
 		if (tm.tm_mday > md) tm.tm_mday = md;
 		if (redraw && backlight_on) {
 			char d[24], t[16];
-			scr_screen("Fecha y hora");
+			scr_screen("Date and time");
 			snprintf(d, sizeof d, "%02d.%02d.%04d", tm.tm_mday, tm.tm_mon + 1, y);
 			snprintf(t, sizeof t, "%02d:%02d", tm.tm_hour, tm.tm_min);
 			int dw = gfx_text_w(d, 2), tw = gfx_text_w(t, 2), dx = (W - dw) / 2, tx = (W - tw) / 2;
@@ -87,9 +87,9 @@ void clock_menu(void)
 			if (f < 3) { fx = dx + (f == 0 ? 0 : gfx_text_w(f == 1 ? "00." : "00.00.", 2)); fw = gfx_text_w(f == 2 ? "0000" : "00", 2); fy = 64 + 46; }
 			else { int a = f == 4 ? gfx_text_w("00:", 2) : 0; fx = tx + a; fw = gfx_text_w("00", 2); fy = 128 + 46; }
 			gfx_fill(fx, fy, fw, 3, C_ORANGE);
-			gfx_text_center(W / 2, 196, "arriba/abajo: cambiar", C_GREY, 1);
-			gfx_text_center(W / 2, 218, "izq/der: día, mes, año, hora, min", C_GREY, 1);
-			gfx_text_center(W / 2, 240, "PLAY: guardar", C_GREY, 1);
+			gfx_text_center(W / 2, 196, "up/down: change", C_GREY, 1);
+			gfx_text_center(W / 2, 218, "left/right: day, month, year, hour, min", C_GREY, 1);
+			gfx_text_center(W / 2, 240, "PLAY: save", C_GREY, 1);
 			gfx_flip();
 			redraw = 0;
 		}
@@ -169,13 +169,13 @@ static void edit_time(void)
 	for (;;) {
 		if (redraw && backlight_on) {	/* drawn only after a change (it used to redraw every 300 ms) */
 			char b[16];
-			scr_screen("Despertador");
+			scr_screen("Alarm");
 			snprintf(b, sizeof b, "%02d:%02d", h, m);
 			gfx_text_center(W / 2, 120, b, C_WHITE, 2);
 			gfx_fill(field ? 130 : 78, 160, 34, 3, C_ORANGE);
-			gfx_text_center(W / 2, 200, "arriba/abajo: cambiar", C_GREY, 1);
-			gfx_text_center(W / 2, 222, "izq/der: horas / minutos", C_GREY, 1);
-			gfx_text_center(W / 2, 244, "PLAY: guardar", C_GREY, 1);
+			gfx_text_center(W / 2, 200, "up/down: change", C_GREY, 1);
+			gfx_text_center(W / 2, 222, "left/right: h / min", C_GREY, 1);
+			gfx_text_center(W / 2, 244, "PLAY: save", C_GREY, 1);
 			gfx_flip();
 			redraw = 0;
 		}
@@ -198,11 +198,11 @@ static const char *val(int i) { return vl[i]; }
 
 void alarm_menu(void)
 {
-	struct list_view v = { "Despertador", 3, 0, 0, lab, val, 0, LI_NONE, 0, 0 };
+	struct list_view v = { "Alarm", 3, 0, 0, lab, val, 0, LI_NONE, 0, 0 };
 	for (;;) {
-		snprintf(it[0], 40, "Despertador"); snprintf(vl[0], 24, "%s", alarm_cfg.on ? "activado" : "apagado");
-		snprintf(it[1], 40, "Hora"); snprintf(vl[1], 24, "%02d:%02d", alarm_cfg.hour, alarm_cfg.min);
-		snprintf(it[2], 40, "Sonar con"); snprintf(vl[2], 24, "%s", alarm_cfg.src ? "campanas" : "lo último");
+		snprintf(it[0], 40, "Alarm"); snprintf(vl[0], 24, "%s", alarm_cfg.on ? "on" : "off");
+		snprintf(it[1], 40, "Time"); snprintf(vl[1], 24, "%02d:%02d", alarm_cfg.hour, alarm_cfg.min);
+		snprintf(it[2], 40, "Ring with"); snprintf(vl[2], 24, "%s", alarm_cfg.src ? "bells" : "last played");
 		int s = list_run(&v);
 		if (s < 0) return;
 		if (s == 0) { alarm_cfg.on = !alarm_cfg.on; settings_save(); }

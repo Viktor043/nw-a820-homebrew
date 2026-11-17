@@ -229,7 +229,7 @@ void bt_auto_start(void)
 static int bt_on(void)
 {
 	if (!on) { user_off = 0; start_async(); }
-	message("Bluetooth", "Encendiendo...", "");
+	message("Bluetooth", "Turning on...", "");
 	double end = now() + 25;
 	while (on && state < ST_READY && now() < end) { bt_poll(); ui_tick(); if (getkey(200) == K_BACK) break; }
 	return on && state >= ST_READY ? 0 : -1;
@@ -335,7 +335,7 @@ static int pair_connect(struct found *f, int do_pair)
 {
 	long from = log_size();
 	if (do_pair) {
-		message("Bluetooth", "Emparejando con", f->name);
+		message("Bluetooth", "Pairing with", f->name);
 		send("1");
 		const char *p1[] = { "passkey", "Bonding completed", "Bonding failed", 0 };
 		int r = wait_for(from, 25, p1);
@@ -344,7 +344,7 @@ static int pair_connect(struct found *f, int do_pair)
 		from = log_size();
 	}
 	send("2");	/* immediately: the stack closes the ACL link right after bonding */
-	message("Bluetooth", "Conectando con", f->name);
+	message("Bluetooth", "Connecting to", f->name);
 	const char *p3[] = { "AV connect confirm - success", "AV connect confirm - error", 0 };
 	if (wait_for(from, 30, p3) == 0) { connected = 1; save_dev(f->addr, f->name); logpos = log_size(); return 1; }
 	return 0;
@@ -364,7 +364,7 @@ static void search_new(void)
 {
 	long from = log_size();
 	send("0");
-	struct list_view v = { "Buscar dispositivo", 0, 0, 0, found_label, 0, 0, LI_NONE, "Buscando... (modo emparejamiento)", 0 };
+	struct list_view v = { "Find a device", 0, 0, 0, found_label, 0, 0, LI_NONE, "Searching... (pairing mode)", 0 };
 	double end = now() + 60;
 	int lastn = -1;
 	while (now() < end) {
@@ -382,13 +382,13 @@ static void search_new(void)
 		else if (k == K_PLAY && nfound) {
 			struct found f = fl[v.sel];
 			select_found(&f);
-			if (pair_connect(&f, 1)) { message("Bluetooth", "Conectado a", f.name); msg_wait(2); }
-			else { message("Bluetooth", "No se pudo conectar.", "Probá de nuevo."); msg_wait(3); }
+			if (pair_connect(&f, 1)) { message("Bluetooth", "Connected to", f.name); msg_wait(2); }
+			else { message("Bluetooth", "Could not connect.", "Try again."); msg_wait(3); }
 			return;
 		}
 	}
 	stop_search();
-	message("Bluetooth", "No encontré dispositivos.", "Revisá que esté en modo emparejamiento."); msg_wait(3);
+	message("Bluetooth", "No devices found.", "Make sure it is in pairing mode."); msg_wait(3);
 }
 
 /* AirPods (or Beats): one guided step instead of picking from a list. Shows how to put them in pairing mode,
@@ -405,7 +405,7 @@ static int is_airpods(const char *n)
 
 static void airpods_pair(void)
 {
-	message("AirPods", "Abrí el estuche y mantené apretado el botón de atrás.", "Luz blanca parpadeando: PLAY");
+	message("AirPods", "Open the case and hold the button on the back.", "Light flashing white: PLAY");
 	int k;
 	double give_up = now() + 120;
 	do { idle_tick(0); k = getkey(500); } while (k != K_PLAY && k != K_BACK && now() < give_up);
@@ -413,7 +413,7 @@ static void airpods_pair(void)
 	for (int round = 0; round < 3; round++) {
 		long from = log_size();
 		send("0");
-		message("AirPods", "Buscando AirPods...", "BACK: cancelar");
+		message("AirPods", "Looking for AirPods...", "BACK: cancel");
 		double end = now() + 40;
 		while (now() < end) {
 			parse_found(from);
@@ -421,8 +421,8 @@ static void airpods_pair(void)
 				struct found f = fl[i];
 				lg("bt: airpods found: %s %s (idx %d)", f.name, f.addr, f.idx);
 				select_found(&f);
-				if (pair_connect(&f, 1)) { set_auto(1); message("AirPods", "Conectado a", f.name); msg_wait(2); }
-				else { message("AirPods", "No se pudo conectar.", "Cerrá y abrí el estuche, y probá de nuevo."); msg_wait(4); }
+				if (pair_connect(&f, 1)) { set_auto(1); message("AirPods", "Connected to", f.name); msg_wait(2); }
+				else { message("AirPods", "Could not connect.", "Close and open the case, then try again."); msg_wait(4); }
 				return;
 			}
 			if (nfound >= 10) { lg("bt: airpods: 10 other devices first, searching again"); break; }
@@ -431,7 +431,7 @@ static void airpods_pair(void)
 		}
 		stop_search();
 	}
-	message("AirPods", "No encontré los AirPods.", "Revisá que la luz parpadee en blanco."); msg_wait(4);
+	message("AirPods", "AirPods not found.", "Check that the light is flashing white."); msg_wait(4);
 }
 
 /* a nearby device for another use (the phone that shares its internet, for podcasts): the stack's search, nothing
@@ -442,7 +442,7 @@ int bt_pick_device(const char *title, const char *hint, char *addr, size_t amax,
 	int was_on = on, r = -1;
 	in_menu = 1;
 	if (bt_on()) {
-		message(title, "No pude encender el Bluetooth.", ""); msg_wait(3);
+		message(title, "Could not turn Bluetooth on.", ""); msg_wait(3);
 		in_menu = 0;
 		if (!was_on) bt_shutdown();
 		return -1;
@@ -473,28 +473,28 @@ int bt_pick_device(const char *title, const char *hint, char *addr, size_t amax,
 	stop_search();
 	in_menu = 0;
 	if (!was_on) bt_shutdown();
-	if (r && now() >= end) { message(title, "No encontré dispositivos.", "Revisá que el Bluetooth del teléfono esté visible."); msg_wait(3); }
+	if (r && now() >= end) { message(title, "No devices found.", "Make sure the phone's Bluetooth is visible."); msg_wait(3); }
 	return r;
 }
 
 /* the remembered device: connect directly (patched helper, key in sc_db.db); if that fails, pair again */
 static void reconnect(void)
 {
-	message("Bluetooth", "Conectando con", bt_device_name());
+	message("Bluetooth", "Connecting to", bt_device_name());
 	double end = now() + 40;
 	if (state != ST_CONNECTING) { long from = log_size(); send("2"); state = ST_CONNECTING; st_t = now(); (void)from; }
 	while (!connected && now() < end && state == ST_CONNECTING) { bt_poll(); ui_tick(); if (getkey(250) == K_BACK) return; }
-	if (connected) { message("Bluetooth", "Conectado a", bt_device_name()); msg_wait(2); return; }
+	if (connected) { message("Bluetooth", "Connected to", bt_device_name()); msg_wait(2); return; }
 	/* not accepted: probably the device forgot us. Pair again (the device must be in pairing mode). */
-	message("Bluetooth", "No respondió. Poné el dispositivo en modo emparejamiento y apretá PLAY.", bt_device_name());
+	message("Bluetooth", "No answer. Put the device in pairing mode and press PLAY.", bt_device_name());
 	int k;
 	double give_up = now() + 120;	/* nobody answers: back to the menu (the screen dims and the battery checks meanwhile) */
 	do { idle_tick(0); k = getkey(500); } while (k != K_PLAY && k != K_BACK && now() < give_up);
 	if (k != K_PLAY) return;
 	struct found f; memset(&f, 0, sizeof f);
 	snprintf(f.addr, sizeof f.addr, "%s", dev_addr); snprintf(f.name, sizeof f.name, "%s", bt_device_name());
-	if (pair_connect(&f, 1)) { message("Bluetooth", "Conectado a", f.name); msg_wait(2); }
-	else { message("Bluetooth", "No conectó.", "Probá 'Buscar dispositivo nuevo'."); msg_wait(3); }
+	if (pair_connect(&f, 1)) { message("Bluetooth", "Connected to", f.name); msg_wait(2); }
+	else { message("Bluetooth", "Did not connect.", "Try 'Find a new device'."); msg_wait(3); }
 }
 
 /* ---- receiver mode: the phone streams to the Walkman, which plays it on the wired output ---- */
@@ -524,7 +524,7 @@ static void bt_stack_up(const char *role)
 
 void bt_receiver(void)
 {
-	message("Receptor Bluetooth", "Encendiendo...", "");
+	message("Bluetooth receiver", "Turning on...", "");
 	bt_stack_up("0");	/* sink role */
 	in_menu = 1;
 	long from = 0;
@@ -537,7 +537,7 @@ void bt_receiver(void)
 		if (strstr(buf, "passkey")) { send("0000\n"); from = log_size(); }
 		if (strstr(buf, "AV connect indication")) { ok = 1; break; }
 		if (!helper_alive()) break;
-		message("Receptor Bluetooth", "En el teléfono, buscá el Walkman (NW-A829) y conectalo. PIN: 0000", "Esperando conexión...");
+		message("Bluetooth receiver", "On the phone, find the Walkman (NW-A829) and connect. PIN: 0000", "Waiting for a connection...");
 		char b[32]; snprintf(b, sizeof b, "%d s", (int)(end - now()));
 		gfx_text_center(W / 2, 262, b, C_GREY, 1); gfx_flip();
 		ui_tick();
@@ -575,8 +575,8 @@ void bt_receiver(void)
 		if (sec != lastdraw) {
 			lastdraw = sec;
 			if (backlight_on) {	/* drawn without message(): that would keep the screen lit for the whole session */
-				scr_message("Receptor Bluetooth", "Sonando desde el teléfono", silent > 10 ? "(en silencio)" : "");
-				char b[32]; snprintf(b, sizeof b, "Vol %d%%   BACK: terminar", volume * 100 / VOLMAX);
+				scr_message("Bluetooth receiver", "Playing from the phone", silent > 10 ? "(silent)" : "");
+				char b[32]; snprintf(b, sizeof b, "Vol %d%%   BACK: stop", volume * 100 / VOLMAX);
 				gfx_text_center(W / 2, 262, b, C_GREY, 1); gfx_flip();
 			}
 		}
@@ -591,7 +591,7 @@ void bt_receiver(void)
 	aout_force_wired(0);
 	in_menu = 0;
 	bt_shutdown();
-	if (!ok) { message("Receptor Bluetooth", "No se conectó ningún teléfono.", ""); msg_wait(2); }
+	if (!ok) { message("Bluetooth receiver", "No phone connected.", ""); msg_wait(2); }
 }
 
 static char mitems[7][48];
@@ -599,30 +599,30 @@ static const char *m_label(int i) { return mitems[i]; }
 
 void bt_menu(void)
 {
-	if (dl_active()) { message("Bluetooth", "Ocupado bajando podcasts.", "Esperá o cancelá en Podcasts > Descargas"); msg_wait(3); return; }
+	if (dl_active()) { message("Bluetooth", "Busy downloading podcasts.", "Wait or cancel in Podcasts > Downloads"); msg_wait(3); return; }
 	load_dev();
 	in_menu = 1;
 	for (;;) {
 		bt_poll();
 		int n = 0, act[7];
-		if (connected) { snprintf(mitems[n], 48, "Desconectar"); act[n++] = 3; }
+		if (connected) { snprintf(mitems[n], 48, "Disconnect"); act[n++] = 3; }
 		else {
-			if (dev_addr[0]) { snprintf(mitems[n], 48, "Conectar: %.30s", bt_device_name()); act[n++] = 1; }
-			snprintf(mitems[n], 48, "Buscar dispositivo nuevo"); act[n++] = 2;
-			snprintf(mitems[n], 48, "Emparejar AirPods"); act[n++] = 7;
+			if (dev_addr[0]) { snprintf(mitems[n], 48, "Connect: %.30s", bt_device_name()); act[n++] = 1; }
+			snprintf(mitems[n], 48, "Find a new device"); act[n++] = 2;
+			snprintf(mitems[n], 48, "Pair AirPods"); act[n++] = 7;
 		}
-		if (on) { snprintf(mitems[n], 48, "Apagar Bluetooth"); act[n++] = 4; }
-		snprintf(mitems[n], 48, "Modo receptor (desde el teléfono)"); act[n++] = 5;
-		snprintf(mitems[n], 48, "Mando para el teléfono"); act[n++] = 6;
+		if (on) { snprintf(mitems[n], 48, "Turn Bluetooth off"); act[n++] = 4; }
+		snprintf(mitems[n], 48, "Receiver mode (from the phone)"); act[n++] = 5;
+		snprintf(mitems[n], 48, "Remote for the phone"); act[n++] = 6;
 		char title[64];
 		if (connected) snprintf(title, sizeof title, "BT: %s", bt_device_name());
-		else snprintf(title, sizeof title, on ? "Bluetooth: encendido" : "Bluetooth: apagado");
+		else snprintf(title, sizeof title, on ? "Bluetooth: on" : "Bluetooth: off");
 		struct list_view v = { title, n, 0, 0, m_label, 0, 0, LI_NONE, 0, 0 };
 		int s = list_run(&v);
 		if (s < 0) { in_menu = 0; return; }
 		int a = act[s];
 		if (a == 1 || a == 2 || a == 7) {
-			if (bt_on()) { message("Bluetooth", "No pude encender el Bluetooth.", ""); msg_wait(3); continue; }
+			if (bt_on()) { message("Bluetooth", "Could not turn Bluetooth on.", ""); msg_wait(3); continue; }
 			if (a == 1) reconnect(); else if (a == 7) airpods_pair(); else search_new();
 			if (connected) { in_menu = 0; return; }
 		} else if (a == 3) {

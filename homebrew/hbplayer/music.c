@@ -18,7 +18,7 @@ struct song { char path[PATHLEN]; char title[96], artist[64], album[64], genre[3
 static struct song *lib;
 static int nlib;
 
-/* library cache: the tags of every file with its size and date, so entering Música only stats the files and reads
+/* library cache: the tags of every file with its size and date, so entering Music only stats the files and reads
  * the tags of new / changed ones (it used to open and parse every file on the first visit after each boot) */
 #define LIBCACHE "/contents/HB/cache/library.bin"
 #define LIBMAGIC 0x3442494cUL	/* "LIB4": FLAC tags read (LIB3 had FLAC files by their file names) */
@@ -271,11 +271,11 @@ static void scan(const char *dir, int depth, const char *folder)
 		read_tags(p, s);
 		if (!bg) {
 			ui_tick();
-			if (!(nlib % 20)) { char b[48]; snprintf(b, sizeof b, "%d canciones", nlib); message("Música", "Leyendo la biblioteca...", b); }
+			if (!(nlib % 20)) { char b[48]; snprintf(b, sizeof b, "%d songs", nlib); message("Music", "Reading the library...", b); }
 		}
 		if (!s->title[0]) { fs_to_utf8(e->d_name, s->title, sizeof s->title); char *dot = strrchr(s->title, '.'); if (dot && dot > s->title) *dot = 0; }
-		if (!s->album[0]) { if (folder) fs_to_utf8(folder, s->album, sizeof s->album); else snprintf(s->album, sizeof s->album, "Sin álbum"); }
-		if (!s->artist[0]) snprintf(s->artist, sizeof s->artist, "Artista desconocido");
+		if (!s->album[0]) { if (folder) fs_to_utf8(folder, s->album, sizeof s->album); else snprintf(s->album, sizeof s->album, "No album"); }
+		if (!s->artist[0]) snprintf(s->artist, sizeof s->artist, "Unknown artist");
 		nlib++;
 	}
 	closedir(d);
@@ -296,7 +296,7 @@ static int load_library(void)
 	if (lib) return nlib;
 	lib = malloc(sizeof *lib * MAXT);
 	if (!lib) return 0;
-	if (!quiet && !bg) message("Música", "Leyendo la biblioteca...", "");
+	if (!quiet && !bg) message("Music", "Reading the library...", "");
 	nlib = 0; cache_hits = 0; cache_dirty = 0; gave_up = 0;
 	double t0 = now();
 	cache_load();
@@ -308,7 +308,7 @@ static int load_library(void)
 	if (cache_dirty) cache_save();
 	if (bg) return nlib;
 	lg("music: %d songs (%d from the cache) in %.2f s%s", nlib, cache_hits, now() - t0, quiet ? " (preload)" : "");
-	if (nlib >= MAXT) { static char m[64]; snprintf(m, sizeof m, "Biblioteca: se muestran %d canciones (máximo).", MAXT); eng_note(m); }
+	if (nlib >= MAXT) { static char m[64]; snprintf(m, sizeof m, "Library: showing %d songs (the maximum).", MAXT); eng_note(m); }
 	return nlib;
 }
 
@@ -334,7 +334,7 @@ void music_preload(int trusted)
 }
 
 /* the warm process (warm.c, a child at the lowest priority) reads the tags of new files into the library cache
- * while the home screen shows: the first visit of Música then only checks the files. Returns the number of songs */
+ * while the home screen shows: the first visit of Music then only checks the files. Returns the number of songs */
 int music_build_cache(void)
 {
 	bg = 1;
@@ -426,7 +426,7 @@ static const char *count_value(int i)
 {
 	static char b[24];
 	if (name_count[i] <= 0) return 0;
-	snprintf(b, sizeof b, "%d %s", name_count[i], name_count[i] == 1 ? "canción" : "canciones");
+	snprintf(b, sizeof b, "%d %s", name_count[i], name_count[i] == 1 ? "song" : "songs");
 	return b;
 }
 static void thumbs_free(void) { free(thumbs); free(thumb_state); thumbs = 0; thumb_state = 0; }
@@ -437,7 +437,7 @@ static void play_songs(int start, const char *ctx) { play_songs2(start, ctx, -1)
 static void play_songs2(int start, const char *ctx, int shuffle)
 {
 	struct track *qtmp = malloc(sizeof *qtmp * (nsel ? nsel : 1));	/* only while handing it over: the engine packs its own copy */
-	if (!qtmp) { eng_note("Sin memoria para la lista"); return; }
+	if (!qtmp) { eng_note("Not enough memory for the list"); return; }
 	for (int i = 0; i < nsel; i++) {
 		struct song *s = &lib[sel_idx[i]];
 		snprintf(qtmp[i].path, sizeof qtmp[i].path, "%s", s->path);
@@ -453,7 +453,7 @@ static void play_songs2(int start, const char *ctx, int shuffle)
 
 static void song_list(const char *title)
 {
-	struct list_view v = { title, nsel, 0, 0, song_label, 0, 0, LI_TRACK, "No hay canciones", 0 };
+	struct list_view v = { title, nsel, 0, 0, song_label, 0, 0, LI_TRACK, "No songs", 0 };
 	v.option = opt_music;
 	for (;;) {
 		int s = list_run(&v);
@@ -534,7 +534,7 @@ static void albums_of(const char *artist)
 	snprintf(keep, sizeof keep, "%s", artist ? artist : "");
 	if (artist) uniq(keep);
 	else all_albums();
-	struct list_view v = { artist ? keep : "Álbumes", nnames, 0, 0, name_label, 0, 0, LI_NONE, "Vacío", 0, album_thumb, -1 };
+	struct list_view v = { artist ? keep : "Albums", nnames, 0, 0, name_label, 0, 0, LI_NONE, "Empty", 0, album_thumb, -1 };
 	album_view(&v);
 	for (;;) {
 		list_idle_hook = thumbs_pending;
@@ -550,7 +550,7 @@ static void albums_of(const char *artist)
 static void artists(void)
 {
 	uniq(0);
-	struct list_view v = { "Artistas", nnames, 0, 0, name_label, 0, 0, LI_FOLDER, "Vacío", 0 };
+	struct list_view v = { "Artists", nnames, 0, 0, name_label, 0, 0, LI_FOLDER, "Empty", 0 };
 	v.option = opt_music;
 	for (;;) {
 		int s = list_run(&v);
@@ -561,13 +561,13 @@ static void artists(void)
 	}
 }
 
-static const char *root_items[] = { "Aleatorio (todas)", "Canciones", "Artistas", "Álbumes" };
+static const char *root_items[] = { "Shuffle all", "Songs", "Artists", "Albums" };
 static const char *root_label(int i) { return root_items[i]; }
 
 void music_menu(void)
 {
-	if (!load_library()) { message("Música", "No encontré MP3 en H:\\Music.", "Copialos desde la PC y volvé a entrar."); msg_wait(3); return; }
-	struct list_view v = { "Música", 4, 0, 0, root_label, 0, 0, LI_FOLDER, 0, 0 };
+	if (!load_library()) { message("Music", "No music found in H:\\Music.", "Copy it from the PC and come back."); msg_wait(3); return; }
+	struct list_view v = { "Music", 4, 0, 0, root_label, 0, 0, LI_FOLDER, 0, 0 };
 	v.option = opt_music;
 	for (;;) {
 		int s = list_run(&v);
@@ -575,8 +575,8 @@ void music_menu(void)
 		nsel = 0;
 		if (s == 0 || s == 1) {
 			for (int i = 0; i < nlib; i++) sel_idx[nsel++] = i;
-			if (s == 0) play_songs2(rand() % (nsel ? nsel : 1), "Aleatorio", 1);
-			else song_list("Canciones");
+			if (s == 0) play_songs2(rand() % (nsel ? nsel : 1), "Shuffle", 1);
+			else song_list("Songs");
 		} else if (s == 2) artists();
 		else albums_of(0);
 	}

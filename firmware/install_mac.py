@@ -289,7 +289,7 @@ def copy_homebrew(vol, hb, a2d):
         # curl, not urllib: python.org's Python on macOS has no CA store until "Install Certificates" is run
         r = subprocess.run(['curl', '-sfL', '-o', os.path.join(dst, 'cacert.pem'), I.CACERT_URL], capture_output=True, text=True)
         say('certificates for HTTPS: cacert.pem' if r.returncode == 0 else '(no cacert.pem: curl %s)' % r.returncode)
-    for f in ('Music', 'Audiolibros', 'Podcasts', 'Juegos'):
+    for f in ('Music', 'Audiobooks', 'Books', 'Games'):
         os.makedirs(os.path.join(vol, f), exist_ok=True)
     open(os.path.join(dst, 'version.txt'), 'w').write(I.VERSION + '\n')
     subprocess.run(['sync'])

@@ -162,7 +162,7 @@ int main(int argc, char **argv)
 	if (st == 2) firmware_update();
 	if (st != 1) { close(fd); return 0; }
 	gfx_lcd(1); gfx_backlight(80);
-	screen("Conectando por USB...", "Connecting over USB...", 0, 0);
+	screen("Connecting over USB...", "Connecting over USB...", 0, 0);
 	char opts[256]; contents_opts(opts, sizeof opts);
 	sync();
 	int ok = 0;
@@ -171,14 +171,14 @@ int main(int argc, char **argv)
 		lg("umount /contents failed (%d)", errno);
 		log_holders();
 		close(open("/tmp/hb_usb_off", O_WRONLY | O_CREAT, 0644));	/* the player ignores the cable until it is unplugged */
-		screen("USB no disponible", "USB unavailable", "Desenchufá el cable", "Unplug the cable");
+		screen("USB no disponible", "USB unavailable", "Unplug the cable", "Unplug the cable");
 		sleep(3);
 		return 2;
 	}
 	sleep(1);	/* apl_conn -s 1 */
 	if (ioctl(fd, USB_ALLOW, 0) < 0) lg("allow ioctl failed (%d)", errno);
 	lg("contents handed to the computer");
-	screen("Conectado por USB", "Connected over USB", "Expulsalo en la PC\nantes de desenchufar", "Eject it on the PC\nbefore unplugging");
+	screen("Connected over USB", "Connected over USB", "Eject it on the computer\nbefore unplugging", "Eject it on the PC\nbefore unplugging");
 	int keys = open("/dev/input/event0", O_RDONLY | O_NONBLOCK);
 	time_t lit = time(0); int light = 1;
 	for (;;) {

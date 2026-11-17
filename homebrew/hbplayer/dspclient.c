@@ -40,7 +40,7 @@ static unsigned char pcm[8192 + 16] __attribute__((aligned(8)));	/* decode mode:
 static int pcm_len, pcm_pos, at_eos;
 
 int dsp_enabled = 1;	/* setting; off = always libmad / FAAD2, no ATRAC / WMA, no DSP effects on other formats */
-int dsp_direct = 1;	/* setting "Máxima batería": wired playback decoded and played by the DSP itself */
+int dsp_direct = 1;	/* setting "Max. battery": wired playback decoded and played by the DSP itself */
 
 /* direct sessions */
 static int holding;		/* the helper is (or may be) in direct mode: it has /dev/sound/dsp open */
@@ -267,7 +267,7 @@ static int wait_flags(uint32_t s, uint32_t mask, int ms)
 }
 
 /* Sony's effects on the DSP page (they act on everything the DSP decodes or processes) */
-/* Sony's 6-band EQ (the DSP's own, so it also works in "Máxima batería"). Word = b1 | b1<<4 | b2<<8 | .. | b6<<24,
+/* Sony's 6-band EQ (the DSP's own, so it also works in "Max battery"). Word = b1 | b1<<4 | b2<<8 | .. | b6<<24,
  * each band 0..6 with 3 = flat and LOWER = MORE level (measured 2026-09-29, 2 dB per step): b1 = Clear Bass
  * (~55 Hz, boost only in Sony's UI), b2..b6 peaks at 400 Hz, 1 k, 2.5 k, 6.3 k, 16 kHz. */
 static const unsigned sony_eq_words[5] = { 0xfffffffe, 0x03224322, 0x04332233, 0x02343322, 0x01432311 };	/* off, Heavy, Pop, Jazz, Unique */

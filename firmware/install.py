@@ -238,7 +238,7 @@ def copy_homebrew(drive, hb, a2d):
             say('certificates for HTTPS: cacert.pem')
         except OSError as e:
             say('(no cacert.pem: %s; podcasts will use HTTPS without checking certificates)' % e)
-    for f in ('Music', 'Audiolibros', 'Podcasts', 'Juegos'):
+    for f in ('Music', 'Audiobooks', 'Books', 'Games'):
         os.makedirs(os.path.join(drive + '\\', f), exist_ok=True)
     open(os.path.join(dst, 'version.txt'), 'w').write(VERSION + '\n')	# so the installer can tell when there is something newer
     fwtrig.flush(drive)

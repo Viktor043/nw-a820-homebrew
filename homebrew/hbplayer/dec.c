@@ -9,7 +9,7 @@
  *   ATRAC3 / ATRAC3plus / ATRAC Advanced Lossless in Sony's OpenMG container (.oma / .aa3 / .omg) - DSP only
  *          (Sony's AT3D / ATXD / AALD components); unencrypted files only: OpenMG DRM is detected and refused
  *   WMA 2 in ASF (.wma) - DSP only (OMX.NEC.EL.WMAD); DRM-protected ASF, WMA 1 / Pro / Lossless are refused
- *   Direct playback (dec_set_direct before dec_open, "Máxima batería"): MP3 / ATRAC / WMA / AAC decoded AND played
+ *   Direct playback (dec_set_direct before dec_open, "Max battery"): MP3 / ATRAC / WMA / AAC decoded AND played
  *          by the DSP (dec_direct_step instead of dec_read; positions from the helper); falls back to the paths
  *          above at the same position if the DSP fails
  * Everything is delivered as interleaved S16 stereo at the file's sample rate; the engine resamples if needed. */
@@ -510,9 +510,9 @@ static int wma_open(const char *path, int want_direct)
 	set_cloexec(fd);
 	int r = asf_parse(fd, &winfo);
 	fsize = lseek(fd, 0, SEEK_END);
-	if (r == ASF_EDRM) { snprintf(err_msg, sizeof err_msg, "Archivo protegido (DRM)"); lg("dec: %s: ASF DRM", path); return -1; }
+	if (r == ASF_EDRM) { snprintf(err_msg, sizeof err_msg, "Protected file (DRM)"); lg("dec: %s: ASF DRM", path); return -1; }
 	if (r) {
-		snprintf(err_msg, sizeof err_msg, "Formato WMA no soportado");
+		snprintf(err_msg, sizeof err_msg, "Unsupported WMA format");
 		lg("dec: %s: asf %d tag %#x rate %d ch %d bits %d", path, r, winfo.tag, winfo.rate, winfo.channels, winfo.bits);
 		return -1;
 	}
@@ -520,7 +520,7 @@ static int wma_open(const char *path, int want_direct)
 	total_sec = (int)winfo.duration;
 	lg("dec: wma %d Hz %d ch %u kbps, %.1f s", winfo.rate, winfo.channels, winfo.avgbytes * 8 / 1000, winfo.duration);
 	if (!want_direct) {
-		if (dsp_open(path, 0, "wma")) { snprintf(err_msg, sizeof err_msg, "WMA necesita el DSP"); return -1; }
+		if (dsp_open(path, 0, "wma")) { snprintf(err_msg, sizeof err_msg, "WMA needs the DSP"); return -1; }
 		on_dsp = 1;
 	}
 	return 0;
@@ -608,7 +608,7 @@ static void dir_to_normal(void)
 		break;
 	case K_OMA: case K_WMA:
 		on_dsp = !dsp_open(mp3_path, off, dsp_codec());
-		if (!on_dsp) snprintf(err_msg, sizeof err_msg, kind == K_WMA ? "WMA necesita el DSP" : "ATRAC necesita el DSP");
+		if (!on_dsp) snprintf(err_msg, sizeof err_msg, kind == K_WMA ? "WMA needs the DSP" : "ATRAC needs the DSP");
 		break;
 	case K_ADTS:
 		on_dsp = ainfo_ok && !dsp_open(mp3_path, off, "aac");
@@ -689,9 +689,9 @@ static int oma_open(const char *path, int want_direct)
 	set_cloexec(fd);
 	int r = oma_parse(fd, &oinfo);
 	fsize = lseek(fd, 0, SEEK_END);
-	if (r == OMA_EDRM) { snprintf(err_msg, sizeof err_msg, "Archivo protegido (DRM)"); lg("dec: %s: OpenMG DRM, e_id %#x", path, oinfo.eid); return -1; }
+	if (r == OMA_EDRM) { snprintf(err_msg, sizeof err_msg, "Protected file (DRM)"); lg("dec: %s: OpenMG DRM, e_id %#x", path, oinfo.eid); return -1; }
 	if (r || !oma_dsp_ok(&oinfo)) {
-		snprintf(err_msg, sizeof err_msg, "Formato ATRAC no soportado");
+		snprintf(err_msg, sizeof err_msg, "Unsupported ATRAC format");
 		lg("dec: %s: oma %d codec %#x rate %d ch %d frame %d bits %d", path, r, oinfo.codec, oinfo.rate, oinfo.channels, oinfo.frame, oinfo.bits);
 		return -1;
 	}
@@ -699,7 +699,7 @@ static int oma_open(const char *path, int want_direct)
 	if (oinfo.codec <= OMA_ATX && oinfo.frame > 0)
 		total_sec = (int)((double)(fsize - oinfo.data) / oinfo.frame * oinfo.spf / 44100);
 	if (!want_direct) {
-		if (dsp_open(path, 0, oma_codec_name(oinfo.codec))) { snprintf(err_msg, sizeof err_msg, "ATRAC necesita el DSP"); return -1; }
+		if (dsp_open(path, 0, oma_codec_name(oinfo.codec))) { snprintf(err_msg, sizeof err_msg, "ATRAC needs the DSP"); return -1; }
 		on_dsp = 1;
 	}
 	return 0;
@@ -712,7 +712,7 @@ int dec_open(const char *path)
 	const char *dot = strrchr(path, '.');
 	if (!dot) return -1;
 	snprintf(mp3_path, sizeof mp3_path, "%s", path);	/* the path the DSP helper opens (every kind) */
-	/* direct ("Máxima batería") for the formats tested end to end: MP3 and ATRAC; the others play via the DSP or ARM */
+	/* direct ("Max battery") for the formats tested end to end: MP3 and ATRAC; the others play via the DSP or ARM */
 	int wd = want_dir && dsp_enabled && (!strcasecmp(dot, ".mp3") || !strcasecmp(dot, ".oma") || !strcasecmp(dot, ".aa3") || !strcasecmp(dot, ".omg"));
 	int r = -1;
 	if (!strcasecmp(dot, ".mp3")) {
@@ -802,8 +802,8 @@ int dec_read(short *out, int max)
 		if (n > 0) { pos_sec += (double)n / 44100; return n; }
 		if (n < 0) {
 			on_dsp = 0;
-			if (kind == K_WMA) snprintf(err_msg, sizeof err_msg, dsp_protected() ? "Formato WMA no soportado" : "Error del DSP (WMA)");
-			else snprintf(err_msg, sizeof err_msg, dsp_protected() ? "Formato ATRAC no soportado" : "Error del DSP (ATRAC)");
+			if (kind == K_WMA) snprintf(err_msg, sizeof err_msg, dsp_protected() ? "Unsupported WMA format" : "DSP error (WMA)");
+			else snprintf(err_msg, sizeof err_msg, dsp_protected() ? "Unsupported ATRAC format" : "DSP error (ATRAC)");
 		}
 		return n;
 	}

@@ -33,7 +33,7 @@ static int wait_cb(long got, long total)
 	if (now() - wait_drawn > 0.3) {
 		wait_drawn = now();
 		char sub[64];
-		if (total > 0) snprintf(sub, sizeof sub, "%ld de %ld kB", got >> 10, total >> 10);
+		if (total > 0) snprintf(sub, sizeof sub, "%ld of %ld kB", got >> 10, total >> 10);
 		else if (got > 0) snprintf(sub, sizeof sub, "%ld kB", got >> 10);
 		else snprintf(sub, sizeof sub, "%d s", (int)(now() - wait_t0));
 		message(wait_title, wait_text, sub);
@@ -71,8 +71,8 @@ static const char *res_label(int i) { return res[i].name; }
 static const char *res_value(int i)
 {
 	char *b = res_val[i];
-	if (pod_feed_find_url(res[i].feed) >= 0) snprintf(b, 96, "Ya lo seguís");
-	else if (res[i].count > 0) snprintf(b, 96, "%s%s%d episodio%s", res[i].author, res[i].author[0] ? " · " : "", res[i].count, res[i].count == 1 ? "" : "s");
+	if (pod_feed_find_url(res[i].feed) >= 0) snprintf(b, 96, "Following");
+	else if (res[i].count > 0) snprintf(b, 96, "%s%s%d episode%s", res[i].author, res[i].author[0] ? " · " : "", res[i].count, res[i].count == 1 ? "" : "s");
 	else snprintf(b, 96, "%s", res[i].author);
 	return b;
 }
@@ -124,7 +124,7 @@ static const char *ep_value(int i)
 		else snprintf(d, sizeof d, "%d %s %d", dd, mes[m - 1], y);
 	}
 	if (ep[i].bytes > 0) snprintf(sz, sizeof sz, "%ld MB", (ep[i].bytes + (1 << 19)) >> 20);
-	if (ep_have(i)) snprintf(ep_val[i], 48, "%s%sen el Walkman", d, d[0] ? " · " : "");
+	if (ep_have(i)) snprintf(ep_val[i], 48, "%s%son the Walkman", d, d[0] ? " · " : "");
 	else snprintf(ep_val[i], 48, "%s%s%s", d, d[0] && sz[0] ? " · " : "", sz);
 	return ep_val[i];
 }
@@ -147,16 +147,16 @@ static int follow(const struct pod_result *r);
 static void episodes(const char *feed_url, const char *show, int fidx, const struct pod_result *r, struct img cover)
 {
 	feed_scan = 0; feed_items = 0; feed_want = BROWSE_MAX;
-	int f = fetch_wait(show, "Leyendo los episodios...", feed_url, FEED_XML);
+	int f = fetch_wait(show, "Reading the episodes...", feed_url, FEED_XML);
 	feed_want = 0;
-	if (f) { if (f == -1) { message(show, "No pude leer los episodios.", "Probá de nuevo más tarde."); msg_wait(3); } unlink(FEED_XML); return; }
+	if (f) { if (f == -1) { message(show, "Could not read the episodes.", "Try again later."); msg_wait(3); } unlink(FEED_XML); return; }
 	FILE *fp = fopen(FEED_XML, "rb");
 	char *xml = 0; long n = 0;
 	if (fp) { fseek(fp, 0, SEEK_END); n = ftell(fp); fseek(fp, 0, SEEK_SET); if (n > 0 && n < MAX_FEED_BYTES) xml = malloc(n); if (xml && fread(xml, 1, n, fp) != (size_t)n) { free(xml); xml = 0; } fclose(fp); }
 	unlink(FEED_XML);
 	nep = xml ? rss_parse(xml, n, ep, BROWSE_MAX) : 0;
 	free(xml);
-	if (nep <= 0) { message(show, "Este podcast no tiene episodios", "que el Walkman pueda bajar."); msg_wait(3); return; }
+	if (nep <= 0) { message(show, "This podcast has no episodes", "the Walkman can download."); msg_wait(3); return; }
 	static uint16_t thumb[EP_THUMB * EP_THUMB];
 	ep_cover = cover.w ? gfx_scaled(cover, EP_THUMB, EP_THUMB, thumb) : (struct img){ 0, 0, 0 };
 	ep_fidx = fidx;
@@ -165,17 +165,17 @@ static void episodes(const char *feed_url, const char *show, int fidx, const str
 	for (;;) {
 		int s = list_run(&v);
 		if (s < 0) return;
-		if (ep_have(s)) { message(show, "Ese episodio ya está en el Walkman.", ep[s].title); msg_wait(2); continue; }
+		if (ep_have(s)) { message(show, "That episode is already on the Walkman.", ep[s].title); msg_wait(2); continue; }
 		if (ep_fidx < 0) {	/* not followed yet: the episode needs the show's folder */
-			snprintf(menu_items[0], 64, "Seguir el podcast y bajarlo");
-			snprintf(menu_items[1], 64, "Cancelar");
+			snprintf(menu_items[0], 64, "Follow and download it");
+			snprintf(menu_items[1], 64, "Cancel");
 			if (ask(show, 2) != 0 || !r || (ep_fidx = follow(r)) < 0) continue;
 			pod_feed_path(ep_fidx, ep_dir, sizeof ep_dir);
 		}
 		int q = dl_add_episode(ep_fidx, &ep[s]);
-		if (q == 0) { message(show, "Bajando en segundo plano:", ep[s].title); msg_wait(2); }
-		else if (q == 1) { message(show, "Ya está en la cola de descargas.", ep[s].title); msg_wait(2); }
-		else { message(show, "No pude empezar la descarga.", ""); msg_wait(3); }
+		if (q == 0) { message(show, "Downloading in the background:", ep[s].title); msg_wait(2); }
+		else if (q == 1) { message(show, "Already in the download queue.", ep[s].title); msg_wait(2); }
+		else { message(show, "Could not start the download.", ""); msg_wait(3); }
 	}
 }
 
@@ -187,7 +187,7 @@ static int follow(const struct pod_result *r)
 	char name[96];
 	pod_folder_name(r->name, name, sizeof name);
 	int fidx = pod_subscribe(name, r->feed, 3);
-	if (fidx < 0) { message("Podcasts", "No pude guardar la suscripción.", "¿Está llena la memoria?"); msg_wait(3); return -1; }
+	if (fidx < 0) { message("Podcasts", "Could not save the subscription.", "Is the memory full?"); msg_wait(3); return -1; }
 	char dir[PATHLEN], cj[PATHLEN + 16], part[PATHLEN + 24], u[512];
 	pod_feed_path(fidx, dir, sizeof dir);
 	snprintf(cj, sizeof cj, "%s/cover.jpg", dir);
@@ -204,18 +204,18 @@ static int show_card(const struct pod_result *r)
 {
 	static uint16_t big[POD_ART * POD_ART];
 	struct img cover = { 0, 0, 0 };
-	message(r->name, "Cargando...", "");
+	message(r->name, "Loading...", "");
 	if (r->art[0] && load_art(r->art, POD_ART, big)) { cover.w = cover.h = POD_ART; cover.px = big; }
 	char info[96] = "";
 	int sel = 0;
 	for (;;) {
 		int fidx = pod_feed_find_url(r->feed), n = 0;
-		if (r->count > 0) snprintf(info, sizeof info, "%s%d episodio%s%s%s", fidx >= 0 ? "Lo seguís · " : "", r->count, r->count == 1 ? "" : "s", fidx < 0 && r->genre[0] ? " · " : "", fidx < 0 ? r->genre : "");
-		else snprintf(info, sizeof info, "%s", fidx >= 0 ? "Lo seguís" : r->genre);
+		if (r->count > 0) snprintf(info, sizeof info, "%s%d episode%s%s%s", fidx >= 0 ? "Following · " : "", r->count, r->count == 1 ? "" : "s", fidx < 0 && r->genre[0] ? " · " : "", fidx < 0 ? r->genre : "");
+		else snprintf(info, sizeof info, "%s", fidx >= 0 ? "Following" : r->genre);
 		const char *items[3];
-		items[n++] = fidx >= 0 ? "Bajar episodios nuevos" : "Seguir este podcast";
-		items[n++] = "Ver los episodios";
-		if (fidx >= 0) items[n++] = "Dejar de seguirlo";
+		items[n++] = fidx >= 0 ? "Get new episodes" : "Follow this podcast";
+		items[n++] = "Episodes";
+		if (fidx >= 0) items[n++] = "Unfollow";
 		if (sel >= n) sel = n - 1;
 		scr_pod_show(r->name, r->author, info, cover, items, n, sel); flip();
 		idle_tick(0);
@@ -228,18 +228,18 @@ static int show_card(const struct pod_result *r)
 			if (sel == 0) {
 				if (fidx < 0) {
 					if ((fidx = follow(r)) < 0) continue;
-					snprintf(menu_items[0], 64, "Bajar los 3 últimos episodios");
-					snprintf(menu_items[1], 64, "Ahora no");
-					if (ask(r->name, 2) != 0) { message(r->name, "Listo: ya lo seguís.", "\"Buscar nuevos\" trae sus episodios."); msg_wait(2); continue; }
+					snprintf(menu_items[0], 64, "Get the latest 3 episodes");
+					snprintf(menu_items[1], 64, "Not now");
+					if (ask(r->name, 2) != 0) { message(r->name, "Done: you follow it.", "\"Check for new\" gets its episodes."); msg_wait(2); continue; }
 				}
 				podsync_update(fidx);
 				return 1;
 			}
 			if (sel == 1) episodes(r->feed, r->name, fidx, r, cover);
 			if (sel == 2 && fidx >= 0) {
-				snprintf(menu_items[0], 64, "Dejar de seguir, conservar episodios");
-				snprintf(menu_items[1], 64, "Dejar de seguir y borrar episodios");
-				snprintf(menu_items[2], 64, "Cancelar");
+				snprintf(menu_items[0], 64, "Unfollow, keep episodes");
+				snprintf(menu_items[1], 64, "Unfollow and delete episodes");
+				snprintf(menu_items[2], 64, "Cancel");
 				int a = ask(r->name, 3);
 				if (a == 0 || a == 1) pod_unsubscribe(fidx, a == 1);
 			}
@@ -255,7 +255,7 @@ static int search(const char *term)
 	char url[600];
 	pod_search_url(term, url, sizeof url);
 	nres = 0;
-	int f = fetch_wait("Buscar podcast", "Buscando...", url, SEARCH_JSON);
+	int f = fetch_wait("Find a podcast", "Searching...", url, SEARCH_JSON);
 	if (f) { unlink(SEARCH_JSON); return f == -2 ? -2 : -1; }
 	FILE *fp = fopen(SEARCH_JSON, "rb");
 	char *js = 0; long n = 0;
@@ -273,12 +273,12 @@ void pod_add(void)
 	static char term[80];
 	int linked = 0;
 	for (;;) {
-		if (!kbd_input("Buscar podcast", "Nombre del podcast", term, sizeof term)) break;
-		if (!linked) { if (pod_net_up("Buscar podcast")) continue; linked = 1; }
+		if (!kbd_input("Find a podcast", "Podcast name", term, sizeof term)) break;
+		if (!linked) { if (pod_net_up("Find a podcast")) continue; linked = 1; }
 		int n = search(term);
 		if (n == -2) continue;
-		if (n < 0) { message("Buscar podcast", "No pude buscar.", pod_net_busy() ? "Probá de nuevo." : "Se cortó la conexión con el teléfono."); msg_wait(3); continue; }
-		if (n == 0) { message("Buscar podcast", "No encontré podcasts con", term); msg_wait(3); continue; }
+		if (n < 0) { message("Find a podcast", "The search failed.", pod_net_busy() ? "Try again." : "The phone connection dropped."); msg_wait(3); continue; }
+		if (n == 0) { message("Find a podcast", "No podcasts found for", term); msg_wait(3); continue; }
 		memset(res_ts, 0, sizeof res_ts);
 		char title[96]; snprintf(title, sizeof title, "\"%s\"", term);
 		struct list_view v = { .title = title, .n = nres, .label = res_label, .value = res_value, .state = res_state, .thumb = res_thumb, .ep = 1, .bar_y = -1 };
@@ -304,17 +304,17 @@ int pod_show_option(const char *folder_path, const char *folder_name)
 {
 	int fidx = pod_feed_for_folder(folder_path);
 	if (fidx < 0) {
-		snprintf(menu_items[0], 64, "Sonido");
-		snprintf(menu_items[1], 64, "Cancelar");
+		snprintf(menu_items[0], 64, "Sound");
+		snprintf(menu_items[1], 64, "Cancel");
 		if (ask(folder_name, 2) == 0 && sound_quick_menu(eng_active())) nowplaying_run();
 		return 0;
 	}
 	for (;;) {
-		snprintf(menu_items[0], 64, "Buscar episodios nuevos");
-		snprintf(menu_items[1], 64, "Ver todos los episodios");
-		snprintf(menu_items[2], 64, "Bajar los %d últimos", pod_feed_keep(fidx));
-		snprintf(menu_items[3], 64, "Dejar de seguirlo");
-		snprintf(menu_items[4], 64, "Sonido");
+		snprintf(menu_items[0], 64, "Check for new episodes");
+		snprintf(menu_items[1], 64, "All episodes");
+		snprintf(menu_items[2], 64, "Get the latest %d", pod_feed_keep(fidx));
+		snprintf(menu_items[3], 64, "Unfollow");
+		snprintf(menu_items[4], 64, "Sound");
 		int a = ask(folder_name, 5);
 		if (a < 0) return 0;
 		if (a == 0) { podsync_update(fidx); return 1; }
@@ -331,21 +331,21 @@ int pod_show_option(const char *folder_path, const char *folder_name)
 			return 1;
 		}
 		if (a == 2) {
-			for (int i = 0; i < 5; i++) snprintf(menu_items[i], 64, "%d episodio%s", keep_choices[i], keep_choices[i] == 1 ? "" : "s");
-			int c = ask("¿Cuántos bajar?", 5);
+			for (int i = 0; i < 5; i++) snprintf(menu_items[i], 64, "%d episode%s", keep_choices[i], keep_choices[i] == 1 ? "" : "s");
+			int c = ask("How many to get?", 5);
 			if (c >= 0) pod_set_keep(fidx, keep_choices[c]);
 			continue;
 		}
 		if (a == 3) {
-			snprintf(menu_items[0], 64, "Dejar de seguir, conservar episodios");
-			snprintf(menu_items[1], 64, "Dejar de seguir y borrar episodios");
-			snprintf(menu_items[2], 64, "Cancelar");
+			snprintf(menu_items[0], 64, "Unfollow, keep episodes");
+			snprintf(menu_items[1], 64, "Unfollow and delete episodes");
+			snprintf(menu_items[2], 64, "Cancel");
 			int d = ask(folder_name, 3);
 			if (d != 0 && d != 1) continue;
 			struct eng_info e; eng_info(&e);
 			size_t l = strlen(folder_path);
 			if (d == 1 && eng_active() && e.path && !strncmp(e.path, folder_path, l) && e.path[l] == '/') eng_stop();	/* playing from it */
-			if (pod_unsubscribe(fidx, d == 1)) { message("Podcasts", "No pude cambiar la suscripción.", ""); msg_wait(3); }
+			if (pod_unsubscribe(fidx, d == 1)) { message("Podcasts", "Could not change the subscription.", ""); msg_wait(3); }
 			return 1;
 		}
 		if (a == 4) { if (sound_quick_menu(eng_active())) nowplaying_run(); return 0; }
@@ -353,7 +353,7 @@ int pod_show_option(const char *folder_path, const char *folder_name)
 }
 
 /* OPTION on the top rows: the phone and the directory's country */
-static const char *const countries[][2] = { { "US", "Estados Unidos" }, { "AR", "Argentina" }, { "MX", "México" }, { "ES", "España" },
+static const char *const countries[][2] = { { "US", "Estados Unidos" }, { "AR", "Argentina" }, { "MX", "Mexico" }, { "ES", "Spain" },
 	{ "CL", "Chile" }, { "CO", "Colombia" }, { "UY", "Uruguay" }, { "GB", "Reino Unido" }, { "BR", "Brasil" } };
 #define NCOUNTRIES (int)(sizeof countries / sizeof countries[0])
 
@@ -362,14 +362,14 @@ void pod_menu_option(void)
 	for (;;) {
 		const char *ph = pod_phone_name(), *cn = pod_country;
 		for (int i = 0; i < NCOUNTRIES; i++) if (!strcmp(countries[i][0], pod_country)) cn = countries[i][1];
-		snprintf(menu_items[0], 64, "Teléfono: %s", ph ? ph : "elegir");
-		snprintf(menu_items[1], 64, "Buscar en: %s", cn);
+		snprintf(menu_items[0], 64, "Phone: %s", ph ? ph : "choose");
+		snprintf(menu_items[1], 64, "Search in: %s", cn);
 		int a = ask("Podcasts", 2);
 		if (a < 0) return;
 		if (a == 0) pod_choose_phone();
 		if (a == 1) {
 			for (int i = 0; i < NCOUNTRIES; i++) snprintf(menu_items[i], 64, "%s", countries[i][1]);
-			int c = ask("Directorio de podcasts", NCOUNTRIES);
+			int c = ask("Podcast directory", NCOUNTRIES);
 			if (c >= 0) { snprintf(pod_country, sizeof pod_country, "%s", countries[c][0]); settings_save(); }
 		}
 	}

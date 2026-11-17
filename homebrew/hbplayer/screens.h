@@ -5,7 +5,7 @@
 #define SCREENS_H
 #include "../common/gfx.h"
 
-/* look (Ajustes > Pantalla > Estilo): 0 Sony, 1 SNRGY plata, 2 SNRGY negro. The four theme colours are variables:
+/* look (Settings > Display > Theme): 0 Sony, 1 SNRGY plata, 2 SNRGY negro. The four theme colours are variables:
  * "white" = text, "black" = text on the selection, grey = secondary, "orange" = accent */
 #define THEME_COUNT 3
 extern int ui_theme;
@@ -44,7 +44,7 @@ struct list_view {
 	struct img (*thumb)(int);	/* optional 28x28 thumbnail per row (w = 0: none yet) */
 	int bar_y;			/* -1 normally; during the selection slide: pixel y of the bar */
 	int (*option)(int);		/* optional OPTION-key action on the selected row; returning 1 ends list_run with -2 (reload) */
-	int big;			/* big rows: 4 of 64 px with a 60 px cover and the value as a second line (Ajustes > Pantalla) */
+	int big;			/* big rows: 4 of 64 px with a 60 px cover and the value as a second line (Settings > Display) */
 	int grid;			/* mosaic: 3x3 covers of 72 px; the selected name goes up to the title bar, the value under the grid */
 	int ep;				/* podcast episodes: 5 rows of 51 px, 46 px cover, value as a second line, state + progress */
 	int (*state)(int);		/* ep rows: 0 normal, 1 new (orange dot on the cover), 2 already heard (dimmed) */
@@ -76,7 +76,7 @@ struct player_view {
 	const char *book, *track, *sub;
 	int idx, ntr, sec, total, paused;
 	int vol, volmax, sleep_left;	/* sleep_left in minutes, 0 = off */
-	const char *out;		/* "Auriculares" / "Bluetooth" */
+	const char *out;		/* "Headphones" / "Bluetooth" */
 	struct img art;			/* cover, PLAYER_ART square (w = 0 -> placeholder) */
 	int speed;			/* x100; shown when != 100 */
 	int show_lrc;			/* lyrics view instead of the cover */
@@ -120,7 +120,7 @@ int scr_strip_scrolls(void);		/* SNRGY: the title is too long for the strip, so 
 void scr_aod(void);			/* SNRGY always-on display: everything black but the strip */
 extern int ui_aod, ui_aod_now, ui_strip_calm, ui_aod_level;	/* + the always-on backlight (%, steps of 20: the LCD has 5 levels) */	/* settings: always-on display, strip refreshed every 5 s and still */		/* SNRGY: redraw the status strip (clock, progress) in the back buffer's status band */
 extern int ui_home_tab;		/* SNRGY home: 0 the list has the focus, 2 the RESUME header */
-extern const int home_order[];	/* SNRGY home: the slots in list order (no "Reproduciendo": the RESUME tab is that) */
+extern const int home_order[];	/* SNRGY home: the slots in list order (no "Now playing": the RESUME tab is that) */
 extern const int home_order_n;
 #define PLAYER_ART_BIG 236	/* SNRGY player: the cover across the width */
 void scr_volume(int vol, int volmax);

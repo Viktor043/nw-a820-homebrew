@@ -58,7 +58,7 @@ extern unsigned gpsp_rom_buffer_mb;	/* patched gba_memory.c: 1 MB ROM buffers to
 #define GH 160
 #define FRAME_US 16743		/* 1 / 59.7275 Hz */
 
-static const char *mode_names[] = { "Pantalla: horizontal 1.33x", "Pantalla: horizontal 1:1", "Pantalla: vertical 1:1" };
+static const char *mode_names[] = { "Screen: landscape 1.33x", "Screen: landscape 1:1", "Screen: portrait 1:1" };
 
 static uint16_t *screen;			/* /dev/fb/0, 240x320 RGB565 portrait */
 static int mode, vol = 14, sound = 1, turbo, quit_req, menu_req, keyfd = -1, dsp = -1, out_rate;
@@ -455,13 +455,13 @@ static void menu_draw(const char *const *items, int n, int sel, const char *note
 static void game_menu(void)
 {
 	char volname[32];
-	const char *items[6] = { "Continuar", "Guardar estado", "Cargar estado", 0, 0, "Salir del juego" };
+	const char *items[6] = { "Resume", "Save state", "Load state", 0, 0, "Quit game" };
 	int sel = 0;
 	const char *note = 0;
 	sram_save(0);
 	for (;;) {
 		items[3] = mode_names[mode];
-		snprintf(volname, sizeof volname, sound ? "Volumen: %d  < >" : "Volumen: (sin sonido)", vol);
+		snprintf(volname, sizeof volname, sound ? "Volumen: %d  < >" : "Volume: (muted)", vol);
 		items[4] = volname;
 		menu_draw(items, 6, sel, note);
 		note = 0;
@@ -477,8 +477,8 @@ static void game_menu(void)
 			mode = (mode + (k == K_LEFT ? 2 : 1)) % 3; save_cfg();
 		} else if (k == K_PLAY) {
 			if (sel == 0) break;
-			if (sel == 1) note = state_save() ? "Estado guardado" : "No se pudo guardar";
-			if (sel == 2) { if (state_load()) break; note = "No hay estado guardado"; }
+			if (sel == 1) note = state_save() ? "State saved" : "Could not save";
+			if (sel == 2) { if (state_load()) break; note = "No saved state"; }
 			if (sel == 5) { quit_req = 1; break; }
 		}
 	}
@@ -545,8 +545,8 @@ int main(int argc, char **argv)
 	clear_screen();
 
 	struct stat st;
-	if (stat(rompath, &st) || !S_ISREG(st.st_mode) || st.st_size < 192) { message("No se puede abrir la ROM", rompath, 3); return 1; }
-	if (st.st_size > 32 * 1024 * 1024) { message("ROM demasiado grande", "Las ROM de GBA tienen como máximo 32 MB.", 3); return 1; }
+	if (stat(rompath, &st) || !S_ISREG(st.st_mode) || st.st_size < 192) { message("Can't open the ROM", rompath, 3); return 1; }
+	if (st.st_size > 32 * 1024 * 1024) { message("ROM demasiado grande", "GBA ROMs are 32 MB at most.", 3); return 1; }
 
 	/* ROM buffer: whole ROM up to HB_GBA_ROMMB (8) MB and what memory allows; the rest is paged from the file */
 	int rom_mb = (int)((st.st_size + 0xFFFFF) >> 20), cap = getenv("HB_GBA_ROMMB") ? atoi(getenv("HB_GBA_ROMMB")) : 8;
@@ -569,7 +569,7 @@ int main(int argc, char **argv)
 	retro_set_input_state(input_state_cb);
 	retro_init();
 	struct retro_game_info gi = { rompath, 0, 0, 0 };
-	if (!retro_load_game(&gi)) { message("No se pudo cargar el juego", "¿Memoria insuficiente o ROM dañada?", 3); return 1; }
+	if (!retro_load_game(&gi)) { message("Could not load the game", "Not enough memory or a damaged ROM?", 3); return 1; }
 	sram_load();
 
 	long long next = now_us(), t0 = next, last_sram = next;

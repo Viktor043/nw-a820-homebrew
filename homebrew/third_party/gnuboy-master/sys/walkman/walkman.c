@@ -243,11 +243,11 @@ static void menu_draw(const char *const *items, int n, int sel, const char *note
 static void game_menu(void)
 {
 	static const char *turbo_names[] = { "Turbo (HOLD): 1.5x", "Turbo (HOLD): 2x", "Turbo (HOLD): 3x" };
-	const char *items[6] = { "Continuar", "Guardar estado", "Cargar estado", 0, 0, "Salir del juego" };
+	const char *items[6] = { "Resume", "Save state", "Load state", 0, 0, "Quit game" };
 	int sel = 0;
 	const char *note = 0;
 	for (;;) {
-		items[3] = rotate ? "Pantalla: rotada" : "Pantalla: normal";
+		items[3] = rotate ? "Screen: rotated" : "Screen: normal";
 		items[4] = turbo_names[turbo_idx];
 		menu_draw(items, 6, sel, note);
 		note = 0;
@@ -257,7 +257,7 @@ static void game_menu(void)
 		else if (k == 18) break;	/* BACK: continue */
 		else if (k == 0) {
 			if (sel == 0) break;
-			if (sel == 1) { state_save(0); note = "Estado guardado"; }
+			if (sel == 1) { state_save(0); note = "State saved"; }
 			if (sel == 2) { state_load(0); break; }
 			if (sel == 3) { rotate = !rotate; save_cfg(); }
 			if (sel == 4) { turbo_idx = (turbo_idx + 1) % 3; save_cfg(); if (turbo) { char b[16]; snprintf(b, sizeof b, "%d", 16743 * 10 / turbo_x10[turbo_idx]); char *v = b; rc_setvar("framelen", 1, &v); } }

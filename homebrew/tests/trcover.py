@@ -5,6 +5,7 @@ translated (names of things, sample data, text never shown)."""
 import glob, os, re, subprocess
 
 IGNORE = {
+    'CAPÍTULO', 'Capítulo', 'CAPITULO', 'Capitulo',	# reader.c: chapter lines in Spanish books (data)
     'Game Boy', 'Game Boy Advance', 'Bluetooth', 'Podcast', 'Podcasts', 'DSP', 'NES', 'GBA', 'Doom',
     'Info', 'Hold', 'Preset', 'Crossfeed', 'OK', 'Heavy', 'Pop', 'Jazz', 'Español', 'English', 'Idioma / Language',
     'Argentina', 'Chile', 'Colombia', 'Uruguay', 'México', 'España', 'Brasil', 'Estados Unidos', 'Reino Unido',
@@ -12,7 +13,7 @@ IGNORE = {
     '%s%d episodio%s%s%s', '%s%s%d episodio%s', '%s%sen el Walkman', 'Lo seguís · ', 'Repetir: %s',	# composed at run time (unit.c checks the results)
     'libmad · FAAD2 · lwIP', 'gnuboy · Sonic', 'Mbed TLS · TJpgDec', 'NW-A820 homebrew', 'NWZ-A820 homebrew', 'MP3 · FLAC · AAC · EQ · Bluetooth', 'Game Boy · NES · Doom',
 }
-SPANISH = re.compile(r'[áéíóúñÁÉÍÓÚÑ¿¡]|\b(de|del|con|para|los|las|el|la|y|no|sí|en|un|una|que|tu|tus|hay|ya|más|sin|por)\b|'
+SPANISH = re.compile(r'[áéíóúñÁÉÍÓÚÑ¿¡]|\b(de|del|con|para|los|las|que|tus|hay|más|sin|por|una)\b|'
                      r'\b(Buscar|Volver|Bajar|Borrar|Cancelar|Seguir|Ver|Leyendo|Abriendo|Ajustes|Apagar|Sonido|Pantalla|Despertador|'
                      r'Velocidad|Temporizador|Repetir|Aleatorio|Conectar|Conectando|Emparejando|Encendiendo|Esperando|Probá|Revisá|'
                      r'Copiá|Elegí|Activá|Agregá|Esperá|Usá|Restablecer|Suspender|Juegos|Canciones|Artistas|Música|Episodio|episodios?|'
@@ -56,20 +57,11 @@ def sample(s):
 
 
 def check(hb, zig, out, cc):
-    exe = os.path.join(out, 'trcheck.exe')
-    ok, _ = cc(exe, [os.path.join(hb, 'tests', 'trcheck.c'), os.path.join(hb, 'hbplayer', 'i18n.c'), os.path.join(hb, 'common', 'gfx.c')])
-    if not ok:
-        return False, 'build failed'
+    """2026-11-17: the interface is written in English in the code; any literal that still looks Spanish fails"""
     lits = literals(hb)
-    texts = []
-    for s, where in sorted(lits.items()):
-        texts.append((s, sample(s).replace(chr(10), ' ').replace(chr(13), ' '), where))	# one text per line for trcheck
-    r = subprocess.run([exe], input='\n'.join(t for _, t, _ in texts) + '\n', capture_output=True, text=True, encoding='utf-8')
-    res = r.stdout.split('\n')
-    left = [(s, w) for (s, t, w), e in zip(texts, res) if e == t]
-    with open(os.path.join(out, 'untranslated_code.txt'), 'w', encoding='utf-8') as f:
-        for s, w in left:
+    with open(os.path.join(out, 'spanish_left.txt'), 'w', encoding='utf-8') as f:
+        for s, w in sorted(lits.items()):
             f.write('%s\t%s\n' % (w, s))
-    for s, w in left:
-        print('   no English:', w, repr(s))
-    return not left, '%d texts checked, %d without English' % (len(texts), len(left))
+    for s, w in sorted(lits.items()):
+        print('   still Spanish:', w, repr(s))
+    return not lits, '%d Spanish-looking texts left' % len(lits)

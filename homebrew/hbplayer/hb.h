@@ -30,7 +30,7 @@ void message(const char *title, const char *l1, const char *l2);	/* draw + flip 
 FILE *safe_open(const char *fn, char *tmp, size_t tmpmax);	/* atomic settings save: safe_open ... safe_close */
 void safe_close(FILE *f, const char *tmp, const char *fn);
 void clock_from_http(const char *date);
-void clock_menu(void);		/* Ajustes > Fecha y hora (alarm.c) */	/* drift correction from an HTTP Date header (alarm.c) */
+void clock_menu(void);		/* Settings > Date and time (alarm.c) */	/* drift correction from an HTTP Date header (alarm.c) */
 extern int quick_open;
 int sound_quick_menu(int with_np);	/* OPTION: quick sound settings (settings.c); 1 = open the player */
 int ui_volume_key(int k);	/* VOL+/VOL- -> volume change + popup; 1 if it was one */
@@ -48,11 +48,11 @@ void voice_quick_menu(void);		/* settings.c: speed, silence trimming, voice boos
 void reader_restart(int i);		/* reader.c: forget where book i of the list was */
 void game_controls(int i);		/* hbplayer.c: the keys of game i */
 extern int hw_a91x;			/* hbplayer.c: an NW-A91x (no Bluetooth; an LED) rather than an NW-A82x */
-extern int eng_resume_music;	/* engine.c: resume the next song opened at its saved position (only "Reproduciendo") */		/* the "now playing" screen for whatever the engine plays */
+extern int eng_resume_music;	/* engine.c: resume the next song opened at its saved position (only "Now playing") */		/* the "now playing" screen for whatever the engine plays */
 extern int backlight_on;
 extern int ui_brightness, ui_dim_secs;	/* settings (saved in pos.txt) */
 void settings_save(void);
-extern int ui_beep;		/* Ajustes > Pitido: Sony's key beep */
+extern int ui_beep;		/* Settings > Pitido: Sony's key beep */
 enum { BEEP_ONE, BEEP_TWO, BEEP_THREE, BEEP_LONG };
 void beep(int kind);
 extern char statedir[PATHLEN];
@@ -88,7 +88,7 @@ void eng_pause(int p);
 void eng_toggle(void);
 void eng_next(void);
 void books_menu(void);
-void switch_to_sony(void);		/* Ajustes: leave for the Sony UI (and boot into it next time) */		/* reader.c: EPUB / TXT from /contents/Libros */
+void switch_to_sony(void);		/* Settings: leave for the Sony UI (and boot into it next time) */		/* reader.c: EPUB / TXT from /contents/Books */
 extern int ui_book_size, ui_book_land;	/* reader.c: zoom and orientation (pos.txt "book") */
 extern int ui_fullscreen, ui_keep_awake;
 int volume_key(int k);			/* VOL+ / VOL- from any screen (hbplayer.c) */	/* a landscape page owns the whole screen (no strip refresh, no popups); never dark */
@@ -213,7 +213,7 @@ int dec_seek_bytes(long bytes);		/* MP3 only; 0 ok */
 int dec_seek_sec(double sec);		/* 0 ok */
 void dec_lowpower(int on);		/* MP3 half-rate synthesis while a game runs */
 int dec_is_audio(const char *name);	/* by extension: mp3 flac m4a mp4 aac oma aa3 omg wma */
-/* direct playback ("Máxima batería"): the DSP decodes and plays to the codec itself */
+/* direct playback ("Max battery"): the DSP decodes and plays to the codec itself */
 void dec_set_direct(int on);		/* allow it for the next dec_open (MP3 / ATRAC / WMA / AAC-LC) */
 int dec_direct(void);			/* the open file plays directly (drive it with dec_direct_step, not dec_read) */
 int dec_direct_step(void);		/* 1 playing, 0 file ended, -1 no longer direct (continue with dec_read) */
@@ -255,12 +255,12 @@ int eng_resampling(void);	/* hi-res file being resampled to 44.1 kHz (needs 248 
 int eng_load_pct(void);	/* estimated CPU of the chain, % at 124 MHz */
 int eq_load_pct(void);
 void eq_effects_desc(char *out, int max);
-const char *eng_not_direct(int book);	/* why not direct ("Máxima batería"), 0 = direct */	/* time-stretch or FAAD2 running on the ARM (not below 124 MHz) */
+const char *eng_not_direct(int book);	/* why not direct ("Max battery"), 0 = direct */	/* time-stretch or FAAD2 running on the ARM (not below 124 MHz) */
 int dec_soft_aac(void);
 int eng_direct(void);		/* engine.c: the current track plays in the DSP's direct mode */			/* the open MP3 is being decoded by the audio DSP */
 /* dspclient.c: the MP201 audio DSP through the dspdec helper: decoding (MP3, ATRAC) and Sony's effects */
 extern int dsp_enabled;
-extern int dsp_direct;			/* setting "Máxima batería" (0/1) */
+extern int dsp_direct;			/* setting "Max battery" (0/1) */
 int dsp_open(const char *path, long offset, const char *codec);	/* codec "mp3" / "at3" / "atx" / "aal" / "aac" / "wma" */
 int dsp_au_open(int direct, int rate, int channels, int aot, int sbr_ps, int kbps, int (*src)(unsigned char *buf, int max));
 int dsp_direct_open(const char *path, long offset, const char *codec);	/* the DSP plays it (0 ok) */
@@ -324,9 +324,9 @@ void bt_receiver(void);			/* bt.c: the Walkman as a Bluetooth speaker/DAC for th
 void aout_force_wired(int on);		/* audio.c: ignore the Bluetooth link for output (receiver mode) */
 void focus_bells(void);			/* focus.c: ring bells until a key (alarm) */
 
-/* settings.c: the "Ajustes" screen */
+/* settings.c: the "Settings" screen */
 void settings_menu(void);
-void power_menu(void);	/* Suspender / Apagar del todo (Ajustes; Sony grid keeps its icon) */
+void power_menu(void);	/* Suspender / Power del todo (Settings; Sony grid keeps its icon) */
 
 /* music.c / focus.c */
 void music_menu(void);

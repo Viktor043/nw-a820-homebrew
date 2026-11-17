@@ -59,7 +59,7 @@ static inline int pink(void)
 
 static const int dur_opts[] = { 5, 10, 15, 20, 25, 30, 45, 60, 90 };
 static const int int_opts[] = { 0, 1, 2, 5, 10, 15 };
-static const char *noise_names[] = { "silencio", "ruido blanco", "ruido rosa", "ruido marrón" };
+static const char *noise_names[] = { "silence", "white noise", "pink noise", "brown noise" };
 static int di = 4, ii = 3, ni = 3;	/* defaults: 25 min, bell every 5 min, brown noise */
 #define NDUR (int)(sizeof dur_opts / sizeof dur_opts[0])
 #define NINT (int)(sizeof int_opts / sizeof int_opts[0])
@@ -69,7 +69,7 @@ void focus_save(char *out, size_t max) { snprintf(out, max, "%d %d %d", di, ii, 
 
 static void run_session(void)
 {
-	if (!bell) { message("Modo foco", "Preparando la campana...", ""); if (make_bell()) return; }
+	if (!bell) { message("Focus", "Preparing the bell...", ""); if (make_bell()) return; }
 	eng_pause(1);	/* the session owns the audio output */
 	int total = dur_opts[di] * 60, interval = int_opts[ii] * 60;
 	static short buf[1024 * 2];
@@ -77,8 +77,8 @@ static void run_session(void)
 	int elapsed = 0, next_bell = interval ? interval : -1, paused = 0, lastsec = -1, ending = 0;
 	int noise_gain = 900;	/* /4096 */
 	char l2[40];
-	if (interval) snprintf(l2, sizeof l2, "campana cada %d min", int_opts[ii]); else snprintf(l2, sizeof l2, "campana al inicio y al final");
-	if (aout_start(SR)) { message("Modo foco", "No hay salida de audio.", ""); msg_wait(2); return; }
+	if (interval) snprintf(l2, sizeof l2, "bell every %d min", int_opts[ii]); else snprintf(l2, sizeof l2, "bell at start and end");
+	if (aout_start(SR)) { message("Focus", "No audio output.", ""); msg_wait(2); return; }
 	wake();
 	for (;;) {
 		int k = getkey(0);
@@ -120,12 +120,12 @@ static void run_session(void)
 		if (aout_start(SR) || aout_write(buf, 1024)) {
 			aout_stop();
 			if (bt_connected()) bt_link_lost();
-			else { message("Modo foco", "No hay salida de audio.", ""); msg_wait(2); break; }
+			else { message("Focus", "No audio output.", ""); msg_wait(2); break; }
 		}
 		if (ending && !bells_left) break;
 	}
 	aout_stop();
-	if (ending) { message("Modo foco", "Sesión terminada.", ""); msg_wait(3); }
+	if (ending) { message("Focus", "Session finished.", ""); msg_wait(3); }
 }
 
 /* alarm: bells every 6 s until a key is pressed (rising volume) */
@@ -154,13 +154,13 @@ static const char *f_value(int i) { return fv[i]; }
 
 void focus_menu(void)
 {
-	struct list_view v = { "Modo foco", 4, 3, 0, f_label, f_value, 0, LI_NONE, 0, 0 };
+	struct list_view v = { "Focus", 4, 3, 0, f_label, f_value, 0, LI_NONE, 0, 0 };
 	for (;;) {
-		snprintf(fl[0], 48, "Duración"); snprintf(fv[0], 24, "%d min", dur_opts[di]);
-		snprintf(fl[1], 48, "Campana cada");
-		if (int_opts[ii]) snprintf(fv[1], 24, "%d min", int_opts[ii]); else snprintf(fv[1], 24, "inicio/fin");
-		snprintf(fl[2], 48, "Fondo"); snprintf(fv[2], 24, "%s", noise_names[ni]);
-		snprintf(fl[3], 48, "Empezar"); fv[3][0] = 0;
+		snprintf(fl[0], 48, "Length"); snprintf(fv[0], 24, "%d min", dur_opts[di]);
+		snprintf(fl[1], 48, "Bell every");
+		if (int_opts[ii]) snprintf(fv[1], 24, "%d min", int_opts[ii]); else snprintf(fv[1], 24, "start/end");
+		snprintf(fl[2], 48, "Background"); snprintf(fv[2], 24, "%s", noise_names[ni]);
+		snprintf(fl[3], 48, "Start"); fv[3][0] = 0;
 		int s = list_run(&v);
 		if (s < 0) return;
 		if (s == 0) { di = (di + 1) % NDUR; settings_save(); }

@@ -1,12 +1,12 @@
 /* reader.c: books for the player: EPUB (zip of XHTML; zlib's inflate, already linked for the podcasts) and plain
- * text, from /contents/Libros. A chapter at a time: its XHTML becomes paragraphs of UTF-8 text, laid out in the
+ * text, from /contents/Books. A chapter at a time: its XHTML becomes paragraphs of UTF-8 text, laid out in the
  * reader face (tools/mkfont.py --name book: a serif, 21 px lines), justified, one page = the lines that fit above
  * the status bar. The SNRGY strip shows the E-PLAYER's reading lines: chapter and page / book - author / progress
  * and the reading time left. Positions and bookmarks: <statedir>/books.txt.
  *
  * Keys: DOWN next page, UP previous page, LEFT / RIGHT darker / brighter, PLAY portrait / landscape (the whole screen, no strip;
  * held sideways, the keys on the right), VOL+ / VOL- the music's volume, OPTION chapters and bookmarks, BACK the
- * list. The text size: Ajustes > Pantalla > Letra de los libros. The screen never goes dark while a book is open.
+ * list. The text size: Settings > Display > Book text size. The screen never goes dark while a book is open.
  * READER_HOST builds the parsing and layout alone (tests on the PC). */
 #include "hb.h"
 #include <ctype.h>
@@ -16,7 +16,7 @@
 #include <sys/stat.h>
 #include "zlib.h"
 
-#define BOOKS_DIR "/contents/Libros"
+#define BOOKS_DIR "/contents/Books"
 /* the page: portrait above the status strip, or landscape (PLAY) on the whole screen, 320 x 240, no strip */
 int ui_book_size = 1, ui_book_land;	/* saved in pos.txt: the zoom (face 2's size) and the orientation */
 #define RD_LH gfx_book_line()		/* line pitch of the reader face at the current zoom */
@@ -645,7 +645,7 @@ static void draw_page(int page)
 	long before = 0; for (int i = 0; i < cur_ch; i++) before += bk.ch[i].size;
 	long rest = bk.total - before - (long)(npages() ? (double)page / npages() * bk.ch[cur_ch].size : 0);
 	int mins = (int)(rest * (bk.epub ? 0.6 : 1.0) / CHARS_PER_MIN);
-	snprintf(l1, sizeof l1, ui_lang ? "CH%d P%d/%d" : "CAP%d P%d/%d", cur_ch + 1, page + 1, npages());	/* compact: the strip has ~10 letters before the battery */
+	snprintf(l1, sizeof l1, ui_lang ? "CH%d P%d/%d" : "CH%d P%d/%d", cur_ch + 1, page + 1, npages());	/* compact: the strip has ~10 letters before the battery */
 	snprintf(l2, sizeof l2, "%s%s%s", bk.title, bk.author[0] ? " - " : "", bk.author);
 	if (mins >= 60) snprintf(left, sizeof left, "%dH %02dM", mins / 60, mins % 60); else snprintf(left, sizeof left, "%dM", mins);
 	ui_st.rd_on = 1; ui_st.rd_l1 = l1; ui_st.rd_l2 = l2; ui_st.rd_left = left; ui_st.rd_pct = pct;
@@ -658,7 +658,7 @@ static const char *chap_label(int i)
 {
 	static char b[128];
 	if (lv_book->ch[i].name[0]) return lv_book->ch[i].name;
-	snprintf(b, sizeof b, "Capítulo %d", i + 1);
+	snprintf(b, sizeof b, "Chapter %d", i + 1);
 	return b;
 }
 
@@ -679,12 +679,12 @@ static int bm_delete(int i)
 	return 1;
 }
 
-static const char *reader_opt_label(int i) { static const char *t[3] = { "Capítulos", "Añadir marcador", "Marcadores" }; return i >= 0 && i < 3 ? t[i] : ""; }
+static const char *reader_opt_label(int i) { static const char *t[3] = { "Chapters", "Add bookmark", "Bookmarks" }; return i >= 0 && i < 3 ? t[i] : ""; }
 
 /* OPTION: chapters / add a bookmark / bookmarks; returns 1 if the position moved (*ch, *off) */
 static int reader_menu(int *ch, long *off, int page)
 {
-	struct list_view mv = { "Opciones", 3, 0, 0, reader_opt_label, 0, 0, LI_NONE, 0, 0 };
+	struct list_view mv = { "Options", 3, 0, 0, reader_opt_label, 0, 0, LI_NONE, 0, 0 };
 	int s = list_run(&mv);
 	if (s == 0) {	/* the chapters, the current one selected */
 		lv_book = &bk;
@@ -701,12 +701,12 @@ static int reader_menu(int *ch, long *off, int page)
 		int l = page * rd_lines();
 		m->ch = cur_ch; m->off = l < nlines ? lines[l].off : 0; m->pct = book_pct(page); m->bm = 1;
 		marks_save();
-		eng_note("Marcador guardado");
+		eng_note("Bookmark saved");
 	} else if (s == 2) {	/* this book's bookmarks; OPTION on one deletes it */
 		nbm = 0;
 		for (int i = 0; i < nmarks && nbm < 256; i++) if (marks[i].bm && !strcmp(marks[i].path, bk.path)) bm_idx[nbm++] = i;
-		if (!nbm) { eng_note("Sin marcadores"); return 0; }
-		struct list_view bv = { "Marcadores", nbm, 0, 0, bm_label, 0, 0, LI_NONE, 0, 0 };
+		if (!nbm) { eng_note("No bookmarks"); return 0; }
+		struct list_view bv = { "Bookmarks", nbm, 0, 0, bm_label, 0, 0, LI_NONE, 0, 0 };
 		bv.option = bm_delete;
 		int c = list_run(&bv);
 		if (c >= 0 && c < nbm) { struct mark *m = &marks[bm_idx[c]]; *ch = m->ch; *off = m->off; return 1; }
@@ -716,9 +716,9 @@ static int reader_menu(int *ch, long *off, int page)
 
 static void reader_run(const char *path)
 {
-	scr_message("Libros", "Abriendo...", "");
+	scr_message("Books", "Opening...", "");
 	flip();
-	if (book_open(&bk, path)) { eng_note("No se pudo abrir el libro"); return; }
+	if (book_open(&bk, path)) { eng_note("Could not open the book"); return; }
 	marks_load();
 	struct mark *m = pos_of(path);
 	int ch = m && m->ch < bk.nch ? m->ch : 0;
@@ -757,7 +757,7 @@ static void reader_run(const char *path)
 			if (b < 20) b = 20;
 			if (b > 100) b = 100;
 			if (b != ui_brightness) { ui_brightness = b; gfx_backlight(b); settings_save(); }
-			if (!ui_book_land) { char n[32]; snprintf(n, sizeof n, "Brillo %d%%", ui_brightness); eng_note(n); redraw_strip = 1; }
+			if (!ui_book_land) { char n[32]; snprintf(n, sizeof n, "Brightness %d%%", ui_brightness); eng_note(n); redraw_strip = 1; }
 			continue;
 		}
 		if (k == K_DOWN) {
@@ -841,7 +841,7 @@ void books_menu(void)
 	scan(BOOKS_DIR, 0);
 	qsort(bpaths, nbooks, PATHLEN, cmp_path);
 	marks_load();
-	struct list_view v = { "Libros", nbooks, 0, 0, book_label, book_value, 0, LI_NONE, "No hay libros. Copiá archivos EPUB o TXT a la carpeta Libros.", 0 };
+	struct list_view v = { "Books", nbooks, 0, 0, book_label, book_value, 0, LI_NONE, "No books. Copy EPUB or TXT files to the Books folder.", 0 };
 	v.option = opt_books;	/* text size, orientation, start this book over (ctxopt.c) */
 	for (;;) {
 		v.n = nbooks;

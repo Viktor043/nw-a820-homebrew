@@ -1,4 +1,4 @@
-/* settings.c: the "Ajustes" screen (Sonido, alarm, brightness, screen timeout) and the unified Sonido menu. */
+/* settings.c: the "Settings" screen (Sound, alarm, brightness, screen timeout) and the unified Sound menu. */
 #include "hb.h"
 #include <stdio.h>
 #include <sys/statvfs.h>
@@ -9,7 +9,7 @@ static char items[16][48], values[16][24];
 static const char *it_label(int i) { return items[i]; }
 static const char *it_value(int i) { return values[i]; }
 static const char *band_names[5] = { "60 Hz", "250 Hz", "1 kHz", "4 kHz", "12 kHz" };
-static const char *bass_names[3] = { "no", "+3 dB", "+6 dB" };
+static const char *bass_names[3] = { "off", "+3 dB", "+6 dB" };
 
 static int preset_index(void)
 {
@@ -23,19 +23,19 @@ static void changed(void)
 	eq_save(statedir);
 }
 
-/* ---------- Sonido: one menu for everything audio (Ajustes > Sonido and OPTION from any list / the player) ----------
- *   Ahora: ...              which path the audio takes (Máxima batería or processed); PLAY explains why
- *   Ecualizador          >  on/off, preset, 5 bands, bass boost, stereo widening
- *   Auriculares          >  crossfeed, loudness at low volume, AutoEq profile
+/* ---------- Sound: one menu for everything audio (Settings > Sound and OPTION from any list / the player) ----------
+ *   Ahora: ...              which path the audio takes (Max battery or processed); PLAY explains why
+ *   Equalizer          >  on/off, preset, 5 bands, bass boost, stereo widening
+ *   Headphones          >  crossfeed, loudness at low volume, AutoEq profile
  *   Voz (podcasts y libros) >  speed, silence trimming, voice boost
- *   Volumen parejo          ReplayGain off / track / album
- *   Efectos de Sony      >  VPT, Sony EQ, normalizer, DSEE (on the DSP)
- *   Máxima batería          direct DSP playback
+ *   Even volume          ReplayGain off / track / album
+ *   Sony effects      >  VPT, Sony EQ, normalizer, DSEE (on the DSP)
+ *   Max battery          direct DSP playback
  *   Usar el DSP de Sony     DSP decoding at all */
 
-/* Ajustes > Sonido > Ecualizador: Sony's own (the DSP's: works with Máxima batería), like the Sony UI:
+/* Settings > Sound > Equalizer: Sony's own (the DSP's: works with Max battery), like the Sony UI:
  * preset, Clear Bass 0..+3, 400 Hz .. 16 kHz -3..+3 (2 dB a step). Touching a value with a preset on switches to
- * Personalizado starting from that preset. Our 5-band EQ is "Ecualizador avanzado" (the ARM does it). */
+ * Personalizado starting from that preset. Our 5-band EQ is "Equalizer avanzado" (the ARM does it). */
 static void eq_adv_menu(void);
 
 /* the Sony-style EQ screen: UP/DOWN walk the presets (the panel previews each curve), PLAY chooses (heard at once);
@@ -43,7 +43,7 @@ static void eq_adv_menu(void);
  * (heard at once, starting from the preset in use), PLAY/BACK leave editing. Last row: our "EQ avanzado". */
 static void eq_menu(void)
 {
-	static const char *names[7] = { "Efecto de son. des.", "Heavy", "Pop", "Jazz", "Exclusivo", "Personalizado", "EQ avanzado (procesador)" };
+	static const char *names[7] = { "Effects off", "Heavy", "Pop", "Jazz", "Unique", "Custom", "Advanced EQ (processor)" };
 	int n = 7, sel = sony_eq < 0 || sony_eq > 5 ? 0 : sony_eq, top = 0, edit = -1, redraw = 1;
 	for (;;) {
 		if (sel < top) top = sel;
@@ -91,17 +91,17 @@ static void eq_menu(void)
 	}
 }
 
-/* our own 5-band EQ, bass boost and stereo widening, done by the ARM (Máxima batería off while it's on) */
+/* our own 5-band EQ, bass boost and stereo widening, done by the ARM (Max battery off while it's on) */
 static void eq_adv_menu(void)
 {
-	struct list_view v = { "Ecualizador avanzado", 9, 0, 0, it_label, it_value, 0, LI_NONE, 0, 0 };
+	struct list_view v = { "Advanced equalizer", 9, 0, 0, it_label, it_value, 0, LI_NONE, 0, 0 };
 	for (;;) {
 		int p = preset_index();
-		snprintf(items[0], 48, "Ecualizador"); snprintf(values[0], 24, "%s", eq.on ? "sí" : "no");
-		snprintf(items[1], 48, "Preset"); snprintf(values[1], 24, "%s", p >= 0 ? eq_presets[p].name : "personal");
+		snprintf(items[0], 48, "Equalizer"); snprintf(values[0], 24, "%s", eq.on ? "on" : "off");
+		snprintf(items[1], 48, "Preset"); snprintf(values[1], 24, "%s", p >= 0 ? eq_presets[p].name : "custom");
 		for (int i = 0; i < 5; i++) { snprintf(items[2 + i], 48, "  %s", band_names[i]); snprintf(values[2 + i], 24, "%+d dB", eq.band[i]); }
-		snprintf(items[7], 48, "Realce de bajos"); snprintf(values[7], 24, "%s", bass_names[eq.bass]);
-		snprintf(items[8], 48, "Estéreo amplio"); snprintf(values[8], 24, "%s", eq.wide ? "sí" : "no");
+		snprintf(items[7], 48, "Bass boost"); snprintf(values[7], 24, "%s", bass_names[eq.bass]);
+		snprintf(items[8], 48, "Wide stereo"); snprintf(values[8], 24, "%s", eq.wide ? "on" : "off");
 		int s = list_run(&v);
 		if (s < 0) return;
 		if (s == 0) eq.on = !eq.on;
@@ -116,12 +116,12 @@ static void eq_adv_menu(void)
 void voice_quick_menu(void);
 static void voice_menu(void)
 {
-	struct list_view v = { "Voz y podcasts", 4, 0, 0, it_label, it_value, 0, LI_NONE, 0, 0 };
+	struct list_view v = { "Voice and podcasts", 4, 0, 0, it_label, it_value, 0, LI_NONE, 0, 0 };
 	for (;;) {
-		snprintf(items[0], 48, "Velocidad"); snprintf(values[0], 24, "%d.%02dx", eng_speed / 100, eng_speed % 100);
-		snprintf(items[1], 48, "Recortar silencios"); snprintf(values[1], 24, "%s", voice_trim_on ? "sí" : "no");
-		snprintf(items[2], 48, "Realce de voz"); snprintf(values[2], 24, "%s", voice_boost_on ? "sí" : "no");
-		snprintf(items[3], 48, "Tiempo ahorrado (sesión)"); snprintf(values[3], 24, "%d min", (int)(voice_saved_sec() / 60));
+		snprintf(items[0], 48, "Speed"); snprintf(values[0], 24, "%d.%02dx", eng_speed / 100, eng_speed % 100);
+		snprintf(items[1], 48, "Trim silences"); snprintf(values[1], 24, "%s", voice_trim_on ? "on" : "off");
+		snprintf(items[2], 48, "Voice boost"); snprintf(values[2], 24, "%s", voice_boost_on ? "on" : "off");
+		snprintf(items[3], 48, "Time saved (this session)"); snprintf(values[3], 24, "%d min", (int)(voice_saved_sec() / 60));
 		int s = list_run(&v);
 		if (s < 0) return;
 		if (s == 0) { static const int sp[] = { 100, 125, 150, 175, 200, 75 }; int i = 0; while (i < 6 && sp[i] != eng_speed) i++; eng_speed = sp[(i + 1) % 6]; settings_save(); }
@@ -134,18 +134,18 @@ static void voice_menu(void)
 
 static void headphones_menu(void)
 {
-	struct list_view v = { "Auriculares", 3, 0, 0, it_label, it_value, 0, LI_NONE, 0, 0 };
+	struct list_view v = { "Headphones", 3, 0, 0, it_label, it_value, 0, LI_NONE, 0, 0 };
 	for (;;) {
-		snprintf(items[0], 48, "Crossfeed"); snprintf(values[0], 24, "%s", hp_xfeed ? "sí" : "no");
-		snprintf(items[1], 48, "Graves a volumen bajo"); snprintf(values[1], 24, "%s", hp_loud ? "sí" : "no");
-		snprintf(items[2], 48, "Perfil de auriculares"); snprintf(values[2], 24, "%s", hp_autoeq ? "sí" : "no");
+		snprintf(items[0], 48, "Crossfeed"); snprintf(values[0], 24, "%s", hp_xfeed ? "on" : "off");
+		snprintf(items[1], 48, "Bass at low volume"); snprintf(values[1], 24, "%s", hp_loud ? "on" : "off");
+		snprintf(items[2], 48, "Headphone profile"); snprintf(values[2], 24, "%s", hp_autoeq ? "on" : "off");
 		int s = list_run(&v);
 		if (s < 0) return;
 		if (s == 0) hp_xfeed = !hp_xfeed;
 		else if (s == 1) hp_loud = !hp_loud;
 		else if (s == 2) {
 			if (!hp_autoeq) autoeq_reload();	/* a profile copied since the last try */
-			if (!hp_autoeq && !autoeq_load()) { message("Perfil de auriculares", "Copiá el perfil AutoEq de tus auriculares a H:\\HB\\auriculares.txt", "(ParametricEQ.txt de autoeq.app)"); msg_wait(5); continue; }
+			if (!hp_autoeq && !autoeq_load()) { message("Headphone profile", "Copy your headphones' AutoEq profile to H:\\HB\\auriculares.txt", "(ParametricEQ.txt from autoeq.app)"); msg_wait(5); continue; }
 			hp_autoeq = !hp_autoeq;
 		}
 		changed();
@@ -154,14 +154,14 @@ static void headphones_menu(void)
 
 static void sony_fx_menu(void)
 {
-	static const char *vpt_names[7] = { "no", "Modo 1", "Modo 2", "Modo 3", "Modo 4", "Modo 5", "Modo 6" };
-	static const char *seq_names[5] = { "no", "Heavy", "Pop", "Jazz", "Unique" };
-	struct list_view v = { "Efectos de Sony", 3, 0, 0, it_label, it_value, 0, LI_NONE, 0, 0 };
+	static const char *vpt_names[7] = { "off", "Mode 1", "Mode 2", "Mode 3", "Mode 4", "Mode 5", "Mode 6" };
+	static const char *seq_names[5] = { "off", "Heavy", "Pop", "Jazz", "Unique" };
+	struct list_view v = { "Sony effects", 3, 0, 0, it_label, it_value, 0, LI_NONE, 0, 0 };
 	sony_cs = 0;	/* Clear Stereo: no audible effect on this unit (tested 2026-09-29), no longer offered */
 	for (;;) {
-		snprintf(items[0], 48, "VPT (sonido envolvente)"); snprintf(values[0], 24, "%s", vpt_names[sony_vpt + 1]);
-		snprintf(items[1], 48, "Normalizador"); snprintf(values[1], 24, "%s", sony_dn ? "sí" : "no");
-		snprintf(items[2], 48, "DSEE (mejora MP3)"); snprintf(values[2], 24, "%s", sony_dsee ? "sí" : "no");
+		snprintf(items[0], 48, "VPT (surround)"); snprintf(values[0], 24, "%s", vpt_names[sony_vpt + 1]);
+		snprintf(items[1], 48, "Normalizer"); snprintf(values[1], 24, "%s", sony_dn ? "on" : "off");
+		snprintf(items[2], 48, "DSEE (MP3 enhancer)"); snprintf(values[2], 24, "%s", sony_dsee ? "on" : "off");
 		int s = list_run(&v);
 		if (s < 0) return;
 		if (s == 0) sony_vpt = sony_vpt >= 5 ? -1 : sony_vpt + 1;
@@ -174,39 +174,39 @@ static void sony_fx_menu(void)
 
 int quick_open;	/* while the sound menu (or a submenu) is on screen, OPTION does nothing: no menus stacked on menus */
 
-/* with_np: first row "Reproduciendo" (OPTION from a list while something plays); returns 1 when it's chosen */
+/* with_np: first row "Now playing" (OPTION from a list while something plays); returns 1 when it's chosen */
 static int sound_menu(int with_np)
 {
 	if (quick_open) return 0;
 	quick_open = 1;
 	int r = 0;
-	struct list_view v = { "Sonido", 0, 0, 0, it_label, it_value, 0, LI_NONE, 0, 0 };
+	struct list_view v = { "Sound", 0, 0, 0, it_label, it_value, 0, LI_NONE, 0, 0 };
 	for (;;) {
 		struct eng_info e; eng_info(&e);
 		int book = eng_active() ? e.mode == ENG_BOOK : 0;
 		const char *why = eng_not_direct(book);
 		int n = 0, act[12];
-		if (with_np) { snprintf(items[n], 48, "Reproduciendo"); values[n][0] = 0; act[n++] = 0; }
-		snprintf(items[n], 48, "Ahora"); snprintf(values[n], 24, "%s", why ? "procesado" : "máx. batería"); act[n++] = 1;
+		if (with_np) { snprintf(items[n], 48, "Now playing"); values[n][0] = 0; act[n++] = 0; }
+		snprintf(items[n], 48, "Now"); snprintf(values[n], 24, "%s", why ? "processed" : "max. battery"); act[n++] = 1;
 		int p = preset_index();
-		{ static const char *pn[6] = { "no", "Heavy", "Pop", "Jazz", "Exclusivo", "Personaliz." };
-		  snprintf(items[n], 48, "Ecualizador"); snprintf(values[n], 24, "%s", pn[sony_eq < 0 || sony_eq > 5 ? 0 : sony_eq]); act[n++] = 2; (void)p; }
-		snprintf(items[n], 48, "Auriculares"); snprintf(values[n], 24, "%s", hp_xfeed || hp_loud || hp_autoeq ? "efectos" : "no"); act[n++] = 3;
-		snprintf(items[n], 48, "Voz"); snprintf(values[n], 24, "%d.%02dx%s", eng_speed / 100, eng_speed % 100, voice_trim_on || voice_boost_on ? "+" : ""); act[n++] = 4;
+		{ static const char *pn[6] = { "off", "Heavy", "Pop", "Jazz", "Unique", "Custom" };
+		  snprintf(items[n], 48, "Equalizer"); snprintf(values[n], 24, "%s", pn[sony_eq < 0 || sony_eq > 5 ? 0 : sony_eq]); act[n++] = 2; (void)p; }
+		snprintf(items[n], 48, "Headphones"); snprintf(values[n], 24, "%s", hp_xfeed || hp_loud || hp_autoeq ? "effects" : "off"); act[n++] = 3;
+		snprintf(items[n], 48, "Voice"); snprintf(values[n], 24, "%d.%02dx%s", eng_speed / 100, eng_speed % 100, voice_trim_on || voice_boost_on ? "+" : ""); act[n++] = 4;
 		{ static const char *vb[4] = { "normal", "+3 dB", "+6 dB", "+9 dB" };
-		  snprintf(items[n], 48, "Volumen máximo"); snprintf(values[n], 24, "%s", vb[vol_boost & 3]); act[n++] = 9; }
-		snprintf(items[n], 48, "Volumen parejo"); snprintf(values[n], 24, "%s", replaygain_mode == 0 ? "no" : replaygain_mode == 1 ? "por pista" : "por álbum"); act[n++] = 5;
-		snprintf(items[n], 48, "Efectos de Sony"); snprintf(values[n], 24, "%s", sony_vpt >= 0 || sony_dn || sony_dsee ? "sí" : "no"); act[n++] = 6;
-		snprintf(items[n], 48, "Máxima batería"); snprintf(values[n], 24, "%s", dsp_direct ? "sí" : "no"); act[n++] = 7;
-		snprintf(items[n], 48, "DSP de Sony"); snprintf(values[n], 24, "%s", dsp_enabled ? "sí" : "no"); act[n++] = 8;
+		  snprintf(items[n], 48, "Maximum volume"); snprintf(values[n], 24, "%s", vb[vol_boost & 3]); act[n++] = 9; }
+		snprintf(items[n], 48, "Even volume"); snprintf(values[n], 24, "%s", replaygain_mode == 0 ? "off" : replaygain_mode == 1 ? "per track" : "per album"); act[n++] = 5;
+		snprintf(items[n], 48, "Sony effects"); snprintf(values[n], 24, "%s", sony_vpt >= 0 || sony_dn || sony_dsee ? "on" : "off"); act[n++] = 6;
+		snprintf(items[n], 48, "Max. battery"); snprintf(values[n], 24, "%s", dsp_direct ? "on" : "off"); act[n++] = 7;
+		snprintf(items[n], 48, "Sony DSP"); snprintf(values[n], 24, "%s", dsp_enabled ? "on" : "off"); act[n++] = 8;
 		v.n = n;
 		int s = list_run(&v);
 		if (s < 0) break;
 		switch (act[s]) {
 		case 0: r = 1; break;
 		case 1:	/* explain the path */
-			if (why) { message("Ahora: procesado", "No usa Máxima batería porque:", why); msg_wait(6); }
-			else { message("Ahora: máxima batería", "El DSP de Sony decodifica y reproduce", "solo: el procesador casi no trabaja."); msg_wait(5); }
+			if (why) { message("Now: processed", "Not using Max. battery because:", why); msg_wait(6); }
+			else { message("Now: max. battery", "Sony's DSP decodes and plays", "by itself: the processor barely works."); msg_wait(5); }
 			break;
 		case 2: eq_menu(); break;
 		case 3: headphones_menu(); break;
@@ -217,7 +217,7 @@ static int sound_menu(int with_np)
 		case 8: dsp_enabled = !dsp_enabled; if (!dsp_enabled) dsp_stop_helper(); changed(); break;	/* from the next track */
 		case 9:	/* louder headphones: at once, with a warning the first time it goes past normal */
 			vol_boost = (vol_boost + 1) % 4;
-			if (vol_boost == 1) { message("Volumen máximo", "Más fuerte en los auriculares. Cuidá tus oídos.", "+6 y +9 dB pueden distorsionar en grabaciones fuertes."); msg_wait(5); }
+			if (vol_boost == 1) { message("Maximum volume", "Louder headphones. Mind your hearing.", "+6 and +9 dB can distort loud recordings."); msg_wait(5); }
 			aout_set_volume(); settings_save(); break;
 		}
 		if (r) break;
@@ -250,20 +250,20 @@ static void about_screen(void)
 	snprintf(ver, sizeof ver, "%s", HB_VERSION);	/* "1.1 (2026-10-22)": version and build date on two lines */
 	char *p = strstr(ver, " (");
 	if (p) { snprintf(date, sizeof date, "%s", p + 2); *p = 0; if ((p = strchr(date, ')'))) *p = 0; }
-	char vl[80]; snprintf(vl, sizeof vl, "Versión %s", ver);
+	char vl[80]; snprintf(vl, sizeof vl, "Version %s", ver);
 	free_space("/contents", c, sizeof c); free_space(statedir, v, sizeof v);
-	snprintf(fr, sizeof fr, "Libre: %s", c); snprintf(st, sizeof st, "Ajustes: %s", v);
-	scr_screen("Acerca de");
+	snprintf(fr, sizeof fr, "Free: %s", c); snprintf(st, sizeof st, "Settings: %s", v);
+	scr_screen("About");
 	gfx_text_center(W / 2, 50, gfx_anim_intl() ? "NWZ-A820 homebrew" : "NW-A820 homebrew", C_WHITE, 1);
 	gfx_text_center(W / 2, 80, vl, C_WHITE, 1);
 	if (*date) gfx_text_center(W / 2, 102, date, C_GREY, 1);
 	gfx_text_center(W / 2, 130, fr, C_GREY, 1);
 	gfx_text_center(W / 2, 152, st, C_GREY, 1);
-	gfx_text_center(W / 2, 180, "Licencia: GPL-2.0", C_GREY, 1);
+	gfx_text_center(W / 2, 180, "License: GPL-2.0", C_GREY, 1);
 	gfx_text_center(W / 2, 202, "libmad · FAAD2 · lwIP", C_DARK, 1);
 	gfx_text_center(W / 2, 222, "gnuboy · Sonic", C_DARK, 1);
 	gfx_text_center(W / 2, 242, "Mbed TLS · TJpgDec", C_DARK, 1);
-	gfx_text_center(W / 2, 266, "HOME 3 s: ir a Sony", C_ORANGE, 1);
+	gfx_text_center(W / 2, 266, "HOME 3 s: to Sony", C_ORANGE, 1);
 	gfx_flip();
 	while (getkey(500) != K_BACK) idle_tick(0);
 }
@@ -275,7 +275,7 @@ static void about_screen(void)
 static void sony_clock_menu(void)
 {
 	if (!access(SONY124, F_OK)) { unlink(SONY124); sync(); return; }
-	scr_message("Walkman de Sony: ahorro", "El Walkman de Sony va a usar la mitad de reloj: menos baterí" "a, menú" "s más lentos.", "Experimental. Se aplica al volver a Sony.");
+	scr_message("Sony Walkman: power saving", "Sony's Walkman will run at half clock: less battery, slower menus.", "Experimental. Applies when you go back to Sony.");
 	gfx_flip(); msg_wait(5);
 	FILE *f = fopen(SONY124, "w");
 	if (f) { fputs("124\n", f); fclose(f); sync(); }
@@ -284,30 +284,30 @@ static void sony_clock_menu(void)
 /* everything the player remembers on /var, after a confirmation; the music and the games' saves stay */
 static void reset_menu(void)
 {
-	static const char *const opts[2] = { "Sí, restablecer", "Cancelar" };
+	static const char *const opts[2] = { "Yes, reset", "Cancel" };
 	snprintf(items[0], 48, "%s", opts[0]); snprintf(items[1], 48, "%s", opts[1]);
 	values[0][0] = values[1][0] = 0;
-	scr_message("Restablecer todo", "Borra posiciones, ajustes, Bluetooth y modo de inicio. No toca tu música.", "");
+	scr_message("Reset everything", "Clears positions, settings, Bluetooth and the boot mode. Your music stays.", "");
 	gfx_flip(); msg_wait(4);
-	struct list_view v = { "Restablecer todo", 2, 1, 0, it_label, it_value, 0, LI_NONE, 0, 0 };
+	struct list_view v = { "Reset everything", 2, 1, 0, it_label, it_value, 0, LI_NONE, 0, 0 };
 	if (list_run(&v) == 0) factory_reset();
 }
 
-/* Ajustes > Pantalla */
+/* Settings > Display */
 static void screen_menu(void)
 {
-	struct list_view v = { "Pantalla", 9, 0, 0, it_label, it_value, 0, LI_NONE, 0, 0 };
+	struct list_view v = { "Display", 9, 0, 0, it_label, it_value, 0, LI_NONE, 0, 0 };
 	for (;;) {
-		snprintf(items[0], 48, "Brillo"); snprintf(values[0], 24, "%d%%", ui_brightness);
-		snprintf(items[1], 48, "Apagar pantalla"); snprintf(values[1], 24, "%d s", ui_dim_secs);
-		snprintf(items[2], 48, "Filas grandes con portada"); snprintf(values[2], 24, "%s", ui_big_rows ? "sí" : "no");
-		snprintf(items[3], 48, "Fondo"); snprintf(values[3], 24, "%s", wall_names[ui_wall]);
-		snprintf(items[4], 48, "Tema"); snprintf(values[4], 24, "%s", theme_names[ui_theme]);
-		snprintf(items[5], 48, "Pantalla siempre activa"); snprintf(values[5], 24, "%s", ui_aod ? "sí" : "no");
-		snprintf(items[6], 48, "Brillo siempre activa"); snprintf(values[6], 24, "%d%%", ui_aod_level);
-		snprintf(items[7], 48, "Barra de estado"); snprintf(values[7], 24, "%s", ui_strip_calm ? "tranquila" : "viva");
-		{ static const char *const sz[4] = { "pequeña", "mediana", "grande", "muy grande" };
-		  snprintf(items[8], 48, "Letra de los libros"); snprintf(values[8], 24, "%s", sz[ui_book_size < 0 ? 0 : ui_book_size > 3 ? 3 : ui_book_size]); }
+		snprintf(items[0], 48, "Brightness"); snprintf(values[0], 24, "%d%%", ui_brightness);
+		snprintf(items[1], 48, "Screen off after"); snprintf(values[1], 24, "%d s", ui_dim_secs);
+		snprintf(items[2], 48, "Big rows with covers"); snprintf(values[2], 24, "%s", ui_big_rows ? "on" : "off");
+		snprintf(items[3], 48, "Background"); snprintf(values[3], 24, "%s", wall_names[ui_wall]);
+		snprintf(items[4], 48, "Theme"); snprintf(values[4], 24, "%s", theme_names[ui_theme]);
+		snprintf(items[5], 48, "Always-on display"); snprintf(values[5], 24, "%s", ui_aod ? "on" : "off");
+		snprintf(items[6], 48, "Always-on brightness"); snprintf(values[6], 24, "%d%%", ui_aod_level);
+		snprintf(items[7], 48, "Status strip"); snprintf(values[7], 24, "%s", ui_strip_calm ? "calm" : "live");
+		{ static const char *const sz[4] = { "small", "medium", "large", "extra large" };
+		  snprintf(items[8], 48, "Book text size"); snprintf(values[8], 24, "%s", sz[ui_book_size < 0 ? 0 : ui_book_size > 3 ? 3 : ui_book_size]); }
 		int s = list_run(&v);
 		if (s < 0) return;
 		if (s == 0) { ui_brightness = ui_brightness >= 100 ? 20 : ui_brightness + 20; gfx_backlight(ui_brightness); }	/* the LCD has 5 real levels */
@@ -323,35 +323,35 @@ static void screen_menu(void)
 	}
 }
 
-/* Ajustes > Cambiar al Walkman de Sony: asks once (a list row is easy to press by accident), then leaves; the
+/* Settings > Switch to Sony's Walkman: asks once (a list row is easy to press by accident), then leaves; the
  * Walkman stays in Sony's firmware, power-offs included, until HOME + VOL- are held 2 s there */
 static void switch_menu(void)
 {
-	snprintf(items[0], 48, "Cambiar ahora"); snprintf(items[1], 48, "Cancelar");
+	snprintf(items[0], 48, "Switch now"); snprintf(items[1], 48, "Cancel");
 	values[0][0] = values[1][0] = 0;
-	scr_message("Cambiar al Walkman de Sony", "El Walkman arranca en el firmware de Sony hasta que vuelvas.", "Volver: HOME y VOL- juntos 2 s.");
+	scr_message("Switch to Sony's Walkman", "The Walkman starts in Sony's firmware until you come back.", "To come back: hold HOME and VOL- together for 2 s.");
 	gfx_flip(); msg_wait(3);
-	struct list_view v = { "Cambiar al Walkman de Sony", 2, 1, 0, it_label, it_value, 0, LI_NONE, 0, 0 };
+	struct list_view v = { "Switch to Sony's Walkman", 2, 1, 0, it_label, it_value, 0, LI_NONE, 0, 0 };
 	if (list_run(&v) == 0) switch_to_sony();
 }
 
 void settings_menu(void)
 {
-	struct list_view v = { "Ajustes", 11, 0, 0, it_label, it_value, 0, LI_NONE, 0, 0 };
+	struct list_view v = { "Settings", 11, 0, 0, it_label, it_value, 0, LI_NONE, 0, 0 };
 	for (;;) {
 		int id[11], n = 0;	/* row -> the rows below (the NW-A91x has no Bluetooth row) */
-		{ static const char *pn[6] = { "EQ no", "Heavy", "Pop", "Jazz", "Exclusivo", "Personaliz." };	/* the EQ: the path ("máx. batería") is inside */
-		  snprintf(items[0], 48, "Sonido"); snprintf(values[0], 24, "%s", pn[sony_eq < 0 || sony_eq > 5 ? 0 : sony_eq]); }
-		snprintf(items[1], 48, "Pantalla"); values[1][0] = 0;
-		snprintf(items[2], 48, "Bluetooth"); snprintf(values[2], 24, "%s", bt_connected() ? "conectado" : "");
-		snprintf(items[3], 48, "Despertador"); snprintf(values[3], 24, alarm_cfg.on ? "%02d:%02d" : "no", alarm_cfg.hour, alarm_cfg.min);
-		{ time_t t = time(0); struct tm *tm = localtime(&t); snprintf(items[4], 48, "Fecha y hora"); if (tm) snprintf(values[4], 24, "%02d:%02d", tm->tm_hour, tm->tm_min); else values[4][0] = 0; }
-		snprintf(items[5], 48, "Pitido"); snprintf(values[5], 24, "%s", ui_beep ? "sí" : "no");
-		snprintf(items[6], 48, "Walkman de Sony: ahorro"); snprintf(values[6], 24, "%s", access(SONY124, F_OK) ? "no" : "sí");
-		snprintf(items[7], 48, "Cambiar al Walkman de Sony"); values[7][0] = 0;
-		snprintf(items[8], 48, "Apagar"); values[8][0] = 0;	/* 2026-11-13: moved here from the SNRGY home list */
-		snprintf(items[9], 48, "Restablecer todo"); values[9][0] = 0;
-		snprintf(items[10], 48, "Acerca de"); values[10][0] = 0;	/* Idioma removed 2026-11-13: English only */
+		{ static const char *pn[6] = { "EQ off", "Heavy", "Pop", "Jazz", "Unique", "Custom" };	/* the EQ: the path ("max. battery") is inside */
+		  snprintf(items[0], 48, "Sound"); snprintf(values[0], 24, "%s", pn[sony_eq < 0 || sony_eq > 5 ? 0 : sony_eq]); }
+		snprintf(items[1], 48, "Display"); values[1][0] = 0;
+		snprintf(items[2], 48, "Bluetooth"); snprintf(values[2], 24, "%s", bt_connected() ? "connected" : "");
+		snprintf(items[3], 48, "Alarm"); snprintf(values[3], 24, alarm_cfg.on ? "%02d:%02d" : "off", alarm_cfg.hour, alarm_cfg.min);
+		{ time_t t = time(0); struct tm *tm = localtime(&t); snprintf(items[4], 48, "Date and time"); if (tm) snprintf(values[4], 24, "%02d:%02d", tm->tm_hour, tm->tm_min); else values[4][0] = 0; }
+		snprintf(items[5], 48, "Beep"); snprintf(values[5], 24, "%s", ui_beep ? "on" : "off");
+		snprintf(items[6], 48, "Sony Walkman: power saving"); snprintf(values[6], 24, "%s", access(SONY124, F_OK) ? "off" : "on");
+		snprintf(items[7], 48, "Switch to Sony's Walkman"); values[7][0] = 0;
+		snprintf(items[8], 48, "Power"); values[8][0] = 0;	/* 2026-11-13: moved here from the SNRGY home list */
+		snprintf(items[9], 48, "Reset everything"); values[9][0] = 0;
+		snprintf(items[10], 48, "About"); values[10][0] = 0;	/* Idioma removed 2026-11-13: English only */
 		for (int r = 0; r < 11; r++) if (!(hw_a91x && r == 2)) { if (n != r) { memcpy(items[n], items[r], sizeof items[0]); memcpy(values[n], values[r], sizeof values[0]); } id[n++] = r; }
 		v.n = n;
 		int s = list_run(&v);

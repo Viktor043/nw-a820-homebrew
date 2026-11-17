@@ -102,29 +102,11 @@ static void test_kbd(void)
 			}
 }
 
-static void test_i18n(void)
+static void test_i18n(void)	/* 2026-11-17: the interface is English in the code; ui_tr passes texts through */
 {
-	static const char *const pairs[][2] = {
-		{ "Ajustes", "Settings" }, { "Bajando 2 de 5", "Downloading 2 of 5" }, { "Conectar: Speaker", "Connect: Speaker" },
-		{ "Aleatorio: s\xc3\xad", "Shuffle: on" }, { "Repetir: todo", "Repeat: all" }, { "5 episodios", "5 episodes" },
-		{ "1 episodio", "1 episode" }, { "2 nuevos de 5", "2 new of 5" }, { "25 jun \xc2\xb7 1 h 12 min", "25 Jun \xc2\xb7 1 h 12 min" },
-		{ "8 oct \xc2\xb7 en el Walkman", "8 Oct \xc2\xb7 on the Walkman" }, { "quedan 22 min", "22 min left" },
-		{ "Velocidad: 1.25x", "Speed: 1.25x" }, { "Leyendo Corridor Cast (1/2)", "Reading Corridor Cast (1/2)" },
-		{ "Leyendo Corridor Cast", "Reading Corridor Cast" }, { "Lo segu\xc3\xads \xc2\xb7 250 episodios", "Following \xc2\xb7 250 episodes" },
-		{ "Corridor Digital \xc2\xb7 250 episodios", "Corridor Digital \xc2\xb7 250 episodes" }, { "Tel\xc3\xa9" "fono: Pixel 7", "Phone: Pixel 7" },
-		{ "efectos activos: ecualizador", "effects on: equalizer" }, { "Vol 70%   BACK: terminar", "Vol 70%   BACK: stop" },
-		{ "campanas", "bells" }, { "1 de 3", "1 of 3" }, { "120 de 512 kB", "120 of 512 kB" },
-		{ "Slip to the Void", "Slip to the Void" }, { "Alter Bridge - AB III.5", "Alter Bridge - AB III.5" },
-	};
 	ui_lang_set(1);
-	for (unsigned i = 0; i < sizeof pairs / sizeof *pairs; i++) {
-		const char *t = ui_tr(pairs[i][0]);
-		CHECK(!strcmp(t, pairs[i][1]), "tr [%s] -> [%s], want [%s]", pairs[i][0], t, pairs[i][1]);
-		t = ui_tr(pairs[i][0]);	/* again: from the cache */
-		CHECK(!strcmp(t, pairs[i][1]), "cached tr [%s] -> [%s]", pairs[i][0], t);
-	}
-	ui_lang_set(0);	/* 2026-11-13: English only, even when asked for Spanish */
-	CHECK(strcmp(ui_tr("Ajustes"), "Ajustes"), "english forced");
+	CHECK(!strcmp(ui_tr("Settings"), "Settings"), "pass-through");
+	CHECK(gfx_tr == 0, "no translation hook");
 }
 
 int main(int argc, char **argv)

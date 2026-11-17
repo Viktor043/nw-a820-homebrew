@@ -15,28 +15,28 @@ int opt_rows(int kind, const struct opt_state *st, char lab[][48], int *act)
 {
 	int n = 0;
 #define ROW(a, ...) do { snprintf(lab[n], 48, __VA_ARGS__); act[n++] = (a); } while (0)
-	if (st->np && kind != OPT_BOOKS) ROW(OA_NP, "Reproduciendo");
+	if (st->np && kind != OPT_BOOKS) ROW(OA_NP, "Now playing");
 	switch (kind) {
 	case OPT_MUSIC: case OPT_ALBUMS:
-		ROW(OA_SHUFFLE, "Aleatorio: %s", st->shuffle ? "sí" : "no");
-		ROW(OA_REPEAT, "Repetir: %s", st->repeat == 1 ? "todo" : st->repeat == 2 ? "una" : "no");
-		if (kind == OPT_ALBUMS) ROW(OA_VIEW, "%s", st->grid ? "Ver como lista" : "Ver como mosaico");
-		ROW(OA_SOUND, "Sonido");
+		ROW(OA_SHUFFLE, "Shuffle: %s", st->shuffle ? "on" : "off");
+		ROW(OA_REPEAT, "Repeat: %s", st->repeat == 1 ? "all" : st->repeat == 2 ? "one" : "off");
+		if (kind == OPT_ALBUMS) ROW(OA_VIEW, "%s", st->grid ? "Show as list" : "Show as grid");
+		ROW(OA_SOUND, "Sound");
 		break;
 	case OPT_AUDIOBOOKS:
-		ROW(OA_SPEED, "Velocidad: %d.%02dx", st->speed / 100, st->speed % 100);
-		if (st->sleep > 0) ROW(OA_SLEEP, "Temporizador: %d min", st->sleep); else ROW(OA_SLEEP, "Temporizador: no");
-		ROW(OA_COVERS, "Portadas grandes: %s", st->big ? "sí" : "no");
-		ROW(OA_VOICE, "Voz");
+		ROW(OA_SPEED, "Speed: %d.%02dx", st->speed / 100, st->speed % 100);
+		if (st->sleep > 0) ROW(OA_SLEEP, "Sleep timer: %d min", st->sleep); else ROW(OA_SLEEP, "Sleep timer: off");
+		ROW(OA_COVERS, "Big covers: %s", st->big ? "on" : "off");
+		ROW(OA_VOICE, "Voice");
 		break;
 	case OPT_BOOKS: {
-		static const char *const sz[4] = { "pequeña", "mediana", "grande", "muy grande" };
-		ROW(OA_BOOKSIZE, "Letra: %s", sz[st->book_size & 3]);
-		ROW(OA_BOOKLAND, "Orientación: %s", st->book_land ? "horizontal" : "vertical");
-		ROW(OA_RESTART, "Empezar este libro de nuevo");
+		static const char *const sz[4] = { "small", "medium", "large", "extra large" };
+		ROW(OA_BOOKSIZE, "Text size: %s", sz[st->book_size & 3]);
+		ROW(OA_BOOKLAND, "Orientation: %s", st->book_land ? "landscape" : "portrait");
+		ROW(OA_RESTART, "Start this book over");
 		break; }
 	case OPT_GAMES:
-		ROW(OA_CONTROLS, "Controles");
+		ROW(OA_CONTROLS, "Controls");
 		break;
 	}
 #undef ROW
@@ -59,7 +59,7 @@ static void state_now(struct opt_state *st)
 /* the options of `kind` for row `sel` of its list; 1 = the list must be set up again (list_run returns -2) */
 int opt_run(int kind, int sel)
 {
-	struct list_view v = { "Opciones", 0, 0, 0, row_label, 0, 0, LI_NONE, 0, 0 };
+	struct list_view v = { "Options", 0, 0, 0, row_label, 0, 0, LI_NONE, 0, 0 };
 	for (;;) {
 		struct opt_state st; state_now(&st);
 		v.n = opt_rows(kind, &st, rows, acts);

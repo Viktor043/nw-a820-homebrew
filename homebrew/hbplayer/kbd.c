@@ -27,7 +27,7 @@ int kbd_input(const char *title, const char *hint, char *buf, size_t max)
 {
 	int mode = 0, upper = 0, row = 0, key = 0, col = 0, redraw = 1;
 	for (;;) {
-		if (redraw && backlight_on) { scr_keyboard(title, buf, hint, "Buscar", mode, upper, row, key); flip(); redraw = 0; }
+		if (redraw && backlight_on) { scr_keyboard(title, buf, hint, "Search", mode, upper, row, key); flip(); redraw = 0; }
 		idle_tick(0);
 		int k = getkey(eng_playing() ? 100 : 1000);
 		if (k == K_REDRAW) { redraw = 1; continue; }

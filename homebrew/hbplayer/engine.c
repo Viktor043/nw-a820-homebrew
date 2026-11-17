@@ -38,7 +38,7 @@ static time_t lastsave, paused_at;
 static int underruns;	/* the output queue ran dry while playing (self-test counter) */
 int eng_underruns(void) { return underruns; }
 
-/* direct playback ("Máxima batería", dsp_direct): the DSP decodes and plays MP3 / ATRAC / WMA / AAC to the wired
+/* direct playback ("Max battery", dsp_direct): the DSP decodes and plays MP3 / ATRAC / WMA / AAC to the wired
  * output by itself; the ARM only feeds compressed data. Only when nothing in our own chain is needed: wired
  * output, no ARM EQ, normal speed, no ReplayGain. Sony's DSP effects (page) still apply. HB_DIRECT=1 in the
  * environment forces the setting (selftest). */
@@ -81,7 +81,7 @@ static int open_file(int fade)
 	of_dec = now() - t0; of_extra = 0;
 	if (bad) {
 		lg("eng: open failed %s", path);
-		if (dec_error()) eng_note(dec_error());	/* e.g. "Archivo protegido (DRM)"; eng_frame skips the track */
+		if (dec_error()) eng_note(dec_error());	/* e.g. "Protected file (DRM)"; eng_frame skips the track */
 		return -1;
 	}
 	have_file = 1; open_fails = 0;
@@ -93,7 +93,7 @@ static int open_file(int fade)
 	chap_load(path);
 	fade_left = fade ? 4000 : 0;	/* a fade-in after a skip / seek / resume; none on the natural next track (gapless) */
 	dec_lowpower(lowpower);
-	{	/* books / podcasts always continue where they were; a song only when "Reproduciendo" resumes it (skipping
+	{	/* books / podcasts always continue where they were; a song only when "Now playing" resumes it (skipping
 		 * to the next song, or picking one from a list, starts it from the beginning, like Sony's player) */
 		long b; int s;
 		int resume = mode != ENG_MUSIC || eng_resume_music;
@@ -109,7 +109,7 @@ static int open_file(int fade)
 	changed = 1;
 	if (dec_direct()) aout_set_volume();	/* the codec volume: no aout_start in direct mode (needs audio.c to apply it without an open device) */
 	{	/* which path and, if not the battery-saving direct one, why */
-		const char *why = dec_direct() ? "direct" : !dsp_direct ? "Máxima batería off" : !dsp_enabled ? "DSP off" : bt_connected() ? "Bluetooth"
+		const char *why = dec_direct() ? "direct" : !dsp_direct ? "Max battery off" : !dsp_enabled ? "DSP off" : bt_connected() ? "Bluetooth"
 			: eq_active() ? "EQ / headphone effects" : (mode == ENG_BOOK && (eng_speed != 100 || voice_trim_on || voice_boost_on)) ? "voice effects / speed"
 			: dec_on_dsp() ? "format not direct (DSP decoding)" : "ARM decoding";
 		lg("eng: play %s from %d s [%s, load %d%%]", path, (int)dec_pos_sec(), why, eng_load_pct());
@@ -155,7 +155,7 @@ void eng_play2(const struct track *list, int n, int idx, int m, const char *ctx,
 	struct qtrack *nqp = realloc(q, sizeof *q * (n ? n : 1));
 	int k = !arena_cur;
 	char *a = malloc(need ? need : 1);
-	if (!nqp || !a) { free(a); if (nqp) q = nqp; nq = 0; eng_note("Sin memoria para la lista"); return; }
+	if (!nqp || !a) { free(a); if (nqp) q = nqp; nq = 0; eng_note("Not enough memory for the list"); return; }
 	q = nqp;
 	free(arena[k]); arena[k] = a; arena_cur = k;
 	for (int i = 0; i < n; i++) {
@@ -310,16 +310,16 @@ static int hires_rate;
 int eng_hires(void) { return hires_rate != 0; }
 /* work the ARM really has to do: resampling a hi-res file, time-stretching, FAAD2 */
 int eng_resampling(void) { return hires_rate != 0 && hires_rate != 44100; }
-/* why music (book = 0) or a podcast / book (book = 1) can't use "Máxima batería" (direct DSP playback); 0 = it can */
+/* why music (book = 0) or a podcast / book (book = 1) can't use "Max battery" (direct DSP playback); 0 = it can */
 const char *eng_not_direct(int book)
 {
 	static char b[160];
-	if (!dsp_enabled) return "el DSP de Sony está apagado";
-	if (!dsp_direct) return "Máxima batería está desactivado";
-	if (bt_connected()) return "el audio va por Bluetooth";
-	if (eq_active()) { char e[120]; eq_effects_desc(e, sizeof e); snprintf(b, sizeof b, "efectos activos: %s", e); return b; }
-	if (book && eng_speed != 100) return "velocidad distinta de 1x";
-	if (book && (voice_trim_on || voice_boost_on)) return "efectos de voz activos";
+	if (!dsp_enabled) return "Sony's DSP is off";
+	if (!dsp_direct) return "Max. battery is off";
+	if (bt_connected()) return "audio goes over Bluetooth";
+	if (eq_active()) { char e[120]; eq_effects_desc(e, sizeof e); snprintf(b, sizeof b, "effects on: %s", e); return b; }
+	if (book && eng_speed != 100) return "speed other than 1x";
+	if (book && (voice_trim_on || voice_boost_on)) return "voice effects on";
 	return 0;
 }
 
@@ -384,7 +384,7 @@ static int eng_frame(void)
 	double pf_t = eng_prof ? now() : 0;
 	if (eng_prof) pf_calls++;
 	if (!active) return 0;
-	if (bt_take_dropped()) { eng_pause(1); eng_note("Bluetooth desconectado"); return 0; }
+	if (bt_take_dropped()) { eng_pause(1); eng_note("Bluetooth disconnected"); return 0; }
 	if (paused) return 0;
 	if (!have_file) {	/* the track could not be opened (protected ATRAC, bad file): next, unless all failed */
 		if (++open_fails > nq) { lg("eng: nothing playable"); eng_stop(); return 0; }
@@ -392,7 +392,7 @@ static int eng_frame(void)
 		return 0;
 	}
 	/* books / podcasts: a hang (watchdog reset, no crash handler) loses at most two minutes. Songs only resume
-	 * from "Reproduciendo", saved on pause / track change: no flash write every minute for them */
+	 * from "Now playing", saved on pause / track change: no flash write every minute for them */
 	if (mode != ENG_MUSIC && time(0) - lastsave >= 120) { save_pos(); lastsave = time(0); }
 	if (dec_direct()) {	/* the DSP plays by itself: follow its position, go on at the end */
 		if (!want_direct()) { reopen_here(); return 0; }
@@ -449,7 +449,7 @@ static int eng_frame(void)
 		if (!first_fail) first_fail = now();
 		if (bt_connected()) { if (now() - first_fail > 2) { first_fail = 0; bt_link_lost(); } else usleep(100000); return 0; }
 		first_fail = 0;
-		eng_pause(1); eng_note("No hay salida de audio"); return 0;
+		eng_pause(1); eng_note("No audio output"); return 0;
 	}
 	PF(3);
 	if (mode == ENG_BOOK && voice_boost_on) voice_boost(out, n, orate);	/* level, presence, compression */

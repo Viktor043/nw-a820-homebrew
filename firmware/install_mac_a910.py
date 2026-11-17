@@ -109,7 +109,7 @@ def write_boot(vol, full, hb):
                     shutil.copyfile(os.path.join(root, f), os.path.join(dst, rel, f)); n += 1
         if not os.path.exists(os.path.join(dst, 'cacert.pem')):
             subprocess.run(['curl', '-sfL', '-o', os.path.join(dst, 'cacert.pem'), 'https://curl.se/ca/cacert.pem'])
-        for f in ('Audiolibros', 'Podcasts', 'Juegos'):
+        for f in ('Audiobooks', 'Books', 'Games'):
             os.makedirs(os.path.join(vol, f), exist_ok=True)
         open(os.path.join(dst, 'version.txt'), 'w').write(M.I.VERSION + '\n')
         say('%d homebrew files copied to %s (no Bluetooth helper: the A91x has no Bluetooth)' % (n, dst))

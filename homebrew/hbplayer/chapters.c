@@ -98,7 +98,7 @@ int chap_load(const char *audio_path)
 		if (st && !(toc && !strncmp(toc, "false", 5))) {
 			ch[nch].start = atof(st);
 			if (ti && *ti == '"') json_string(ti + 1, ch[nch].title, sizeof ch[nch].title);
-			else snprintf(ch[nch].title, sizeof ch[nch].title, "Capítulo %d", nch + 1);
+			else snprintf(ch[nch].title, sizeof ch[nch].title, "Chapter %d", nch + 1);
 			nch++;
 		}
 		p = e + 1;

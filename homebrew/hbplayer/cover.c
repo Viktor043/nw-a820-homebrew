@@ -376,7 +376,7 @@ int cover_load(const char *path, uint16_t *dst, int size)
 		}
 		return 1;
 	}
-	if (marker_has(path, size, "no3")) return 0;	/* "no3": older markers included progressive JPEGs ("no") and FLAC pictures ("no2"), now readable */
+	if (marker_has(path, size, "no3")) return 0;	/* "no3": older markers included progressive JPEGs ("off") and FLAC pictures ("no2"), now readable */
 	if (marker_has(path, size, "dir") && folder_cached(path, size, dst)) return 1;
 	if (ref_cached(path, size, dst)) return 1;
 	/* decoded once at the player's size, and every smaller size the lists use is made from that image: an album

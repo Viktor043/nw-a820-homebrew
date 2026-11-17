@@ -40,7 +40,7 @@ void aout_set_track_gain(int cdb)
 	apply_hw_volume();
 }
 
-/* Ajustes > Sonido > Volumen máximo: the whole scale moved up in the codec's own gain, 0 / +3 / +6 / +9 dB (units of
+/* Settings > Sound > Maximum volume: the whole scale moved up in the codec's own gain, 0 / +3 / +6 / +9 dB (units of
  * 0.65 dB). 76 = 0 dB, the codec goes to 100; above 76 it is digital gain, so loud masters can clip at +6 / +9. */
 int vol_boost;
 static const int boost_units[4] = { 0, 5, 9, 14 };
@@ -79,7 +79,7 @@ int aout_start(int rate)
 {
 	int want_bt = bt_connected() && !force_wired;
 	if (fd >= 0 && rate == in_rate && want_bt == is_bt && !is32) return 0;
-	eng_park_output();	/* a paused "Máxima batería" session holds the device */
+	eng_park_output();	/* a paused "Max. battery" session holds the device */
 	aout_stop();
 	is_bt = want_bt;
 	in_rate = rate;
