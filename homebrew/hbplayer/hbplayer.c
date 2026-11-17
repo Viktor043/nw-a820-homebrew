@@ -448,21 +448,21 @@ static int script_key(int *code)
 static void suspend_now(void);
 static void power_off_full(const char *why);
 
-/* OPTION is also the power key (2026-11-13): a short press is OPTION (sent on release), held 3 s = sleep when let go,
- * held 6 s = power off. opt_since = when it went down (0 = up), opt_dark = the press only woke the screen. */
+/* OPTION is also the power key (2026-11-17): a short press is OPTION (sent on release; on the home screen it turns
+ * the display off), held 4 s on any screen asks "Power off?" and powers off on a yes. opt_since = when it went down
+ * (0 = up), opt_dark = the press only woke the screen. */
 static double opt_since;
 static int opt_dark, opt_stage;
 #define OPT_TAP 0.8
-#define OPT_PROMPT 1.0
-#define OPT_SLEEP 3.0
-#define OPT_OFF 6.0
+#define OPT_HINT 1.5
+#define OPT_POWER 4.0
+static void power_prompt(void);
 
-static int option_tick(void)	/* while OPTION is held: prompt at 3 s, power off at 6 s */
+static int option_tick(void)	/* while OPTION is held: a hint at 1.5 s, the question at 4 s */
 {
 	double held = now() - opt_since;
-	if (held >= OPT_OFF) { opt_since = 0; opt_stage = 0; lg("option held %.1f s: power off", held); power_off_full("OPTION held"); return K_REDRAW; }
-	if (held >= OPT_PROMPT && opt_stage < 1) { opt_stage = 1; message("Power", "Hold 3 s, let go: sleep", "Hold 6 s: power off"); }
-	if (held >= OPT_SLEEP && opt_stage < 2) { opt_stage = 2; message("Power", "Let go now: sleep", "Keep holding: power off"); }
+	if (held >= OPT_POWER) { opt_since = 0; opt_stage = 0; lg("option held %.1f s: power off?", held); power_prompt(); return K_REDRAW; }
+	if (held >= OPT_HINT && opt_stage < 1) { opt_stage = 1; message("Power", "Keep holding OPTION:", "power off"); }
 	return -1;
 }
 
@@ -471,9 +471,8 @@ static int option_released(void)
 	double held = now() - opt_since;
 	int dark = opt_dark;
 	opt_since = 0; opt_stage = 0;
-	if (held >= OPT_SLEEP) { lg("option held %.1f s: sleep", held); suspend_now(); return K_REDRAW; }
 	if (held < OPT_TAP) return dark ? K_REDRAW : K_OPTION;
-	return K_REDRAW;	/* held 0.8-3 s: nothing (the prompt goes away) */
+	return K_REDRAW;	/* let go before 4 s: nothing (the hint goes away) */
 }
 
 /* a pressed key code, -1 (nothing) or K_REDRAW (screen woke up / hold changed). Held direction keys repeat. */
@@ -639,16 +638,21 @@ void idle_tick(int playing)
 	if (eng_take_sleep()) { suspend_now(); return; }
 	int idle = (int)(time(0) - last_key);
 	playing |= eng_playing();
-	if (backlight_on && !ui_keep_awake && idle > (playing ? ui_dim_secs : (ui_dim_secs > DIM_IDLE ? ui_dim_secs : DIM_IDLE))) {
-		if (ui_theme && ui_aod && !in_game) {	/* always-on display: only the strip stays, the backlight at its lowest */
-			ui_aod_now = 1; scr_aod(); gfx_flip(); gfx_backlight(ui_aod_level);
-		} else { gfx_backlight(0); gfx_lcd(0); }
-		backlight_on = 0;
-	}
+	if (backlight_on && !ui_keep_awake && idle > (playing ? ui_dim_secs : (ui_dim_secs > DIM_IDLE ? ui_dim_secs : DIM_IDLE))) display_off();
 	if (batt_low >= 3) power_off_full("Batería agotada");
 	if (!playing && !dl_active() && !ui_keep_awake && idle > (backlight_on ? AUTO_SUSPEND : AUTO_SUSPEND_DARK)) suspend_now();
 	static time_t last_alarm;
 	if (alarm_due() && time(0) - last_alarm > 300) { last_alarm = time(0); alarm_ring(); }
+}
+
+/* the display off (always-on display: only the strip), the audio and everything else running; any key wakes it */
+void display_off(void)
+{
+	if (!backlight_on) return;
+	if (ui_theme && ui_aod && !in_game) {	/* always-on display: only the strip stays, the backlight at its lowest */
+		ui_aod_now = 1; scr_aod(); gfx_flip(); gfx_backlight(ui_aod_level);
+	} else { gfx_backlight(0); gfx_lcd(0); }
+	backlight_on = 0;
 }
 
 void message(const char *title, const char *l1, const char *l2)
@@ -715,7 +719,7 @@ int list_run(struct list_view *v)
 			if (v->sel >= v->top + lv_rows(v)) v->top = v->sel - lv_rows(v) + 1;
 		}
 		if (v->sel != last_sel) {
-			if (!v->grid && last_sel >= 0 && v->top == old_top && backlight_on && held_code < 0 && abs(v->sel - last_sel) == 1) list_slide(v, last_sel, v->sel);
+			if (!ui_theme && !v->grid && last_sel >= 0 && v->top == old_top && backlight_on && held_code < 0 && abs(v->sel - last_sel) == 1) list_slide(v, last_sel, v->sel);	/* SNRGY: the pill jumps (a half-way frame showed it across two rows) */
 			last_sel = v->sel; v->scroll = 0; t_sel = now(); redraw = 1; marquee_runs = 0;
 		}
 		int over = backlight_on && marquee_runs < 2 ? scr_list_overflow(v) : 0;
@@ -1709,6 +1713,21 @@ void power_menu(void)
 
 static int resume_last(void);
 
+/* OPTION held 4 s on any screen: "Power off?" with Cancel preselected; never stacked, never during a game */
+static void power_prompt(void)
+{
+	static int open;
+	if (open || in_game) return;
+	open = 1;
+	wake();
+	snprintf(pw_items[0], 40, "Apagar"); snprintf(pw_items[1], 40, "Cancelar");
+	struct list_view v = { alarm_cfg.on ? "¿Apagar? (sin despertador)" : "¿Apagar el Walkman?", 2, 1, 0, pw_label, 0, 0, LI_NONE, 0, 0 };
+	int s = list_run(&v);
+	open = 0;
+	if (s == 0) power_off_full("OPTION held");
+	force_redraw = 1;
+}
+
 /* the wake-up alarm: resume the last thing played (or bells) with the volume rising; a key ends the ramp */
 void alarm_ring(void)
 {
@@ -1860,7 +1879,7 @@ static void home(void)
 			redraw = 1;
 			continue;
 		}
-		else if (k == K_OPTION && eng_active()) { pending_slide = 1; nowplaying_run(); redraw = 1; continue; }
+		else if (k == K_OPTION) { display_off(); continue; }	/* the display off at once, the music goes on (power: OPTION held 4 s) */
 		else if (k == K_BT) { pending_slide = 1; bt_menu(); pending_slide = -1; redraw = 1; continue; }
 		else change_volume(k);
 		if (ns != sel && ui_theme) { sel = ns; redraw = 1; continue; }	/* SNRGY list: no icon animation */

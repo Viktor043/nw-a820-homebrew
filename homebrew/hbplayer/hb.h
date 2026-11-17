@@ -18,6 +18,7 @@ void lg(const char *fmt, ...);
 double now(void);
 int getkey(int timeout_ms);
 void wake(void);
+void display_off(void);		/* the screen off now (playback goes on); any key wakes it */
 void idle_tick(int playing);		/* backlight, auto-suspend, low battery */
 int popup_active(void);			/* volume / hold / note overlay on screen */
 int popup_expired(void);		/* 1 once when the overlay should be cleared */

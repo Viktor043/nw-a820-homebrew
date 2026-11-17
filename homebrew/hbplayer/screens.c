@@ -650,7 +650,7 @@ static void snrgy_home(int sel, const char *nowline)
 	{
 		int tx = 12, w = gfx_text_w("Reanudar", 1), focus = ui_home_tab != 0;
 		if (focus) rrect(tx - 7, 2, w + 14, 24, 6, C_WHITE, 1);
-		gfx_text(tx, 5, "Reanudar", RGB(0xE2, 0x06, 0x13), 1);	/* 2026-11-13: Leica red, focused or not */
+		gfx_text(tx, 3, "Reanudar", focus ? RGB(255, 255, 255) : RGB(0xE2, 0x06, 0x13), 1);	/* Leica red; white on the pill (red on black didn't read), capitals centred in it */
 	}
 	for (int r = 0; r < home_order_n; r++) {
 		int i = home_order[r], y = TITLE_H + 1 + r * HOME_RH, on = !ui_home_tab && i == sel;
