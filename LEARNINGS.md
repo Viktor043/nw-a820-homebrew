@@ -68,7 +68,9 @@ A91x support were also offered upstream as PR #3 (`mac-installer` branch).
 - **Diagnostics first.** Stage 1 of `install_mac_a910.py` installs a boot.sh that only writes `HB/out/diag.txt`
   (kernel, fb, input, devices) and boots Sony's UI: a safe way to check an untested model before running the player.
 
-## 5. The SNRGY looks (Settings > Display > Theme: Sony / SNRGY silver / SNRGY black)
+## 5. The SNRGY looks (Settings > Display > Theme: silver / black)
+
+Since 2026-11-13 the player is SNRGY-only and English-only (the Sony look and the language picker were removed).
 
 - **Art direction** from the SNRGY e-reader project: paper `#E9E6DF`, ink `#1E1E1E` (or reversed), squared type,
   inverted rounded selection, rules, chevrons, capsule scrollbar, and the E-PLAYER's dot-matrix status display.
@@ -80,8 +82,10 @@ A91x support were also offered upstream as PR #3 (`mac-installer` branch).
   counter, BT/Hold, battery, 24 h clock) / song or book (scrolls when long) / elapsed–line–remaining. Refreshed once a
   second from `idle_tick` (or every 5 s in "calm" mode), the marquee ticked from the key wait loop.
 - **Always-on display:** after the timeout everything goes black but the strip, at the lowest backlight step.
-- **Home:** RESUME as the header (UP from the first row), then Music, Audiobooks, Books, Podcasts, Games, Focus,
-  Power, Settings. Bluetooth lives in Settings. Sony's 3×3 grid is unchanged in the Sony theme.
+- **Home:** RESUME as the header (Leica red; white on its pill when focused; UP from the first row, the list loops),
+  then Music, Audiobooks, Books, Podcasts, Games, Focus, Settings (7 rows of 35 px). Bluetooth and power live in
+  Settings / the OPTION key. In SNRGY lists the selection pill jumps instead of sliding (the slide's half-way frame
+  showed it across two rows).
 - **Now playing:** the cover at 236 px, counter + play mode under it, the queue below; UP/DOWN browse it while it
   plays (UP above the first song returns to the cover), PLAY jumps, BACK or 8 s idle returns.
 - **Fonts are not in the repo.** `tools/mkfont.py` turns a TTF into 4-bit bitmap faces (`ui_font.h`; `book_font.h`
@@ -106,6 +110,9 @@ A91x support were also offered upstream as PR #3 (`mac-installer` branch).
 - **Power off** now saves, unmounts, darkens the screen and keeps asking for `RB_POWER_OFF` (with `poweroff -f` and
   `halt -f -p` as fallbacks) instead of falling back into the UI. With a charger connected the hardware may still
   restart.
+- **OPTION is also the power key:** a tap is OPTION (sent on release); on the home screen a tap turns the display off
+  at once while playback goes on (any key wakes it). Held 4 s on any screen: a hint at 1.5 s, then "Power off the
+  Walkman?" with Cancel preselected. (Before 2026-11-17: held 3 s = suspend, 6 s = power off without asking.)
 - **A black screen is usually sleep.** With nothing playing, the player suspends after a few idle minutes; any key
   wakes it. Plugged into a computer, it shows only the USB splash (the drive is handed to the computer).
 - **Logs** after every boot: `HB/out/boot_events.txt`, `player_log.txt`, `hbwatch_log.txt`, `usb_log.txt`,
@@ -128,7 +135,7 @@ A91x support were also offered upstream as PR #3 (`mac-installer` branch).
 - Verify the A919's direct DSP mode and the A91x texture remap on the device.
 - Calibrate the A919 battery curve (log a full discharge; the player logs every 5 min).
 - The Mac sync tool (covers pre-sized to 236 px, `._` cleanup, FLAC conversion), a SNRGY EQ screen, PDF via a Mac-side
-  converter, Books in the Sony theme's grid.
+  converter.
 - Open-licence fonts for anything shared beyond prototypes.
 
 Future projects and ideas (USB audio, USB-C, LoRa mesh, AirPods, UI ideas): see [FUTURE.md](FUTURE.md).

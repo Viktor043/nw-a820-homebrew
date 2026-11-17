@@ -1,7 +1,7 @@
 # Future projects and ideas
 
 Ideas researched or discussed but not built yet, with what we know so far. Companion to [LEARNINGS.md](LEARNINGS.md)
-(what was built and learned). Status as of 2026-11-13.
+(what was built and learned). Status as of 2026-11-17.
 
 ## 1. USB audio: the Walkman as a USB sound card for a computer (A82x first)
 
@@ -94,7 +94,7 @@ device? pairing refused? audio failed to start?). Older/simpler Bluetooth headph
 - **PDF:** too heavy to render on the Walkman; a Mac-side converter (text/reflow into the reader, page images for scans).
 - **Mac sync tool:** copy music/books/podcasts, strip `._` files, pre-size covers to 236 px, convert hi-res FLAC.
 - **SNRGY EQ screen** (dot-matrix bars), AutoEQ headphone presets, a battery-cost hint.
-- **SNRGY games screen** with cover art; **Books in the Sony theme's grid**.
+- **SNRGY games screen** with cover art.
 - **Marquee and refresh:** the strip already scrolls; measure the every-second refresh's battery cost.
 - **Open-licence fonts** (instead of DIN Alternate / Georgia) for anything shared beyond prototypes.
 
