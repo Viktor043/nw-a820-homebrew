@@ -125,7 +125,7 @@ static void run_session(void)
 		if (ending && !bells_left) break;
 	}
 	aout_stop();
-	if (ending) { message("Focus", "Session finished.", ""); msg_wait(3); }
+	if (ending) { led_alert(LED_FOCUS, 8); message("Focus", "Session finished.", ""); msg_wait(3); }
 }
 
 /* alarm: bells every 6 s until a key is pressed (rising volume) */

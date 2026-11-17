@@ -621,6 +621,7 @@ void idle_tick(int playing)
 		}
 	}
 	battery_update();
+	led_tick();
 	usb_check();
 	{ int w = warm_poll(); if (w) { music_preload(w == 2); warm_covers_start(); } }	/* the first visit of Music then opens at once, its covers ready */
 	bt_poll();
@@ -808,6 +809,7 @@ static void pos_load(void)
 		if (!strncmp(line, "aod ", 4)) { int a = 0, l = 20; sscanf(line + 4, "%d %d", &a, &l); ui_aod = a == 1; ui_aod_level = l < 20 ? 20 : l > 100 ? 100 : l / 20 * 20; continue; }
 		if (!strncmp(line, "book ", 5)) { int z = 1, o = 0; sscanf(line + 5, "%d %d", &z, &o); ui_book_size = z < 0 ? 0 : z > 7 ? 7 : z; ui_book_land = o == 1; continue; }
 		if (!strncmp(line, "calm ", 5)) { ui_strip_calm = atoi(line + 5) == 1; continue; }
+		if (!strncmp(line, "led ", 4)) { ui_led = atoi(line + 4) != 0; continue; }
 		if (!strncmp(line, "volmax ", 7)) { vol_boost = atoi(line + 7); if (vol_boost < 0 || vol_boost > 3) vol_boost = 0; continue; }
 		if (!strncmp(line, "wall ", 5)) { ui_wall = atoi(line + 5); if (ui_wall < 0 || ui_wall >= WALL_COUNT) ui_wall = 0; continue; }
 		if (!strncmp(line, "grid ", 5)) { ui_album_grid = atoi(line + 5) == 1; continue; }
@@ -841,6 +843,7 @@ void pos_save(void)
 	fprintf(f, "vol30 %d\nmode %d %d\nui %d %d\nalarm %d %d %d %d\nspeed %d\nrg %d\n", volume, eng_shuffle, eng_repeat, ui_brightness, ui_dim_secs, alarm_cfg.on, alarm_cfg.hour, alarm_cfg.min, alarm_cfg.src, eng_speed, replaygain_mode);
 	{ char fo[32]; focus_save(fo, sizeof fo); fprintf(f, "rows %d\ngrid %d\nbeep %d\npodc %s\nlang %d\nfocus %s\n", ui_big_rows, ui_album_grid, ui_beep, pod_country, ui_lang, fo); }
 	fprintf(f, "wall %d\ntheme %d\naod %d %d\ncalm %d\nbook %d %d\nvolmax %d\n", ui_wall, ui_theme, ui_aod, ui_aod_level, ui_strip_calm, ui_book_size, ui_book_land, vol_boost);
+	fprintf(f, "led %d\n", ui_led);
 	if (lastfile[0]) fprintf(f, "last %s\n", lastfile);
 	for (int i = 0; i < npos; i++) fprintf(f, "%ld %d %s\n", poss[i].bytes, poss[i].sec, poss[i].path);
 	int bad = ferror(f);
@@ -1188,6 +1191,7 @@ static void suspend_now(void)
 static void power_off_full(const char *why)
 {
 	lg("power off: %s", why);
+	led_stop();
 	mode_set("player");
 	scr_poweroff(); gfx_flip();
 	prepare_shutdown();
@@ -1234,7 +1238,7 @@ static void leave_player(const char *splash, int rc)
 }
 
 /* back to the Sony UI without a reboot, several seconds sooner than a reboot */
-static void back_to_sony(void) { leave_player("Back to the Walkman...", 0); }
+static void back_to_sony(void) { led_stop(); leave_player("Back to the Walkman...", 0); }	/* Sony drives the light from here */
 void switch_to_sony(void) { back_to_sony(); }	/* Settings > Switch to Sony's Walkman: the next boot is Sony's too */
 
 /* a computer has enumerated the Walkman as a disk: status 1 from Sony's usbconn driver (the one Sony's apl_conn
@@ -1769,6 +1773,7 @@ void alarm_ring(void)
 {
 	lg("alarm: ring");
 	wake();
+	led_alert(LED_ALARM, 0);
 	int target = volume;
 	set_cpu(124);
 	if (alarm_cfg.src == 0 && (eng_active() || resume_last())) {
@@ -1792,6 +1797,7 @@ void alarm_ring(void)
 		scr_message("Alarm", "", "any key: stop"); gfx_flip();
 		focus_bells();
 	}
+	led_alert(LED_NONE, 0);
 	force_redraw = 1;
 	gfx_invalidate();	/* someone else (suspend, a game, the remote) drew on the screen */
 }

@@ -48,7 +48,13 @@ int opt_music(int i), opt_albums(int i), opt_audiobooks(int i), opt_books(int i)
 void voice_quick_menu(void);		/* settings.c: speed, silence trimming, voice boost */
 void reader_restart(int i);		/* reader.c: forget where book i of the list was */
 void game_controls(int i);
-void calc_run(void);			/* calc.c: the calculator (Tools) */
+void calc_run(void);
+/* led.c: the NW-A91x notification light */
+enum { LED_NONE, LED_CHARGING, LED_FULL, LED_LOW, LED_ALARM, LED_FOCUS };
+extern int ui_led;
+void led_tick(void);
+void led_alert(int what, double secs);
+void led_stop(void);			/* calc.c: the calculator (Tools) */
 void settings_info(const char *label);	/* settings.c: the (i) window of a setting */		/* hbplayer.c: the keys of game i */
 extern int hw_a91x;			/* hbplayer.c: an NW-A91x (no Bluetooth; an LED) rather than an NW-A82x */
 extern int eng_resume_music;	/* engine.c: resume the next song opened at its saved position (only "Now playing") */		/* the "now playing" screen for whatever the engine plays */

@@ -43,6 +43,7 @@ static const struct { const char *label, *text; } info_texts[] = {
 	{ "Always-on brightness", "How bright the strip stays when the always-on display is on. Lower lasts longer on battery." },
 	{ "Status strip", "Live: the strip scrolls long titles and refreshes every second. Calm: every 5 s and no scrolling, a bit kinder to the battery." },
 	{ "Book text size", "The reader's text size: small, medium, large or extra large. Also in OPTION while reading." },
+	{ "Notification light", "The Walkman's light: breathes while charging, stays on when charged, blips every 4 s below 10% battery, blinks for the alarm and at the end of a Focus session." },
 	{ "Beep", "A short click on every key press, like Sony's. Turning it on beeps once." },
 	{ "Sony Walkman: power saving", "Experimental: Sony's own firmware runs at half the processor clock. Menus are slower, the battery lasts longer. Applies the next time you switch to Sony." },
 	{ "Switch to Sony's Walkman", "Leaves this player and starts Sony's original firmware. To come back, hold HOME and VOL- together for 2 s." },
@@ -361,10 +362,10 @@ static void reset_menu(void)
 /* Settings > Display */
 static void screen_menu(void)
 {
-	struct list_view v = { "Display", 9, 0, 0, it_label, it_value, 0, LI_NONE, 0, 0 };
+	struct list_view v = { "Display", 10, 0, 0, it_label, it_value, 0, LI_NONE, 0, 0 };
 	v.option = info_opt;
 	for (;;) {
-		int id[9], n = 0;	/* row -> the rows below (the Background row is gone) */
+		int id[10], n = 0;	/* row -> the rows below (the Background row is gone; the light: A91x only) */
 		snprintf(items[0], 48, "Brightness"); snprintf(values[0], 24, "%d%%", ui_brightness);
 		snprintf(items[1], 48, "Screen off after"); snprintf(values[1], 24, "%d s", ui_dim_secs);
 		snprintf(items[2], 48, "Big rows with covers"); snprintf(values[2], 24, "%s", ui_big_rows ? "on" : "off");
@@ -375,7 +376,8 @@ static void screen_menu(void)
 		snprintf(items[7], 48, "Status strip"); snprintf(values[7], 24, "%s", ui_strip_calm ? "calm" : "live");
 		{ static const char *const sz[4] = { "small", "medium", "large", "extra large" };
 		  snprintf(items[8], 48, "Book text size"); snprintf(values[8], 24, "%s", sz[ui_book_size < 0 ? 0 : ui_book_size > 3 ? 3 : ui_book_size]); }
-		for (int r = 0; r < 9; r++) if (r != 3) { if (n != r) { memcpy(items[n], items[r], sizeof items[0]); memcpy(values[n], values[r], sizeof values[0]); } id[n++] = r; }
+		snprintf(items[9], 48, "Notification light"); snprintf(values[9], 24, "%s", ui_led ? "on" : "off");
+		for (int r = 0; r < 10; r++) if (r != 3 && (r != 9 || hw_a91x)) { if (n != r) { memcpy(items[n], items[r], sizeof items[0]); memcpy(values[n], values[r], sizeof values[0]); } id[n++] = r; }
 		v.n = n;
 		int s = list_run(&v);
 		if (s < 0) return;
@@ -388,6 +390,7 @@ static void screen_menu(void)
 		else if (s == 5) ui_aod = !ui_aod;	/* the strip stays on when the screen times out (SNRGY looks) */
 		else if (s == 6) ui_aod_level = ui_aod_level >= 100 ? 20 : ui_aod_level + 20;
 		else if (s == 7) ui_strip_calm = !ui_strip_calm;
+		else if (s == 9) { ui_led = !ui_led; led_tick(); }
 		else if (s == 8) ui_book_size = (ui_book_size + 1) % (gfx_book_sizes() < 4 ? gfx_book_sizes() : 4);	/* the reader's text: 13, 15, 18, 22 px */
 		settings_save();
 	}
